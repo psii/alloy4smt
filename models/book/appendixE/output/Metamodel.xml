@@ -1,0 +1,73 @@
+
+<alloy builddate="2009/01/22 10:01">
+
+<instance bitwidth="4" maxseq="4" command="show metamodel" filename="/home/psi/work/uni/sa/alloy/models/book/appendixE/p300-hotel.als" metamodel="yes">
+
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<sig label="this/Key" ID="4" parentID="2">
+</sig>
+
+<sig label="this/Time" ID="5" parentID="2">
+</sig>
+
+<sig label="this/Card" ID="6" parentID="2">
+</sig>
+
+<field label="fst" ID="7" parentID="6">
+   <types> <type ID="6"/> <type ID="4"/> </types>
+</field>
+
+<field label="snd" ID="8" parentID="6">
+   <types> <type ID="6"/> <type ID="4"/> </types>
+</field>
+
+<sig label="this/Room" ID="9" parentID="2">
+</sig>
+
+<field label="key" ID="10" parentID="9">
+   <types> <type ID="9"/> <type ID="4"/> <type ID="5"/> </types>
+</field>
+
+<sig label="this/Desk" ID="11" parentID="2" one="yes">
+</sig>
+
+<field label="issued" ID="12" parentID="11">
+   <types> <type ID="11"/> <type ID="4"/> <type ID="5"/> </types>
+</field>
+
+<field label="prev" ID="13" parentID="11">
+   <types> <type ID="11"/> <type ID="9"/> <type ID="4"/> <type ID="5"/> </types>
+</field>
+
+<sig label="this/Guest" ID="14" parentID="2">
+</sig>
+
+<field label="cards" ID="15" parentID="14">
+   <types> <type ID="14"/> <type ID="6"/> <type ID="5"/> </types>
+</field>
+
+<sig label="timeOrder/Ord" ID="16" parentID="2" one="yes" private="yes">
+</sig>
+
+<field label="First" ID="17" parentID="16" private="yes">
+   <types> <type ID="16"/> <type ID="5"/> </types>
+</field>
+
+<field label="Next" ID="18" parentID="16" private="yes">
+   <types> <type ID="16"/> <type ID="5"/> <type ID="5"/> </types>
+</field>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+</instance>
+
+</alloy>
