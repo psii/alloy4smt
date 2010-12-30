@@ -61,7 +61,6 @@ public final class Containers {
 	 * @throws IllegalArgumentException - start < end && (start < 0 || end > items.length) ||
 	 *                                    start > end && (start >= items.length || end < -1)
 	 */
-	@SuppressWarnings("unchecked")
 	public static final <T, E extends T> Iterator<T> iterate(int start, int end, final E... items) {
 		if (start < end)
 			return new AscendingArrayIterator<T>(start,end,items);

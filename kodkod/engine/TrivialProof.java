@@ -160,7 +160,6 @@ final class TrivialProof extends Proof {
 		 * Constructs a proof finder for the given log.
 		 * @effects this.log' = log
 		 */
-		@SuppressWarnings("unchecked")
 		NodePruner(TranslationLog log) {
 			visited = new IdentityHashSet<Node>();
 			relevant = new IdentityHashSet<Node>();

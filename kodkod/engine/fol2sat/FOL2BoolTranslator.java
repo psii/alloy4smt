@@ -140,7 +140,6 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	 * @throws HigherOrderDeclException - annotated.node contains a higher order declaration
 	 * @throws UnboundLeafException - annotated.node refers to a variable that neither declared nor bound in env
 	 **/
-	@SuppressWarnings("unchecked")
 	static final BooleanMatrix approximate(AnnotatedNode<Expression> annotated, LeafInterpreter interpreter, Environment<BooleanMatrix> env) {
 		final FOL2BoolTranslator approximator = new FOL2BoolTranslator(new FOL2BoolCache(annotated), interpreter, env) {
 			public final BooleanMatrix visit(BinaryExpression binExpr) {

@@ -152,7 +152,6 @@ public final class LinkedStack<T> extends  Stack<T> {
 	 * @specfield data: T
 	 * @specfield next: StackEntry<T>
 	 */
-	@SuppressWarnings("hiding")
 	private static final class StackEntry<T> {
 		T data;
 		StackEntry<T> next;

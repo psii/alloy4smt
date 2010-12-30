@@ -335,7 +335,6 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 	 * @return a copy of this sparse sequence.
 	 * @see kodkod.util.ints.SparseSequence#clone()
 	 */
-	@SuppressWarnings("unchecked")
 	public RangeSequence<V> clone() {
 		// ok to use copy constructor to clone a final class
 		return new RangeSequence<V>(this);
@@ -388,7 +387,6 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		 * @throws CloneNotSupportedException 
 		 * @see java.lang.Object#clone()
 		 */
-		@SuppressWarnings("unchecked")
 		protected Entry<V> clone() throws CloneNotSupportedException {
 			return (Entry<V>) super.clone();
 		}
@@ -418,7 +416,6 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		@Override
 		boolean isPoint() { return true; }
 
-		@SuppressWarnings("unchecked")
 		protected Point<V> clone() throws CloneNotSupportedException {
 			return (Point<V>) super.clone();
 		}
@@ -450,7 +447,6 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		@Override
 		boolean isPoint() { return false; }
 
-		@SuppressWarnings("unchecked")
 		protected Range<V> clone() throws CloneNotSupportedException {
 			return (Range<V>) super.clone();
 		}
@@ -505,7 +501,6 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		 * indeces between from and to.
 		 * @requires from <= to
 		 */
-		@SuppressWarnings("unchecked") 
 		AscendingIterator(int from, int to) {
 			super(to);
 			next = tree.searchGTE(from);

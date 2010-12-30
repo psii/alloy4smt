@@ -66,7 +66,6 @@ public abstract class BooleanFactory {
 	 * @effects this.bitwidth' = bitwidth
 	 * @effects this.comparisonDepth' = comparisonDepth
 	 */
-	@SuppressWarnings("unchecked")
 	private BooleanFactory(int numVars, int comparisonDepth, int bitwidth) {
 		if (numVars==0) {
 			if (CONSTANT_FACTORY==null)

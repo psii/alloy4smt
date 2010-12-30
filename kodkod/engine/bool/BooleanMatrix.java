@@ -485,7 +485,6 @@ public final class BooleanMatrix implements Iterable<IndexedEntry<BooleanValue>>
      * @throws NullPointerException - others = null
      * @throws IllegalArgumentException - this.factory != others[int].factory
      */
-	@SuppressWarnings("unchecked")
 	public final BooleanMatrix cross(final BooleanMatrix...others) {
 		Dimensions retDims = dims;
 		boolean empty = cells.isEmpty();

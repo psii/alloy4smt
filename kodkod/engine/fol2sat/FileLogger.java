@@ -79,7 +79,6 @@ final class FileLogger extends TranslationLogger {
 	 * @effects this.log().roots() = Nodes.conjuncts(annotated)
 	 * @effects no this.records' 
 	 */
-	@SuppressWarnings("unchecked")
 	FileLogger(final AnnotatedNode<Formula> annotated, Bounds bounds) {
 		this.annotated = annotated;
 		try {

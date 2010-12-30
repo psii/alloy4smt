@@ -112,7 +112,6 @@ public abstract class AbstractCollector<T> implements
 	 * @effects n in this.cached => this.cache' = this.cache ++ n->reduce(val), this.cache' = this.cache
 	 * @return val
 	 */
-	@SuppressWarnings("unchecked")
 	protected Set<T> cache(Node n, Set<T> val) {
 		if (cached.contains(n)) {
 			cache.put(n, reduce(val));
