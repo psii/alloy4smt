@@ -72,7 +72,7 @@ object AlloyAST {
   one sig B extends Field {}
   one sig C extends Field {}
 
-  sig X { lala: Field ->one IntRef }
+  sig X { lala: Field ->one IntRef, mm: univ->univ->X->Int }
 
   fact {
     int(A.val) fun/mul int(A.val) + int(B.val) fun/mul int(B.val) = int(C.val) fun/mul int(C.val)

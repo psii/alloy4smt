@@ -9,11 +9,10 @@ import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -32,12 +31,32 @@ public class IntRefPreprocessorTest {
             "sig X { v: Int }\n" +
             "sig Y { w: X ->one Int }\n";
 
+    private static final String intrefmod =
+            "module util/intref\n" +
+            "abstract sig IntRef {}\n";
+
     private static final String[] stdsigs = { "univ", "Int", "seq/Int", "String", "none" };
 
-    private CompModule parseModule(String doc) throws Err {
+    private CompModule module;
+    private Sig sig;
+    private Sig.Field field;
+    private Sig sigN;
+    private Sig.Field fieldN;
+
+    @Before
+    public void tearDown() {
+        module = null;
+        sig = null;
+        field = null;
+        sigN = null;
+        fieldN = null;
+    }
+
+    private void parseModule(String doc) throws Err {
         Map<String,String> fm = new HashMap<String, String>();
         fm.put("/tmp/x", doc);
-        return CompUtil.parseEverything_fromFile(null, fm, "/tmp/x");
+        fm.put("/tmp/util/intref.als", intrefmod);
+        module = CompUtil.parseEverything_fromFile(null, fm, "/tmp/x");
     }
 
     private static void assertStdSigsRetained(CompModule module, IntRefPreprocessor p) {
@@ -74,7 +93,7 @@ public class IntRefPreprocessorTest {
 
     @Test
     public void retainNormalSigs() throws Err {
-        CompModule module = parseModule(doc);
+        parseModule(doc);
         IntRefPreprocessor p = IntRefPreprocessor.processModule(module);
         ConstList<Sig> msigs = module.getAllReachableSigs();
         ConstList<Sig> nsigs = p.sigs;
@@ -83,25 +102,41 @@ public class IntRefPreprocessorTest {
         assertStdSigsRetained(module, p);
     }
 
+    private void createFieldWithDecl(String decl) throws Err {
+        String modstr = "open util/intref\nsig A {}\nsig X { v: " + decl + " }\n";
+        parseModule(modstr);
+        sig = getSigByName(module.getAllReachableSigs(), "this/X");
+        field = getFieldByName(sig.getFields(), "v");
+        assertNotNull(field);
+    }
+
+    private void convertFieldWithDecl(String decl) throws Err {
+        createFieldWithDecl(decl);
+
+        Sig intref = getSigByName(module.getAllReachableSigs(), "intref/IntRef");
+        sigN = new Sig.PrimSig("this/NewX", Sig.UNIV);
+        fieldN = IntRefPreprocessor.convertAndAttachField(field, sigN, intref);
+        assertNotNull(fieldN);
+    }
+
+    private void assertFieldConversion(String decl, String newDecl) throws Err {
+        convertFieldWithDecl(decl);
+        assertEquals("{this/X->"+ decl +"}", field.type().toString());
+        assertEquals("{this/NewX->"+ newDecl +"}", fieldN.type().toString());
+    }
+
     @Test
-    public void convertSingleField() throws Err {
-        CompModule module = parseModule(doc2);
-        Sig sigX = getSigByName(module.getAllReachableSigs(), "this/X");
-        Sig.Field fieldV = getFieldByName(sigX.getFields(), "v");
-        assertNotNull(fieldV);
-
-        Sig newSig = new Sig.PrimSig("this/NewX", Sig.UNIV);
-        IntRefPreprocessor.convertAndAttachField(fieldV, newSig);
-        Sig.Field newV = getFieldByName(newSig.getFields(), "v");
-        assertNotNull(newV);
-
-        assertEquals("{this/X->Int}", fieldV.type().toString());
-        assertEquals("{this/NewX->Int}", newV.type().toString());
+    public void convertField() throws Err {
+        assertFieldConversion("this/A",      "this/A");
+        assertFieldConversion("Int",         "intref/IntRef");
+        assertFieldConversion("univ->Int",   "univ->intref/IntRef");
+        assertFieldConversion("Int->Int",    "intref/IntRef->intref/IntRef");
+        assertFieldConversion("this/A->Int", "this/A->intref/IntRef");
     }
 
     @Test
     public void convertIntSigs() throws Err {
-        CompModule module = parseModule(doc2);
+        parseModule(doc2);
         IntRefPreprocessor p = IntRefPreprocessor.processModule(module);
 
         assertStdSigsRetained(module, p);

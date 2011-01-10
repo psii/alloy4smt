@@ -2,6 +2,9 @@ package de.psi.alloy4smt.ast;
 
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Err;
+import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
+import edu.mit.csail.sdg.alloy4compiler.ast.ExprBinary;
+import edu.mit.csail.sdg.alloy4compiler.ast.ExprUnary;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 
@@ -23,8 +26,31 @@ public class IntRefPreprocessor {
         return new IntRefPreprocessor(module.getAllReachableSigs());
     }
 
-    public static void convertAndAttachField(Sig.Field field, Sig sig) throws Err {
-        //sig.addDefinedField(field.pos(), field.isPrivate, field.isMeta, field.label, field.decl().expr);
-        sig.addTrickyField(field.pos(), field.isPrivate, null, null, field.isMeta, new String[] {field.label}, field.decl().expr);
+    private static Expr convertExpr(Expr expr, Sig intRefSig) {
+        Expr result = expr;
+
+        if (expr == Sig.SIGINT) {
+            result = intRefSig;
+        } else if (expr instanceof ExprUnary) {
+            ExprUnary unary = (ExprUnary) expr;
+            Expr newSub = convertExpr(unary.sub, intRefSig);
+            if (newSub != unary.sub) {
+                result = unary.op.make(unary.pos, newSub);
+            }
+        } else if (expr instanceof ExprBinary) {
+            ExprBinary binary = (ExprBinary) expr;
+            Expr newLeft = convertExpr(binary.left, intRefSig);
+            Expr newRight = convertExpr(binary.right, intRefSig);
+            if (newLeft != binary.left || newRight != binary.right) {
+                result = binary.op.make(binary.pos, binary.closingBracket, newLeft, newRight);
+            }
+        }
+
+        return result;
+    }
+
+    public static Sig.Field convertAndAttachField(Sig.Field field, Sig sig, Sig intRefSig) throws Err {
+        return sig.addTrickyField(field.pos(), field.isPrivate, null, null,
+                field.isMeta, new String[] {field.label}, convertExpr(field.decl().expr, intRefSig))[0];
     }
 }
