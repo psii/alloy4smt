@@ -15,6 +15,7 @@ import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
+import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
 
@@ -43,10 +44,12 @@ public class IntRefPreprocessorTest {
 
     private CompModule module;
     private IntRefPreprocessor.SigBuilder sigbuilder;
+    private IntRefPreprocessor ppresult;
 
     @Before
     public void setUp() {
         module = null;
+        ppresult = null;
         
         sigbuilder = new IntRefPreprocessor.SigBuilder() {
         	private int id = 1;
@@ -74,28 +77,6 @@ public class IntRefPreprocessorTest {
         }
     }
 
-    private static Sig getSigByName(Iterable<Sig> sigs, String name) {
-        Sig result = null;
-        for (Sig s: sigs) {
-            if (s.toString().equals(name)) {
-                result = s;
-                break;
-            }
-        }
-        return result;
-    }
-
-    private static Sig.Field getFieldByName(Iterable<Sig.Field> fields, String name) {
-        Sig.Field result = null;
-        for (Sig.Field field: fields) {
-            if (field.label.equals(name)) {
-                result = field;
-                break;
-            }
-        }
-        return result;
-    }
-
     @Test
     public void retainNormalSigs() throws Err {
         parseModule(simpleModuleDoc);
@@ -106,14 +87,14 @@ public class IntRefPreprocessorTest {
         assertEquals(msigs, nsigs);
         assertStdSigsAreTheSame(module, p);
         assertTrue("There should be no new instance for sig X.", 
-        		p.sigs.contains(getSigByName(module.getAllReachableSigs(), "this/X")));
+        		p.sigs.contains(Helpers.getSigByName(module.getAllReachableSigs(), "this/X")));
     }
 
     private void assertDeclConversion(String decl, String newDecl) throws Err {
         String modstr = "open util/intref\nsig A {}\nsig X { v: " + decl + " }\n";
 		parseModule(modstr);
-		Sig sig = getSigByName(module.getAllReachableSigs(), "this/X");
-		Sig.Field field = getFieldByName(sig.getFields(), "v");
+		Sig sig = Helpers.getSigByName(module.getAllReachableSigs(), "this/X");
+		Sig.Field field = Helpers.getFieldByName(sig.getFields(), "v");
 		assertNotNull(field);
 		Expr exprN = IntRefPreprocessor.convertExpr(field.decl().expr, sigbuilder);
 		assertNotNull(exprN);
@@ -130,21 +111,47 @@ public class IntRefPreprocessorTest {
         assertDeclConversion("this/A -> Int",     "this/A -> intref/IntRef5");
         assertDeclConversion("this/A ->lone Int", "this/A ->lone intref/IntRef6");
     }
+    
+    private void preprocessModule(String doc) throws Err {
+    	parseModule(doc);
+    	ppresult = IntRefPreprocessor.processModule(module);
+    	assertStdSigsAreTheSame(module, ppresult);
+    }
+    
+    private void assertConvFieldDecl(String sigName, String fieldName, String expDecl) {
+    	Sig sig = Helpers.getSigByName(ppresult.sigs, sigName);
+    	Sig.Field field = Helpers.getFieldByName(sig.getFields(), fieldName);
+    	assertNotNull("Field " + fieldName + " not found!", field);
+    	assertEquals(expDecl, field.decl().expr.toString());
+    }
+    
+    private void assertSigExists(String sigName) {
+    	assertNotNull("Sig " + sigName + " does not exist", Helpers.getSigByName(ppresult.sigs, sigName));
+    }
 
     @Test
     public void convertIntSigs() throws Err {
-        parseModule("sig X { v: Int }\n");
-        IntRefPreprocessor p = IntRefPreprocessor.processModule(module);
-
-        assertStdSigsAreTheSame(module, p);
+        preprocessModule("open util/intref\n sig X { v: Int }\n  sig Y { w: X ->one Int, u: Y ->one Int ->one Int }");
         assertFalse("A new instance for sig X should have been created",
-        		p.sigs.contains(getSigByName(module.getAllReachableSigs(), "this/X")));
-
-        Sig sigX = getSigByName(p.sigs, "this/X");
-        assertEquals(1, sigX.getFieldDecls().size());
-        Sig.Field fieldV = sigX.getFields().get(0);
-        assertEquals("v", fieldV.label);
-        assertEquals("one this/X$v$IntRef0", fieldV.decl().expr.toString());
-        
+        		ppresult.sigs.contains(Helpers.getSigByName(module.getAllReachableSigs(), "this/X")));
+        assertNotNull(ppresult.intref);
+        assertConvFieldDecl("this/X", "v", "one this/X$v$IntRef0");
+        assertConvFieldDecl("this/Y", "w", "this/X ->one this/Y$w$IntRef0");
+        assertConvFieldDecl("this/Y", "u", "this/Y ->one this/Y$u$IntRef0 ->one this/Y$u$IntRef1");
+        assertSigExists("this/Y$w$IntRef0");
+        assertSigExists("intref/IntRef");
+        Sig.PrimSig sig = (PrimSig) Helpers.getSigByName(ppresult.sigs, "this/Y$w$IntRef0");
+        assertEquals("intref/IntRef", sig.parent.label);
+    }
+    
+    @Test
+    public void intRefBounds() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"sig X { v: Int }\n" +
+    			"pred show {}\n" +
+    			"run show for 4 X\n");
+    	assertEquals("Run show for 4 X", module.getAllCommands().get(0).toString());
+    	assertEquals("Run show for 4 X, 4 X$v$IntRef0", ppresult.commands.get(0).toString());
     }
 }
