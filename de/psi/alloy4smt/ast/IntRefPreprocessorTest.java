@@ -54,9 +54,11 @@ public class IntRefPreprocessorTest {
         sigbuilder = new IntRefPreprocessor.SigBuilder() {
         	private int id = 1;
 			@Override
-			public Sig make() throws Err {
+			public Sig makeSig() throws Err {
 				return new Sig.PrimSig("intref/IntRef" + id++);
 			}
+			@Override
+			public void addFactor(Sig factor) { }
 		};
     }
 
@@ -150,8 +152,24 @@ public class IntRefPreprocessorTest {
     			"open util/intref\n" +
     			"sig X { v: Int }\n" +
     			"pred show {}\n" +
-    			"run show for 4 X\n");
+    			"run show for 4 X\n" +
+    			"run show for exactly 4 X\n");
     	assertEquals("Run show for 4 X", module.getAllCommands().get(0).toString());
     	assertEquals("Run show for 4 X, 4 X$v$IntRef0", ppresult.commands.get(0).toString());
+    	assertEquals("Run show for exactly 4 X", module.getAllCommands().get(1).toString());
+    	assertEquals("Run show for exactly 4 X, 4 X$v$IntRef0", ppresult.commands.get(1).toString());
+    }
+    
+    @Test
+    public void intRefBounds2() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"sig X { v: Y ->one Int, w: X -> Y ->one Int }\n" +
+    			"sig Y {}\n" +
+    			"pred show {}\n" +
+    			"run show for 4 X, 3 Y\n");
+    	assertEquals("Run show for 4 X, 3 Y", module.getAllCommands().get(0).toString());
+    	assertEquals("Run show for 4 X, 3 Y, 12 X$v$IntRef0, 48 X$w$IntRef0",
+    			ppresult.commands.get(0).toString());
     }
 }

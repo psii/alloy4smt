@@ -31,7 +31,9 @@ public class IntRefPreprocessor {
 
     
     public static interface SigBuilder {
-    	public Sig make() throws Err;
+    	public Sig makeSig() throws Err;
+    	
+    	public void addFactor(Sig factor);
     }
         
     private IntRefPreprocessor(Computer computer) {
@@ -40,10 +42,13 @@ public class IntRefPreprocessor {
     	commands = computer.commands.makeConst();
     }
     
-    private static class Computer {
+    private static class Computer implements SigBuilder {
     	private ConstList<Command> oldcommands;
     	private Sig currentSig;
     	private Sig.Field currentField;
+    	private Sig.Field lastfield = null;
+    	private int fieldcnt = 0;
+    	private Map<Command, Integer> factors;
     	private Map<Command, List<CommandScope>> newscopes;
     	
     	public TempList<Sig> sigs;
@@ -55,34 +60,18 @@ public class IntRefPreprocessor {
     		intref = (PrimSig) Helpers.getSigByName(module.getAllReachableSigs(), "intref/IntRef");
     		oldcommands = module.getAllCommands();
     		commands = new TempList<Command>();
+    		factors = new HashMap<Command, Integer>();
     		newscopes = new HashMap<Command, List<CommandScope>>();
     		
     		for (Command c: oldcommands) {
     			newscopes.put(c, new Vector<CommandScope>());
     		}
-    		
-    		final SigBuilder builder = new SigBuilder() {
-        		private int cnt = 0;
-        		private Sig.Field lastfield = null;
-        		
-    			@Override
-    			public Sig make() throws Err {
-    				if (lastfield != currentField) {
-    					cnt = 0;
-    					lastfield = currentField;
-    				} else {
-    					cnt++;
-    				}
-    				String label = currentSig.label + "$" + currentField.label + "$IntRef" + cnt;
-    				return addIntRefSig(label);
-    			}    			
-    		};
-    		
+    		    		
     		for (Sig s: module.getAllReachableSigs()) {
     			if (s.builtin) {
     				sigs.add(s);
     			} else {
-    				sigs.add(convertSig(s, builder));
+    				sigs.add(convertSig(s));
     			}
     		}
     		
@@ -94,28 +83,53 @@ public class IntRefPreprocessor {
     		}
     	}
     	
-    	private Sig addIntRefSig(String label) throws Err {
-    		Sig sig = new Sig.PrimSig(label, intref);
-    		sigs.add(sig);
-    		
+    	@Override
+    	public void addFactor(Sig factor) {
     		for (Command c: oldcommands) {
-    			CommandScope scope = c.getScope(currentSig);
-    			newscopes.get(c).add(new CommandScope(sig, false, scope.endingScope));
+    			CommandScope scope = c.getScope(factor);
+    			if (scope != null)
+    				factors.put(c, factors.get(c) * c.getScope(factor).endingScope);
     		}
-    		
-    		return sig;
+    	}
+    	
+    	private void resetFactors() {
+    		for (Command c: oldcommands) {
+    			factors.put(c, 1);
+    		}
     	}
 
-        private Sig convertSig(Sig sig, SigBuilder builder) throws Err {
+    	@Override
+    	public Sig makeSig() throws Err {
+    		if (lastfield != currentField) {
+    			fieldcnt = 0;
+    			lastfield = currentField;
+    		} else {
+    			fieldcnt++;
+    		}
+    		String label = currentSig.label + "$" + currentField.label + "$IntRef" + fieldcnt;
+    		Sig sig = new Sig.PrimSig(label, intref);
+			sigs.add(sig);
+			
+			for (Command c: oldcommands) {
+				newscopes.get(c).add(new CommandScope(sig, false, factors.get(c)));
+			}
+			
+			return sig;
+    	}
+    	
+        private Sig convertSig(Sig sig) throws Err {
         	boolean newSigNeeded = false;
         	Sig newSig = new Sig.PrimSig(sig.label);
+        	
         	
         	currentSig = sig;
         	
         	for (Sig.Field field: sig.getFields()) {
+            	resetFactors();
+            	addFactor(sig);
         		currentField = field;
         		Expr oldExpr = field.decl().expr;
-        		Expr newExpr = convertExpr(oldExpr, builder);
+        		Expr newExpr = convertExpr(oldExpr, this);
         		newSig.addTrickyField(field.pos, field.isPrivate, null, null, field.isMeta, 
         				              new String[] { field.label }, newExpr);
         		if (oldExpr != newExpr)
@@ -134,7 +148,7 @@ public class IntRefPreprocessor {
         Expr result = expr;
 
         if (expr == Sig.SIGINT) {
-            result = builder.make();
+            result = builder.makeSig();
         } else if (expr instanceof ExprUnary) {
             ExprUnary unary = (ExprUnary) expr;
             Expr newSub = convertExpr(unary.sub, builder);
@@ -148,6 +162,8 @@ public class IntRefPreprocessor {
             if (newLeft != binary.left || newRight != binary.right) {
                 result = binary.op.make(binary.pos, binary.closingBracket, newLeft, newRight);
             }
+        } else if (expr instanceof Sig) {
+        	builder.addFactor((Sig) expr);
         }
 
         return result;
