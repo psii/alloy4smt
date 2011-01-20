@@ -133,7 +133,10 @@ public class IntRefPreprocessorTest {
 
     @Test
     public void convertIntSigs() throws Err {
-        preprocessModule("open util/intref\n sig X { v: Int }\n  sig Y { w: X ->one Int, u: Y ->one Int ->one Int }");
+        preprocessModule(
+        		"open util/intref\n" +
+        		"sig X { v: Int }\n" +
+        		"sig Y { w: X ->one Int, u: Y ->one Int ->one Int }");
         assertFalse("A new instance for sig X should have been created",
         		ppresult.sigs.contains(Helpers.getSigByName(module.getAllReachableSigs(), "this/X")));
         assertNotNull(ppresult.intref);
@@ -144,6 +147,7 @@ public class IntRefPreprocessorTest {
         assertSigExists("intref/IntRef");
         Sig.PrimSig sig = (PrimSig) Helpers.getSigByName(ppresult.sigs, "this/Y$w$IntRef0");
         assertEquals("intref/IntRef", sig.parent.label);
+        assertEquals(ppresult.intref, sig.parent);
     }
     
     @Test
@@ -171,5 +175,29 @@ public class IntRefPreprocessorTest {
     	assertEquals("Run show for 4 X, 3 Y", module.getAllCommands().get(0).toString());
     	assertEquals("Run show for 4 X, 3 Y, 12 X$v$IntRef0, 48 X$w$IntRef0",
     			ppresult.commands.get(0).toString());
+    }
+    
+    @Test
+    public void intRefBounds3() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"sig X { v: Int ->one Int }\n" +
+    			"pred show {}\n" +
+    			"run show for 5 X\n");
+    	assertEquals("Run show for 5 X", module.getAllCommands().get(0).toString());
+    	assertEquals("Run show for 5 X, 5 X$v$IntRef0, 5 X$v$IntRef1",
+    			ppresult.commands.get(0).toString());
+    }
+    
+    @Test
+    public void intRefBounds4() throws Err {
+    	preprocessModule(    			
+    			"open util/intref\n" +
+    			"sig X { v: Y ->one Int -> Y }\n" +
+    			"sig Y {}\n" +
+    			"pred show {}\n" +
+    			"run show for 5 X, 6 Y\n");
+    	assertEquals("Run show for 5 X, 6 Y", module.getAllCommands().get(0).toString());
+    	assertEquals("Run show for 5 X, 6 Y, 180 X$v$IntRef0", ppresult.commands.get(0).toString());
     }
 }

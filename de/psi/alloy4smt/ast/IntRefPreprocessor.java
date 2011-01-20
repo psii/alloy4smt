@@ -8,6 +8,7 @@ import java.util.Vector;
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.ConstList.TempList;
 import edu.mit.csail.sdg.alloy4.Err;
+import edu.mit.csail.sdg.alloy4.ErrorSyntax;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.CommandScope;
 import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
@@ -50,6 +51,7 @@ public class IntRefPreprocessor {
     	private int fieldcnt = 0;
     	private Map<Command, Integer> factors;
     	private Map<Command, List<CommandScope>> newscopes;
+    	private List<Sig> newintrefs;
     	
     	public TempList<Sig> sigs;
     	public Sig.PrimSig intref;
@@ -62,6 +64,7 @@ public class IntRefPreprocessor {
     		commands = new TempList<Command>();
     		factors = new HashMap<Command, Integer>();
     		newscopes = new HashMap<Command, List<CommandScope>>();
+    		newintrefs = new Vector<Sig>();
     		
     		for (Command c: oldcommands) {
     			newscopes.put(c, new Vector<CommandScope>());
@@ -108,25 +111,31 @@ public class IntRefPreprocessor {
     		}
     		String label = currentSig.label + "$" + currentField.label + "$IntRef" + fieldcnt;
     		Sig sig = new Sig.PrimSig(label, intref);
-			sigs.add(sig);
-			
-			for (Command c: oldcommands) {
-				newscopes.get(c).add(new CommandScope(sig, false, factors.get(c)));
-			}
+			newintrefs.add(sig);
 			
 			return sig;
     	}
     	
+    	private void integrateNewIntRefSigs() throws ErrorSyntax {
+    		for (Sig sig: newintrefs) {
+	    		for (Command c: oldcommands) {
+	    			newscopes.get(c).add(new CommandScope(sig, false, factors.get(c)));
+	    		}
+	    		sigs.add(sig);
+    		}
+    		newintrefs.clear();
+    	}
+    	
         private Sig convertSig(Sig sig) throws Err {
         	boolean newSigNeeded = false;
-        	Sig newSig = new Sig.PrimSig(sig.label);
-        	
+        	Sig newSig = new Sig.PrimSig(sig.label);        	
         	
         	currentSig = sig;
         	
         	for (Sig.Field field: sig.getFields()) {
             	resetFactors();
             	addFactor(sig);
+            	
         		currentField = field;
         		Expr oldExpr = field.decl().expr;
         		Expr newExpr = convertExpr(oldExpr, this);
@@ -134,6 +143,8 @@ public class IntRefPreprocessor {
         				              new String[] { field.label }, newExpr);
         		if (oldExpr != newExpr)
         			newSigNeeded = true;
+        		
+        		integrateNewIntRefSigs();
         	}
         	
         	return newSigNeeded ? newSig : sig;
