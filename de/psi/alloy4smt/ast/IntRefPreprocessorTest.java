@@ -3,6 +3,7 @@ package de.psi.alloy4smt.ast;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
@@ -38,7 +39,7 @@ public class IntRefPreprocessorTest {
 
     private static final String intrefmod =
             "module util/intref\n" +
-            "abstract sig IntRef {}\n";
+            "abstract sig IntRef { aqclass: IntRef }\n";
 
     private static final String[] stdsigs = { "univ", "Int", "seq/Int", "String", "none" };
 
@@ -82,6 +83,19 @@ public class IntRefPreprocessorTest {
     @Test
     public void retainNormalSigs() throws Err {
         parseModule(simpleModuleDoc);
+        IntRefPreprocessor p = IntRefPreprocessor.processModule(module);
+        ConstList<Sig> msigs = module.getAllReachableSigs();
+        ConstList<Sig> nsigs = p.sigs;
+
+        assertEquals(msigs, nsigs);
+        assertStdSigsAreTheSame(module, p);
+        assertTrue("There should be no new instance for sig X.", 
+        		p.sigs.contains(Helpers.getSigByName(module.getAllReachableSigs(), "this/X")));
+    }
+
+    @Test
+    public void retainNormalSigs2() throws Err {
+        parseModule("open util/intref\n" + simpleModuleDoc);
         IntRefPreprocessor p = IntRefPreprocessor.processModule(module);
         ConstList<Sig> msigs = module.getAllReachableSigs();
         ConstList<Sig> nsigs = p.sigs;
@@ -199,5 +213,57 @@ public class IntRefPreprocessorTest {
     			"run show for 5 X, 6 Y\n");
     	assertEquals("Run show for 5 X, 6 Y", module.getAllCommands().get(0).toString());
     	assertEquals("Run show for 5 X, 6 Y, 180 X$v$IntRef0", ppresult.commands.get(0).toString());
+    }
+    
+    @Test
+    public void oneSigBounds() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"one sig X { u: Int, v: Y ->one Int, w: Z ->one Int }\n" +
+    			"sig Y {}\n" +
+    			"one sig Z {}\n" +
+    			"pred show {}\n" +
+    			"run show for 4 Y\n");
+    	assertEquals("Run show for 4 Y", module.getAllCommands().get(0).toString());
+    	assertEquals("Run show for 4 Y, 1 X$u$IntRef0, 4 X$v$IntRef0, 1 X$w$IntRef0",
+    			ppresult.commands.get(0).toString());
+    	
+    	Sig sigXold = Helpers.getSigByName(module.getAllReachableSigs(), "this/X");
+    	Sig sigXnew = Helpers.getSigByName(ppresult.sigs, "this/X");
+    	Sig sigYold = Helpers.getSigByName(module.getAllReachableSigs(), "this/Y");
+    	Sig sigYnew = Helpers.getSigByName(ppresult.sigs, "this/Y");
+    	assertNotNull(sigXold.isOne);
+    	assertNotNull(sigXnew.isOne);
+    	assertEquals(sigYold, sigYnew);
+    	assertNull(sigYold.isOne);
+    }
+    
+    @Test
+    public void unchangedFacts() throws Err {
+    	preprocessModule(
+    		"open util/intref\n" +
+    		"sig A {}\n" +
+    		"sig B { m: A -> A}\n" +
+    		"pred testeq[a: A, b: B] { let a2 = b.m[a] | a2 != a }\n" +
+    		"fact { all b: B, a: A { let a2 = a | testeq[a2, b] } }\n" +
+    		"fact { all b: B, a: A { b.m[a] = a implies b.m[a] = a else b.m[a] != a } }\n" +
+    		"pred show {}\n" +
+    		"run show for 4");
+    	assertEquals(module.getAllReachableFacts().toString(), ppresult.facts.toString());
+    }
+    
+    @Test
+    public void factExpr() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"one sig A { v: Int }\n" +
+    			"fact { A.v + 2 = 4 }\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+    	assertEquals("AND[int[this/A . (this/A <: v)] + 2 = 4]", module.getAllReachableFacts().toString());
+    	assertEquals("AND[intexpr_0 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass)]", 
+    			ppresult.facts.toString());
+    	assertEquals(1, ppresult.hysatExprs.size());
+    	assertEquals("((intexpr_0 + 2) = 4)", ppresult.hysatExprs.get(0));
     }
 }

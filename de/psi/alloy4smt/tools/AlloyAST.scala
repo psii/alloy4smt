@@ -62,9 +62,11 @@ object AlloyAST {
   fact {
     no i: IntRef - SomethingElse | i.aqclass = SomethingElse.aqclass
   }
+  
+  abstract sig BExpr {}
   """
 
-  val doc = """
+  var doc = """
   open util/intref
 
   abstract sig Field { val: Int, f: univ ->one Int }
@@ -87,6 +89,14 @@ object AlloyAST {
 
   pred show {}
   run show for exactly 3 X, 5 int
+  """
+	  
+  val doc2 = """
+  one sig X { m: A ->one Int }
+  sig A {}
+  fact { all a: A | X.m[a] < 5 }
+  pred show {}
+  run show for exactly 3 A
   """
 
   def world = {
