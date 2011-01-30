@@ -23,8 +23,8 @@ import edu.mit.csail.sdg.alloy4compiler.ast.ExprQt;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprUnary;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprVar;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
-import edu.mit.csail.sdg.alloy4compiler.ast.VisitQuery;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
+import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
 import edu.mit.csail.sdg.alloy4compiler.ast.VisitReturn;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 
@@ -168,17 +168,20 @@ public class IntRefPreprocessor {
         }
     }
     
+    private static interface IntexprSigBuilder {
+    	public Sig.PrimSig make() throws Err;
+    }
     
     private static class IntExprHandler extends VisitReturn<String> {
     	
     	private List<Expr> facts;
-    	private Sig.PrimSig intref;
     	private Sig.Field aqclass;
+    	private IntexprSigBuilder builder;
     	
-    	public IntExprHandler(Sig.PrimSig intref, Sig.Field aqclass) {
+    	public IntExprHandler(Sig.Field aqclass, IntexprSigBuilder isb) {
 			this.facts = new Vector<Expr>();
-			this.intref = intref;
 			this.aqclass = aqclass;
+			this.builder = isb;
 		}
     	
     	public Expr getFacts() {
@@ -194,11 +197,11 @@ public class IntRefPreprocessor {
 			String result;
 			
 			if (x.op == ExprUnary.Op.CAST2INT) {
-				final Sig.PrimSig exprsig = new Sig.PrimSig("intexpr_0", intref, Attr.ONE);
+				final Sig.PrimSig exprsig = builder.make();
 				final Expr a = ExprBinary.Op.JOIN.make(null, null, exprsig, aqclass);
 				final Expr b = ExprBinary.Op.JOIN.make(null, null, x.sub, aqclass);
 				facts.add(ExprBinary.Op.EQUALS.make(null, null, a, b));
-				result = "intexpr_0";				
+				result = exprsig.label;				
 			} else {	
 				final String sub = visitThis(x.sub);
 				switch (x.op) {
@@ -295,16 +298,24 @@ public class IntRefPreprocessor {
     	
     	private final Sig.PrimSig intref;
     	private final Sig.Field aqclass;
+    	private final IntexprSigBuilder intexprBuilder;
     	private TempList<Sig.PrimSig> intexprs;
     	
     	private Expr rewritten;
     	private TempList<String> hysatexprs;
     	
-    	private FactRewriter(Sig.PrimSig intref) {
-    		this.intref = intref;
+    	private FactRewriter(Sig.PrimSig intref_) {
+    		intref = intref_;
     		aqclass = Helpers.getFieldByName(intref.getFields(), "aqclass");
     		intexprs = new TempList<Sig.PrimSig>();
     		hysatexprs = new TempList<String>();
+    		intexprBuilder = new IntexprSigBuilder() {
+    			private int id = 0;
+				@Override
+				public PrimSig make() throws Err {
+					return new Sig.PrimSig("intexpr_" + id++, intref, Attr.ONE);
+				}
+			};
 		}
     	
     	public static FactRewriter rewrite(Expr expr, Sig.PrimSig intref) throws Err {
@@ -326,7 +337,7 @@ public class IntRefPreprocessor {
 			Expr result = null;
 			
 			if (x.left.type().is_int && x.right.type().is_int) {
-				final IntExprHandler ieh = new IntExprHandler(intref, aqclass);
+				final IntExprHandler ieh = new IntExprHandler(aqclass, intexprBuilder);
 				final String hexpr = ieh.visitThis(x);
 				hysatexprs.add(hexpr);
 				result = ieh.getFacts();

@@ -258,12 +258,19 @@ public class IntRefPreprocessorTest {
     			"open util/intref\n" +
     			"one sig A { v: Int }\n" +
     			"fact { A.v + 2 = 4 }\n" +
+    			"fact { A.v > 0 }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
-    	assertEquals("AND[int[this/A . (this/A <: v)] + 2 = 4]", module.getAllReachableFacts().toString());
-    	assertEquals("AND[intexpr_0 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass)]", 
+    	assertEquals("AND[int[this/A . (this/A <: v)] + 2 = 4, int[this/A . (this/A <: v)] > 0]",
+    			module.getAllReachableFacts().toString());
+    	assertEquals(
+    			"AND[" +
+    			"intexpr_0 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass), " +
+    			"intexpr_1 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass)" +
+    			"]", 
     			ppresult.facts.toString());
-    	assertEquals(1, ppresult.hysatExprs.size());
+    	assertEquals(2, ppresult.hysatExprs.size());
     	assertEquals("((intexpr_0 + 2) = 4)", ppresult.hysatExprs.get(0));
+    	assertEquals("(intexpr_1 > 0)", ppresult.hysatExprs.get(1));
     }
 }
