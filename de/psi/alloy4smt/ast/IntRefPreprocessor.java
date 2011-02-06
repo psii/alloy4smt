@@ -35,6 +35,7 @@ public class IntRefPreprocessor {
     public final ConstList<Command> commands;
 	public final Expr facts;
 	public final ConstList<String> hysatExprs;
+	public final ConstList<ConstList<String>> intrefAtoms;
 
     
     public static interface SigBuilder {
@@ -43,12 +44,22 @@ public class IntRefPreprocessor {
     	public void addFactor(Sig factor);
     }
         
-    private IntRefPreprocessor(Computer computer, Expr newfacts, ConstList<String> hysatExprs) {
+    private IntRefPreprocessor(Computer computer, FactRewriter rewriter) {
     	sigs = computer.sigs.makeConst();
     	intref = computer.intref;
     	commands = computer.commands.makeConst();
-    	facts = newfacts;
-    	this.hysatExprs = hysatExprs; 
+    	facts = rewriter.getFacts();
+    	hysatExprs = rewriter.getHysatExprs();
+    	
+    	final ConstList<String> factIntRefAtoms = rewriter.getIntExprAtoms();
+    	TempList<ConstList<String>> atoms = new TempList<ConstList<String>>();
+    	for (int i = 0; i < commands.size(); ++i) {
+    		TempList<String> l = new TempList<String>();
+    		l.addAll(computer.intrefAtoms.get(i));
+    		l.addAll(factIntRefAtoms);
+    		atoms.add(l.makeConst());
+    	}
+    	intrefAtoms = atoms.makeConst();
     }
     
     private IntRefPreprocessor(CompModule module) {
@@ -57,6 +68,7 @@ public class IntRefPreprocessor {
     	commands = module.getAllCommands();
     	facts = module.getAllReachableFacts();
     	hysatExprs = null;
+    	intrefAtoms = null;
     }
     
     private static class Computer implements SigBuilder {
@@ -67,11 +79,13 @@ public class IntRefPreprocessor {
     	private int fieldcnt = 0;
     	private Map<Command, Integer> factors;
     	private Map<Command, List<CommandScope>> newscopes;
+    	private Map<Command, TempList<String>> tmpIntrefAtoms;
     	private List<Sig> newintrefs;
     	
     	public TempList<Sig> sigs;
     	public Sig.PrimSig intref;
     	public TempList<Command> commands;
+    	public TempList<ConstList<String>> intrefAtoms;
     	
     	public Computer(CompModule module, Sig.PrimSig intref) throws Err {
     		this.intref = intref;
@@ -81,9 +95,12 @@ public class IntRefPreprocessor {
     		factors = new HashMap<Command, Integer>();
     		newscopes = new HashMap<Command, List<CommandScope>>();
     		newintrefs = new Vector<Sig>();
+    		tmpIntrefAtoms = new HashMap<Command, TempList<String>>();
+    		intrefAtoms = new TempList<ConstList<String>>();
     		
     		for (Command c: oldcommands) {
     			newscopes.put(c, new Vector<CommandScope>());
+    			tmpIntrefAtoms.put(c, new TempList<String>());
     		}
     		    		
     		for (Sig s: module.getAllReachableSigs()) {
@@ -99,6 +116,7 @@ public class IntRefPreprocessor {
     			scopes.addAll(c.scope);
     			scopes.addAll(newscopes.get(c));
     			commands.add(c.change(scopes.makeConst()));
+    			intrefAtoms.add(tmpIntrefAtoms.get(c).makeConst());
     		}
     	}
     	
@@ -106,8 +124,15 @@ public class IntRefPreprocessor {
     	public void addFactor(Sig factor) {
     		for (Command c: oldcommands) {
     			CommandScope scope = c.getScope(factor);
-    			if (scope != null)
-    				factors.put(c, factors.get(c) * c.getScope(factor).endingScope);
+    			int mult;
+    			if (scope != null) {
+    				mult = c.getScope(factor).endingScope;
+    			} else if (factor.isOne != null || factor.isLone != null) {
+    				mult = 1;
+    			} else {
+    				mult = c.overall < 0 ? 1 : c.overall;
+    			}
+    			factors.put(c, factors.get(c) * mult);
     		}
     	}
     	
@@ -132,10 +157,21 @@ public class IntRefPreprocessor {
 			return sig;
     	}
     	
+    	private static String atomize(Sig sig, int id) {
+    		String label = sig.label;
+    		if (label.startsWith("this/"))
+    			label = label.substring(5);
+    		return label + "$" + id;
+    	}
+    	
     	private void integrateNewIntRefSigs() throws ErrorSyntax {
     		for (Sig sig: newintrefs) {
 	    		for (Command c: oldcommands) {
-	    			newscopes.get(c).add(new CommandScope(sig, false, factors.get(c)));
+	    			final int scope = factors.get(c);
+	    			newscopes.get(c).add(new CommandScope(sig, false, scope));
+	    			for (int i = 0; i < scope; ++i) {
+	    				tmpIntrefAtoms.get(c).add(atomize(sig, i));
+	    			}
 	    		}
 	    		sigs.add(sig);
     		}
@@ -299,7 +335,7 @@ public class IntRefPreprocessor {
     	private final Sig.PrimSig intref;
     	private final Sig.Field aqclass;
     	private final IntexprSigBuilder intexprBuilder;
-    	private TempList<Sig.PrimSig> intexprs;
+    	private List<Sig.PrimSig> intexprs;
     	
     	private Expr rewritten;
     	private TempList<String> hysatexprs;
@@ -307,13 +343,15 @@ public class IntRefPreprocessor {
     	private FactRewriter(Sig.PrimSig intref_) {
     		intref = intref_;
     		aqclass = Helpers.getFieldByName(intref.getFields(), "aqclass");
-    		intexprs = new TempList<Sig.PrimSig>();
+    		intexprs = new Vector<Sig.PrimSig>();
     		hysatexprs = new TempList<String>();
     		intexprBuilder = new IntexprSigBuilder() {
     			private int id = 0;
 				@Override
 				public PrimSig make() throws Err {
-					return new Sig.PrimSig("intexpr_" + id++, intref, Attr.ONE);
+					final PrimSig result = new PrimSig("intexpr_" + id++, intref, Attr.ONE);
+					intexprs.add(result);
+					return result;
 				}
 			};
 		}
@@ -330,6 +368,14 @@ public class IntRefPreprocessor {
     	
     	public ConstList<String> getHysatExprs() {
     		return hysatexprs.makeConst();
+    	}
+    	
+    	public ConstList<String> getIntExprAtoms() {
+    		TempList<String> result = new TempList<String>();
+    		for (Sig.PrimSig sig : intexprs) {
+    			result.add(sig.label + "$0");
+    		}
+    		return result.makeConst();
     	}
 
 		@Override
@@ -397,9 +443,10 @@ public class IntRefPreprocessor {
 		public Expr visit(ExprUnary x) throws Err {
 			final Expr sub = visitThis(x.sub);
 			if (x.op == ExprUnary.Op.CAST2INT) {
-				Sig.PrimSig exprsig = new Sig.PrimSig("intexpr_0", intref, Attr.ONE);
-				intexprs.add(exprsig);
-				return ExprBinary.Op.JOIN.make(null, null, sub, aqclass);
+				throw new AssertionError();
+//				Sig.PrimSig exprsig = new Sig.PrimSig("intexpr_0", intref, Attr.ONE);
+//				intexprs.add(exprsig);
+//				return ExprBinary.Op.JOIN.make(null, null, sub, aqclass);
 			} else {
 				return x.op.make(x.pos, sub);
 			}
@@ -428,7 +475,7 @@ public class IntRefPreprocessor {
     	if (intref != null) {
     		final Computer computer = new Computer(module, intref);
     		final FactRewriter rewriter = FactRewriter.rewrite(module.getAllReachableFacts(), intref);
-    		return new IntRefPreprocessor(computer, rewriter.getFacts(), rewriter.getHysatExprs());
+    		return new IntRefPreprocessor(computer, rewriter);
     	} else {
     		return new IntRefPreprocessor(module);
     	}

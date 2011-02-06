@@ -7,7 +7,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -239,6 +241,22 @@ public class IntRefPreprocessorTest {
     }
     
     @Test
+    public void implicitSigBounds() throws Err {
+    	preprocessModule(    			
+    			"open util/intref\n" +
+    			"sig X { v: Y ->one Int }\n" +
+    			"sig Y {}\n" +
+    			"one sig Z { u: Y ->one Int }\n" +
+    			"pred show {}\n" +
+    			"run show for 3 but 4 Y\n" +
+    			"run show for 3\n");
+    	assertEquals("Run show for 3 but 4 Y", module.getAllCommands().get(0).toString());
+    	assertEquals("Run show for 3 but 4 Y, 12 X$v$IntRef0, 4 Z$u$IntRef0", ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 3", module.getAllCommands().get(1).toString());
+    	assertEquals("Run show for 3 but 9 X$v$IntRef0, 3 Z$u$IntRef0", ppresult.commands.get(1).toString());
+    }
+    
+    @Test
     public void unchangedFacts() throws Err {
     	preprocessModule(
     		"open util/intref\n" +
@@ -253,7 +271,7 @@ public class IntRefPreprocessorTest {
     }
     
     @Test
-    public void factExpr() throws Err {
+    public void rewriteFactsAndExtractIntExprs() throws Err {
     	preprocessModule(
     			"open util/intref\n" +
     			"one sig A { v: Int }\n" +
@@ -272,5 +290,81 @@ public class IntRefPreprocessorTest {
     	assertEquals(2, ppresult.hysatExprs.size());
     	assertEquals("((intexpr_0 + 2) = 4)", ppresult.hysatExprs.get(0));
     	assertEquals("(intexpr_1 > 0)", ppresult.hysatExprs.get(1));
+    }
+    
+    @Test
+    public void rewriteFactsWithIntExprsAndNormalExprs() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"one sig A { v: Int }\n" +
+    			"one sig Y { y: Y }\n" +
+    			"fact { A.v + 2 = 4 }\n" +
+    			"fact { Y.y = Y }\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+    	assertEquals("AND[int[this/A . (this/A <: v)] + 2 = 4, this/Y . (this/Y <: y) = this/Y]",
+    			module.getAllReachableFacts().toString());    	
+    	assertEquals(
+    			"AND[" +
+    			"intexpr_0 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass), " +
+    			"this/Y . (this/Y <: y) = this/Y" +
+    			"]", 
+    			ppresult.facts.toString());
+    	assertEquals(1, ppresult.hysatExprs.size());
+    	assertEquals("((intexpr_0 + 2) = 4)", ppresult.hysatExprs.get(0));
+    }
+    
+    @Test
+    public void rewriteFactsAndExtractIntExprsInQuantifiedFormula() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"sig A { v: Int }\n" +
+    			"fact { all a: A | a.v + 2 = 4 }\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+    	assertEquals("AND[(all a | int[a . (this/A <: v)] + 2 = 4)]", module.getAllReachableFacts().toString());
+    	// TODO: actual test
+    }
+    
+    @Test
+    public void collectIntRefAtoms() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"one sig A { v: Int, w: B ->one Int }\n" +
+    			"sig B {}\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+    	assertEquals("Run show for 3 but 1 A$v$IntRef0, 3 A$w$IntRef0", ppresult.commands.get(0).toString());
+    	
+    	List<String> intrefatoms = new Vector<String>();
+    	intrefatoms.add("A$v$IntRef0$0");
+    	intrefatoms.add("A$w$IntRef0$0");
+    	intrefatoms.add("A$w$IntRef0$1");
+    	intrefatoms.add("A$w$IntRef0$2");
+    	
+    	assertEquals(intrefatoms, ppresult.intrefAtoms.get(0));
+    }
+
+    @Test
+    public void collectIntRefAtomsFromFacts() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"one sig A { v: Int, w: B ->one Int }\n" +
+    			"sig B {}\n" +
+    			"fact { A.v + 2 = 4 }\n" +
+    			"fact { A.v > 0 }\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+    	assertEquals("Run show for 3 but 1 A$v$IntRef0, 3 A$w$IntRef0", ppresult.commands.get(0).toString());
+    	
+    	List<String> intrefatoms = new Vector<String>();
+    	intrefatoms.add("A$v$IntRef0$0");
+    	intrefatoms.add("A$w$IntRef0$0");
+    	intrefatoms.add("A$w$IntRef0$1");
+    	intrefatoms.add("A$w$IntRef0$2");
+    	intrefatoms.add("intexpr_0$0");
+    	intrefatoms.add("intexpr_1$0");
+    	
+    	assertEquals(intrefatoms, ppresult.intrefAtoms.get(0));
     }
 }
