@@ -98,6 +98,14 @@ object AlloyAST {
   pred show {}
   run show for exactly 3 A
   """
+  
+  val doc3 = """
+  open util/intref
+  one sig X { v: Int }
+  fact { X.v + 2 = 4 }
+  pred show {}
+  run show
+  """
 
   def world = {
     val fm = new java.util.HashMap[String, String]

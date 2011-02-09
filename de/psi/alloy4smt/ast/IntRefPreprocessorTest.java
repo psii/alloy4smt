@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+import kodkod.instance.Universe;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -22,13 +24,7 @@ import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
 
-/**
- * Created by IntelliJ IDEA.
- * User: psi
- * Date: 10.01.11
- * Time: 15:42
- * To change this template use File | Settings | File Templates.
- */
+
 public class IntRefPreprocessorTest {
 
     private static final String simpleModuleDoc =
@@ -290,6 +286,8 @@ public class IntRefPreprocessorTest {
     	assertEquals(2, ppresult.hysatExprs.size());
     	assertEquals("((intexpr_0 + 2) = 4)", ppresult.hysatExprs.get(0));
     	assertEquals("(intexpr_1 > 0)", ppresult.hysatExprs.get(1));
+    	assertNotNull(Helpers.getSigByName(ppresult.sigs, "intexpr_0"));
+    	assertNotNull(Helpers.getSigByName(ppresult.sigs, "intexpr_1"));
     }
     
     @Test
@@ -326,6 +324,11 @@ public class IntRefPreprocessorTest {
     	// TODO: actual test
     }
     
+    private void assertIntRefEqualsTupleSet(String tuplesetstr) {
+    	final Universe universe = new Universe(ppresult.intrefAtoms.get(0));
+    	assertEquals(tuplesetstr, ppresult.getIntRefEqualsTupleSet(0, universe.factory()).toString());
+    }
+    
     @Test
     public void collectIntRefAtoms() throws Err {
     	preprocessModule(
@@ -341,8 +344,16 @@ public class IntRefPreprocessorTest {
     	intrefatoms.add("A$w$IntRef0$0");
     	intrefatoms.add("A$w$IntRef0$1");
     	intrefatoms.add("A$w$IntRef0$2");
-    	
     	assertEquals(intrefatoms, ppresult.intrefAtoms.get(0));
+    	
+    	assertIntRefEqualsTupleSet("[" +
+    			"[A$v$IntRef0$0, A$w$IntRef0$0], " +
+    			"[A$v$IntRef0$0, A$w$IntRef0$1], " +
+    			"[A$v$IntRef0$0, A$w$IntRef0$2], " +
+    			"[A$w$IntRef0$0, A$w$IntRef0$1], " +
+    			"[A$w$IntRef0$0, A$w$IntRef0$2], " +
+    			"[A$w$IntRef0$1, A$w$IntRef0$2]" +
+    			"]");
     }
 
     @Test
@@ -364,7 +375,24 @@ public class IntRefPreprocessorTest {
     	intrefatoms.add("A$w$IntRef0$2");
     	intrefatoms.add("intexpr_0$0");
     	intrefatoms.add("intexpr_1$0");
-    	
     	assertEquals(intrefatoms, ppresult.intrefAtoms.get(0));
+    	
+    	assertIntRefEqualsTupleSet("[" +
+    			"[A$v$IntRef0$0, A$w$IntRef0$0], " +
+    			"[A$v$IntRef0$0, A$w$IntRef0$1], " +
+    			"[A$v$IntRef0$0, A$w$IntRef0$2], " +
+    			"[A$v$IntRef0$0, intexpr_0$0], " +
+    			"[A$v$IntRef0$0, intexpr_1$0], " +
+    			"[A$w$IntRef0$0, A$w$IntRef0$1], " +
+    			"[A$w$IntRef0$0, A$w$IntRef0$2], " +
+    			"[A$w$IntRef0$0, intexpr_0$0], " +
+    			"[A$w$IntRef0$0, intexpr_1$0], " +
+    			"[A$w$IntRef0$1, A$w$IntRef0$2], " +
+    			"[A$w$IntRef0$1, intexpr_0$0], " +
+    			"[A$w$IntRef0$1, intexpr_1$0], " +
+    			"[A$w$IntRef0$2, intexpr_0$0], " +
+    			"[A$w$IntRef0$2, intexpr_1$0], " +
+    			"[intexpr_0$0, intexpr_1$0]" +
+    			"]");
     }
 }

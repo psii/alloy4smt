@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+import kodkod.instance.TupleFactory;
+import kodkod.instance.TupleSet;
+
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.ConstList.TempList;
 import edu.mit.csail.sdg.alloy4.Err;
@@ -45,7 +48,6 @@ public class IntRefPreprocessor {
     }
         
     private IntRefPreprocessor(Computer computer, FactRewriter rewriter) {
-    	sigs = computer.sigs.makeConst();
     	intref = computer.intref;
     	commands = computer.commands.makeConst();
     	facts = rewriter.getFacts();
@@ -60,6 +62,11 @@ public class IntRefPreprocessor {
     		atoms.add(l.makeConst());
     	}
     	intrefAtoms = atoms.makeConst();
+    	
+    	final TempList<Sig> tmpSigs = new TempList<Sig>();
+    	tmpSigs.addAll(computer.sigs.makeConst());
+    	tmpSigs.addAll(rewriter.getIntExprSigs());
+    	sigs = tmpSigs.makeConst();
     }
     
     private IntRefPreprocessor(CompModule module) {
@@ -377,6 +384,10 @@ public class IntRefPreprocessor {
     		}
     		return result.makeConst();
     	}
+    	
+    	public ConstList<PrimSig> getIntExprSigs() {
+    		return ConstList.make(intexprs);
+    	}
 
 		@Override
 		public Expr visit(ExprBinary x) throws Err {
@@ -505,4 +516,18 @@ public class IntRefPreprocessor {
 
         return result;
     }
+
+	public TupleSet getIntRefEqualsTupleSet(int commandidx, TupleFactory factory) {
+		final ConstList<String> atoms = intrefAtoms.get(commandidx);
+		final int numatoms = atoms.size();
+		TupleSet result = factory.noneOf(2);
+		
+		for (int i = 0; i < numatoms; ++i) {
+			for (int j = i + 1; j < numatoms; ++j) {
+				result.add(factory.tuple(atoms.get(i), atoms.get(j)));
+			}
+		}
+		
+		return result;
+	}
 }

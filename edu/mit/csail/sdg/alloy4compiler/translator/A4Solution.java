@@ -151,7 +151,7 @@ public final class A4Solution {
     private final TupleSet stringBounds;
 
     /** The Kodkod Solver object. */
-    private final Solver solver;
+    public final Solver solver;
 
     //====== mutable fields (immutable after solve() has been called) ===================================//
 
@@ -387,17 +387,17 @@ public final class A4Solution {
     //===================================================================================================//
 
     /** Returns the Kodkod TupleFactory object. */
-    TupleFactory getFactory() { return factory; }
+    public TupleFactory getFactory() { return factory; }
 
     /** Returns a modifiable copy of the Kodkod Bounds object. */
-    Bounds getBounds() { return bounds.clone(); }
+    public Bounds getBounds() { return bounds.clone(); }
 
     /** Add a new relation with the given label and the given lower and upper bound.
      * @param label - the label for the new relation; need not be unique
      * @param lower - the lowerbound; can be null if you want it to be the empty set
      * @param upper - the upperbound; cannot be null; must contain everything in lowerbound
      */
-    Relation addRel(String label, TupleSet lower, TupleSet upper) throws ErrorFatal {
+    public Relation addRel(String label, TupleSet lower, TupleSet upper) throws ErrorFatal {
        if (solved) throw new ErrorFatal("Cannot add a Kodkod relation since solve() has completed.");
        Relation rel = Relation.nary(label, upper.arity());
        if (lower == upper) {
@@ -415,7 +415,7 @@ public final class A4Solution {
      * <br> The expression must contain only constant Relations or Relations that are already bound in this solution.
      * <br> (If the sig was already added by a previous call to addSig(), then this call will return immediately without altering what it is associated with)
      */
-    void addSig(Sig s, Expression expr) throws ErrorFatal {
+    public void addSig(Sig s, Expression expr) throws ErrorFatal {
        if (solved) throw new ErrorFatal("Cannot add an additional sig since solve() has completed.");
        if (expr.arity()!=1) throw new ErrorFatal("Sig "+s+" must be associated with a unary relational value.");
        if (a2k.containsKey(s)) return;
@@ -428,7 +428,7 @@ public final class A4Solution {
      * <br> The expression must contain only constant Relations or Relations that are already bound in this solution.
      * <br> (If the field was already added by a previous call to addField(), then this call will return immediately without altering what it is associated with)
      */
-    void addField(Field f, Expression expr) throws ErrorFatal {
+    public void addField(Field f, Expression expr) throws ErrorFatal {
        if (solved) throw new ErrorFatal("Cannot add an additional field since solve() has completed.");
        if (expr.arity()!=f.type().arity()) throw new ErrorFatal("Field "+f+" must be associated with an "+f.type().arity()+"-ary relational value.");
        if (a2k.containsKey(f)) return;
@@ -655,7 +655,7 @@ public final class A4Solution {
     private Pair<Type,Pos> cachedPAIR = null;
 
     /** Maps a Kodkod variable to an Alloy Type and Alloy Pos (if no association exists, it will return (Type.EMPTY , Pos.UNKNOWN) */
-    Pair<Type,Pos> kv2typepos(Variable var) {
+    public Pair<Type,Pos> kv2typepos(Variable var) {
        Pair<Type,Pos> ans=decl2type.get(var);
        if (ans!=null) return ans;
        if (cachedPAIR==null) cachedPAIR=new Pair<Type,Pos>(Type.EMPTY, Pos.UNKNOWN);
@@ -850,7 +850,7 @@ public final class A4Solution {
     //===================================================================================================//
 
     /** Solve for the solution if not solved already; if cmd==null, we will simply use the lowerbound of each relation as its value. */
-    A4Solution solve(final A4Reporter rep, Command cmd, Simplifier simp, boolean tryBookExamples) throws Err, IOException {
+    public A4Solution solve(final A4Reporter rep, Command cmd, Simplifier simp, boolean tryBookExamples) throws Err, IOException {
         // If already solved, then return this object as is
         if (solved) return this;
         // If cmd==null, then all four arguments are ignored, and we simply use the lower bound of each relation
