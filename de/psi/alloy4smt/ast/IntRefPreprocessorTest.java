@@ -137,8 +137,12 @@ public class IntRefPreprocessorTest {
         assertSigExists("this/Y$w$IntRef0");
         assertSigExists("intref/IntRef");
         Sig.PrimSig sig = (PrimSig) Helpers.getSigByName(ppresult.sigs, "this/Y$w$IntRef0");
+        Sig.PrimSig intref = (PrimSig) Helpers.getSigByName(ppresult.sigs, "intref/IntRef");
+        assertEquals(intref, ppresult.intref);
         assertEquals("intref/IntRef", sig.parent.label);
         assertEquals(ppresult.intref, sig.parent);
+        assertEquals(4, ppresult.intref.children().size());
+        assertTrue(ppresult.intref.children().contains(sig));
     }
     
     @Test
@@ -341,6 +345,32 @@ public class IntRefPreprocessorTest {
     			ppresult.commands.get(0).command.formula.toString());
     	assertEquals(1, ppresult.commands.get(0).hysatExprs.size());
     	assertEquals("((intexpr_0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
+    }
+    
+    @Test
+    public void rewriteFactsWithIntsOnLeftAndRightSide() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"one sig A { v: Int }\n" +
+    			"one sig B { u: Int }\n" +
+    			"one sig C { m: Int }\n" +
+    			"one sig D { n: Int }\n" +
+    			"fact { int(A.v) + int(B.u) = 4 }\n" +
+    			"fact { C.m + D.n = 4 }\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+    	assertEquals("AND[" +
+    			"int[this/A . (this/A <: v)] + int[this/B . (this/B <: u)] = 4, " +
+    			"int[this/C . (this/C <: m) + this/D . (this/D <: n)] = 4" +
+    			"]", 
+    			module.getAllReachableFacts().toString());
+    	assertEquals("AND[" +
+    			"intexpr_0 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass), " +
+    			"intexpr_1 . (intref/IntRef <: aqclass) = this/B . (this/B <: u) . (intref/IntRef <: aqclass), " +
+    			"intexpr_2 . (intref/IntRef <: aqclass) = this/C . (this/C <: m) . (intref/IntRef <: aqclass), " +
+    			"intexpr_3 . (intref/IntRef <: aqclass) = this/D . (this/D <: n) . (intref/IntRef <: aqclass)" +
+    			"]",
+    			ppresult.commands.get(0).command.formula.toString());
     }
     
     @Test

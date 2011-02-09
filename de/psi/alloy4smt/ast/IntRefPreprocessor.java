@@ -147,7 +147,9 @@ public class IntRefPreprocessor {
     		}
     		
     		for (Sig s: module.getAllReachableSigs()) {
-    			if (!s.builtin && s instanceof PrimSig) {
+    			if (s == intref) {
+    				old2newsigs.put(intref, intref);
+    			} else if (!s.builtin && s instanceof PrimSig) {
     				Attr[] attrs = new Attr[1];
     				PrimSig newsig = new PrimSig(s.label, s.attributes.toArray(attrs));
     				old2newsigs.put((PrimSig) s, newsig);
@@ -350,11 +352,13 @@ public class IntRefPreprocessor {
     	private List<Expr> facts;
     	private Sig.Field aqclass;
     	private IntexprSigBuilder builder;
+    	private boolean cast2intSeen;
     	
     	public IntExprHandler(Sig.Field aqclass, IntexprSigBuilder isb) {
 			this.facts = new Vector<Expr>();
 			this.aqclass = aqclass;
 			this.builder = isb;
+			this.cast2intSeen = false;
 		}
     	
     	public Expr getFacts() {
@@ -370,15 +374,12 @@ public class IntRefPreprocessor {
 			String result;
 			
 			if (x.op == ExprUnary.Op.CAST2INT) {
-				final Sig.PrimSig exprsig = builder.make();
-				final Expr a = ExprBinary.Op.JOIN.make(null, null, exprsig, aqclass);
-				final Expr b = ExprBinary.Op.JOIN.make(null, null, x.sub, aqclass);
-				facts.add(ExprBinary.Op.EQUALS.make(null, null, a, b));
-				result = exprsig.label;				
+				cast2intSeen = true;
+				result = visitThis(x.sub);
+				cast2intSeen = false;
 			} else {	
 				final String sub = visitThis(x.sub);
 				switch (x.op) {
-				case NOT: result = "!" + sub; break;
 				case NOOP: result = sub; break;
 				default:
 					throw new AssertionError();
@@ -390,30 +391,38 @@ public class IntRefPreprocessor {
 
 		@Override
 		public String visit(ExprBinary x) throws Err {
-			final String left = visitThis(x.left);
-			final String right = visitThis(x.right);
-			String op = null;
-			
-			switch (x.op) {
-			case GT:         op = ">"; break;
-			case LT:         op = "<"; break;
-			case GTE:        op = ">="; break;
-			case LTE:        op = "<="; break;
-			case EQUALS:     op = "="; break;
-			case MINUS:      op = "-"; break;
-			case MUL:        op = "*"; break;
-			case NOT_EQUALS: op = "!="; break;
-			case NOT_GT:     op = "<="; break;
-			case NOT_LT:     op = ">="; break;
-			case NOT_GTE:    op = "<"; break;
-			case NOT_LTE:    op = ">"; break;
-			case PLUS:       op = "+"; break;
-			
-			default:
-				throwUnsupportedOperator(x);
+			if (cast2intSeen && x.op == ExprBinary.Op.JOIN) {
+				final Sig.PrimSig exprsig = builder.make();
+				final Expr a = ExprBinary.Op.JOIN.make(null, null, exprsig, aqclass);
+				final Expr b = ExprBinary.Op.JOIN.make(null, null, x, aqclass);
+				facts.add(ExprBinary.Op.EQUALS.make(null, null, a, b));
+				return exprsig.label;
+			} else {
+				final String left = visitThis(x.left);
+				final String right = visitThis(x.right);
+				String op = null;
+				
+				switch (x.op) {
+				case GT:         op = ">"; break;
+				case LT:         op = "<"; break;
+				case GTE:        op = ">="; break;
+				case LTE:        op = "<="; break;
+				case EQUALS:     op = "="; break;
+				case MINUS:      op = "-"; break;
+				case MUL:        op = "*"; break;
+				case NOT_EQUALS: op = "!="; break;
+				case NOT_GT:     op = "<="; break;
+				case NOT_LT:     op = ">="; break;
+				case NOT_GTE:    op = "<"; break;
+				case NOT_LTE:    op = ">"; break;
+				case PLUS:       op = "+"; break;
+				
+				default:
+					throwUnsupportedOperator(x);
+				}
+	
+				return "(" + left + " " + op + " " + right + ")";
 			}
-
-			return "(" + left + " " + op + " " + right + ")";
 		}
 
 		@Override
