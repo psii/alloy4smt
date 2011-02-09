@@ -12,7 +12,8 @@ public class TranslatorTest {
 		final String doc = 
 			"open util/intref\n" +
 			"one sig X { v: Int }\n" +
-			"fact { X.v + 2 = 4 }\n" +
+			"one sig Y { u: Int }\n" +
+			"fact { X.v + Y.u = 4 }\n" +
 			"pred show {}\n" +
 			"run show for 1\n";
 		Translator.execute(doc);

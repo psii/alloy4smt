@@ -7,7 +7,6 @@ import java.util.Vector;
 
 import kodkod.instance.TupleFactory;
 import kodkod.instance.TupleSet;
-
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.ConstList.TempList;
 import edu.mit.csail.sdg.alloy4.Err;
@@ -15,6 +14,7 @@ import edu.mit.csail.sdg.alloy4.ErrorSyntax;
 import edu.mit.csail.sdg.alloy4compiler.ast.Attr;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.CommandScope;
+import edu.mit.csail.sdg.alloy4compiler.ast.Decl;
 import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprBinary;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprCall;
@@ -33,52 +33,84 @@ import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 
 
 public class IntRefPreprocessor {
-    public final ConstList<Sig> sigs;
     public final Sig.PrimSig intref;
-    public final ConstList<Command> commands;
-	public final Expr facts;
-	public final ConstList<String> hysatExprs;
-	public final ConstList<ConstList<String>> intrefAtoms;
+    public final ConstList<CmdBundle> commands;
+    public final ConstList<Sig> sigs;
+	
+	
+	public static class CmdBundle {
+		public final Command command;
+		public final ConstList<String> hysatExprs;
+		public final ConstList<String> intrefAtoms;
+		public final ConstList<Sig> sigs;
+		public final Sig.PrimSig intref;
+		
+		public CmdBundle(Command command, ConstList<String> hysatExprs, ConstList<String> intrefAtoms,
+				ConstList<Sig> sigs, Sig.PrimSig intref) {
+			this.command = command;
+			this.hysatExprs = hysatExprs;
+			this.intrefAtoms = intrefAtoms;
+			this.sigs = sigs;
+			this.intref = intref;
+		}
+		
+		public CmdBundle(Command command, ConstList<Sig> sigs) {
+			this.command = command;
+			this.hysatExprs = null;
+			this.intrefAtoms = null;
+			this.sigs = sigs;
+			this.intref = null;
+		}
 
-    
-    public static interface SigBuilder {
-    	public Sig makeSig() throws Err;
-    	
-    	public void addFactor(Sig factor);
-    }
+		public TupleSet getIntRefEqualsTupleSet(TupleFactory factory) {
+			final int numatoms = intrefAtoms.size();
+			TupleSet result = factory.noneOf(2);
+			
+			for (int i = 0; i < numatoms; ++i) {
+				for (int j = i + 1; j < numatoms; ++j) {
+					result.add(factory.tuple(intrefAtoms.get(i), intrefAtoms.get(j)));
+				}
+			}
+			
+			return result;
+		}
+	}
+
         
-    private IntRefPreprocessor(Computer computer, FactRewriter rewriter) {
+    private IntRefPreprocessor(Computer computer) throws Err {
     	intref = computer.intref;
-    	commands = computer.commands.makeConst();
-    	facts = rewriter.getFacts();
-    	hysatExprs = rewriter.getHysatExprs();
+    	sigs = computer.sigs.makeConst();
     	
-    	final ConstList<String> factIntRefAtoms = rewriter.getIntExprAtoms();
-    	TempList<ConstList<String>> atoms = new TempList<ConstList<String>>();
-    	for (int i = 0; i < commands.size(); ++i) {
-    		TempList<String> l = new TempList<String>();
+    	TempList<CmdBundle> tmpCommands = new TempList<CmdBundle>();
+    	for (int i = 0; i < computer.commands.size(); ++i) {
+    		final FactRewriter rewriter = FactRewriter.rewrite(computer.commands.get(i).formula, intref);
+        	final Command command = computer.commands.get(i).change(rewriter.getFacts());
+    		final TempList<String> l = new TempList<String>();
     		l.addAll(computer.intrefAtoms.get(i));
-    		l.addAll(factIntRefAtoms);
-    		atoms.add(l.makeConst());
+    		l.addAll(rewriter.getIntExprAtoms());
+    		final TempList<Sig> esigs = new TempList<Sig>();
+    		esigs.addAll(sigs);
+    		esigs.addAll(rewriter.getIntExprSigs());
+    		
+    		tmpCommands.add(new CmdBundle(command, rewriter.getHysatExprs(), l.makeConst(), esigs.makeConst(), intref));
     	}
-    	intrefAtoms = atoms.makeConst();
     	
-    	final TempList<Sig> tmpSigs = new TempList<Sig>();
-    	tmpSigs.addAll(computer.sigs.makeConst());
-    	tmpSigs.addAll(rewriter.getIntExprSigs());
-    	sigs = tmpSigs.makeConst();
+    	commands = tmpCommands.makeConst();
     }
     
     private IntRefPreprocessor(CompModule module) {
-    	sigs = module.getAllReachableSigs();
     	intref = null;
-    	commands = module.getAllCommands();
-    	facts = module.getAllReachableFacts();
-    	hysatExprs = null;
-    	intrefAtoms = null;
+    	sigs = module.getAllReachableSigs();
+    	
+    	TempList<CmdBundle> tmpCommands = new TempList<CmdBundle>();
+    	for (Command c : module.getAllCommands()) {
+    		tmpCommands.add(new CmdBundle(c, sigs));
+    	}
+    	
+    	commands = tmpCommands.makeConst();
     }
     
-    private static class Computer implements SigBuilder {
+    private static class Computer {
     	private ConstList<Command> oldcommands;
     	private Sig currentSig;
     	private Sig.Field currentField;
@@ -87,6 +119,8 @@ public class IntRefPreprocessor {
     	private Map<Command, Integer> factors;
     	private Map<Command, List<CommandScope>> newscopes;
     	private Map<Command, TempList<String>> tmpIntrefAtoms;
+    	private Map<PrimSig, PrimSig> old2newsigs;
+    	private Map<Field, Field> old2newfields;
     	private List<Sig> newintrefs;
     	
     	public TempList<Sig> sigs;
@@ -97,6 +131,8 @@ public class IntRefPreprocessor {
     	public Computer(CompModule module, Sig.PrimSig intref) throws Err {
     		this.intref = intref;
     		sigs = new TempList<Sig>();
+    		old2newsigs = new HashMap<PrimSig, PrimSig>();
+    		old2newfields = new HashMap<Field, Field>();
     		oldcommands = module.getAllCommands();
     		commands = new TempList<Command>();
     		factors = new HashMap<Command, Integer>();
@@ -109,6 +145,14 @@ public class IntRefPreprocessor {
     			newscopes.put(c, new Vector<CommandScope>());
     			tmpIntrefAtoms.put(c, new TempList<String>());
     		}
+    		
+    		for (Sig s: module.getAllReachableSigs()) {
+    			if (!s.builtin && s instanceof PrimSig) {
+    				Attr[] attrs = new Attr[1];
+    				PrimSig newsig = new PrimSig(s.label, s.attributes.toArray(attrs));
+    				old2newsigs.put((PrimSig) s, newsig);
+    			}
+    		}
     		    		
     		for (Sig s: module.getAllReachableSigs()) {
     			if (s.builtin) {
@@ -118,16 +162,20 @@ public class IntRefPreprocessor {
     			}
     		}
     		
+    		for (Sig s: module.getAllReachableSigs()) {
+    			if (!s.builtin)
+    				convertSigFacts(s);
+    		}
+    		
     		for (Command c: oldcommands) {
     			TempList<CommandScope> scopes = new TempList<CommandScope>();
     			scopes.addAll(c.scope);
     			scopes.addAll(newscopes.get(c));
-    			commands.add(c.change(scopes.makeConst()));
+    			commands.add(c.change(scopes.makeConst()).change(EXPR_REWRITER.visitThis(c.formula)));
     			intrefAtoms.add(tmpIntrefAtoms.get(c).makeConst());
     		}
     	}
     	
-    	@Override
     	public void addFactor(Sig factor) {
     		for (Command c: oldcommands) {
     			CommandScope scope = c.getScope(factor);
@@ -149,7 +197,6 @@ public class IntRefPreprocessor {
     		}
     	}
 
-    	@Override
     	public Sig makeSig() throws Err {
     		if (lastfield != currentField) {
     			fieldcnt = 0;
@@ -175,7 +222,7 @@ public class IntRefPreprocessor {
     		for (Sig sig: newintrefs) {
 	    		for (Command c: oldcommands) {
 	    			final int scope = factors.get(c);
-	    			newscopes.get(c).add(new CommandScope(sig, false, scope));
+	    			newscopes.get(c).add(new CommandScope(sig, true, scope));
 	    			for (int i = 0; i < scope; ++i) {
 	    				tmpIntrefAtoms.get(c).add(atomize(sig, i));
 	    			}
@@ -185,10 +232,10 @@ public class IntRefPreprocessor {
     		newintrefs.clear();
     	}
     	
+    	private final ExprRewriter EXPR_REWRITER = new ExprRewriter();
+    	
         private Sig convertSig(Sig sig) throws Err {
-        	boolean newSigNeeded = false;
-        	Attr[] attrs = new Attr[1];
-        	Sig newSig = new Sig.PrimSig(sig.label, sig.attributes.toArray(attrs));        	
+        	final Sig newSig = old2newsigs.get(sig);        	
         	
         	currentSig = sig;
         	
@@ -197,18 +244,101 @@ public class IntRefPreprocessor {
             	addFactor(sig);
             	
         		currentField = field;
-        		Expr oldExpr = field.decl().expr;
-        		Expr newExpr = convertExpr(oldExpr, this);
-        		newSig.addTrickyField(field.pos, field.isPrivate, null, null, field.isMeta, 
-        				              new String[] { field.label }, newExpr);
-        		if (oldExpr != newExpr)
-        			newSigNeeded = true;
+        		final Expr newExpr = EXPR_REWRITER.visitThis(field.decl().expr);
+        		final Field[] newField = newSig.addTrickyField(
+        				field.pos, field.isPrivate, null, null, field.isMeta, 
+        				new String[] { field.label }, newExpr);
+        		old2newfields.put(field, newField[0]);
         		
         		integrateNewIntRefSigs();
         	}
         	
-        	return newSigNeeded ? newSig : sig;
+        	return newSig;
         }
+        
+        private void convertSigFacts(Sig sig) throws Err {
+        	final Sig newSig = old2newsigs.get(sig);
+        	
+        	for (Expr fact : sig.getFacts()) {
+        		newSig.addFact(EXPR_REWRITER.visitThis(fact));
+        	}
+        }
+
+        private class ExprRewriter extends VisitReturn<Expr> {
+
+			@Override
+			public Expr visit(ExprBinary x) throws Err {
+				return x.op.make(x.pos, x.closingBracket, visitThis(x.left), visitThis(x.right));
+			}
+
+			@Override
+			public Expr visit(ExprList x) throws Err {
+				List<Expr> args = new Vector<Expr>();
+				for (Expr a : x.args) args.add(visitThis(a));
+				return ExprList.make(x.pos, x.closingBracket, x.op, args);
+			}
+
+			@Override
+			public Expr visit(ExprCall x) throws Err {
+				return x;
+			}
+
+			@Override
+			public Expr visit(ExprConstant x) throws Err {
+				return x;
+			}
+
+			@Override
+			public Expr visit(ExprITE x) throws Err {
+				return ExprITE.make(x.pos, visitThis(x.cond), visitThis(x.left), visitThis(x.right));
+			}
+
+			@Override
+			public Expr visit(ExprLet x) throws Err {
+				return ExprLet.make(x.pos, x.var, visitThis(x.expr), visitThis(x.sub));
+			}
+
+			@Override
+			public Expr visit(ExprQt x) throws Err {
+				List<Decl> decls = new Vector<Decl>();
+				for (Decl d : x.decls) {
+					decls.add(new Decl(d.isPrivate, d.disjoint, d.disjoint2, d.names, visitThis(d.expr)));
+				}
+				return x.op.make(x.pos, x.closingBracket, decls, visitThis(x.sub));
+			}
+
+			@Override
+			public Expr visit(ExprUnary x) throws Err {
+				return x.op.make(x.pos, visitThis(x.sub));
+			}
+
+			@Override
+			public Expr visit(ExprVar x) throws Err {
+				return x;
+			}
+
+			@Override
+			public Expr visit(Sig x) throws Err {
+				Sig s;
+				if (x == Sig.SIGINT) {
+					s = makeSig();
+				} else {
+					s = old2newsigs.get(x);
+					if (s == null) s = x;
+					addFactor(x);
+				}
+				return s;
+			}
+
+			@Override
+			public Expr visit(Field x) throws Err {
+				Field f = old2newfields.get(x);
+				if (f == null) throw new AssertionError();
+				return f;
+			}
+        	
+        }
+
     }
     
     private static interface IntexprSigBuilder {
@@ -485,49 +615,10 @@ public class IntRefPreprocessor {
     	final Sig.PrimSig intref = (Sig.PrimSig) Helpers.getSigByName(module.getAllReachableSigs(), "intref/IntRef");
     	if (intref != null) {
     		final Computer computer = new Computer(module, intref);
-    		final FactRewriter rewriter = FactRewriter.rewrite(module.getAllReachableFacts(), intref);
-    		return new IntRefPreprocessor(computer, rewriter);
+    		return new IntRefPreprocessor(computer);
     	} else {
     		return new IntRefPreprocessor(module);
     	}
     }
 
-    public static Expr convertExpr(Expr expr, SigBuilder builder) throws Err {
-        Expr result = expr;
-
-        if (expr == Sig.SIGINT) {
-            result = builder.makeSig();
-        } else if (expr instanceof ExprUnary) {
-            ExprUnary unary = (ExprUnary) expr;
-            Expr newSub = convertExpr(unary.sub, builder);
-            if (newSub != unary.sub) {
-                result = unary.op.make(unary.pos, newSub);
-            }
-        } else if (expr instanceof ExprBinary) {
-            ExprBinary binary = (ExprBinary) expr;
-            Expr newLeft = convertExpr(binary.left, builder);
-            Expr newRight = convertExpr(binary.right, builder);
-            if (newLeft != binary.left || newRight != binary.right) {
-                result = binary.op.make(binary.pos, binary.closingBracket, newLeft, newRight);
-            }
-        } else if (expr instanceof Sig) {
-        	builder.addFactor((Sig) expr);
-        }
-
-        return result;
-    }
-
-	public TupleSet getIntRefEqualsTupleSet(int commandidx, TupleFactory factory) {
-		final ConstList<String> atoms = intrefAtoms.get(commandidx);
-		final int numatoms = atoms.size();
-		TupleSet result = factory.noneOf(2);
-		
-		for (int i = 0; i < numatoms; ++i) {
-			for (int j = i + 1; j < numatoms; ++j) {
-				result.add(factory.tuple(atoms.get(i), atoms.get(j)));
-			}
-		}
-		
-		return result;
-	}
 }

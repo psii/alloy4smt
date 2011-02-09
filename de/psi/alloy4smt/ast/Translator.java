@@ -47,22 +47,22 @@ public final class Translator extends TranslateAlloyToKodkod {
 		opt.solver = SatSolver.SAT4J;
 		opt.skolemDepth = 4;
 		
-		return execute(null, opt, pp, 0);
+		return execute(null, opt, pp.commands.get(0));
 	}
 	
-	public static A4Solution execute(A4Reporter rep, A4Options opt, IntRefPreprocessor pp, int commandidx) throws Err {
+	public static A4Solution execute(A4Reporter rep, A4Options opt, IntRefPreprocessor.CmdBundle bundle) throws Err {
 		rep = rep == null ? A4Reporter.NOP : rep;
-		final Iterable<Sig> sigs = pp.sigs;
-		final Command cmd = pp.commands.get(commandidx);
-		final ConstList<String> hyexprs = pp.hysatExprs;
-		final ConstList<String> intrefatoms = hyexprs != null ? pp.intrefAtoms.get(commandidx) : null;
+		final Iterable<Sig> sigs = bundle.sigs;
+		final Command cmd = bundle.command;
+		final ConstList<String> hyexprs = bundle.hysatExprs;
+		final ConstList<String> intrefatoms = hyexprs != null ? bundle.intrefAtoms : null;
 		final Pair<A4Solution, ScopeComputer> pair = ScopeComputer.compute(rep, opt, sigs, cmd);
 		
 		BoundsComputer.compute(rep, pair.a, pair.b, sigs);
 		
-		if (pp.intref != null) {
-			Sig.Field equalsfield = pp.intref.addField("equals", pp.intref.setOf());
-			TupleSet equalsupper = pp.getIntRefEqualsTupleSet(commandidx, pair.a.getFactory());
+		if (hyexprs != null) {
+			Sig.Field equalsfield = bundle.intref.addField("equals", bundle.intref.setOf());
+			TupleSet equalsupper = bundle.getIntRefEqualsTupleSet(pair.a.getFactory());
 			pair.a.addField(equalsfield, pair.a.addRel("IntRef/equals", null, equalsupper));
 		}
 		

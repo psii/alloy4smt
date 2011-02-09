@@ -20,7 +20,9 @@ import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
+import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
+import edu.mit.csail.sdg.alloy4compiler.ast.VisitQuery;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
 
@@ -42,23 +44,12 @@ public class IntRefPreprocessorTest {
     private static final String[] stdsigs = { "univ", "Int", "seq/Int", "String", "none" };
 
     private CompModule module;
-    private IntRefPreprocessor.SigBuilder sigbuilder;
     private IntRefPreprocessor ppresult;
 
     @Before
     public void setUp() {
         module = null;
         ppresult = null;
-        
-        sigbuilder = new IntRefPreprocessor.SigBuilder() {
-        	private int id = 1;
-			@Override
-			public Sig makeSig() throws Err {
-				return new Sig.PrimSig("intref/IntRef" + id++);
-			}
-			@Override
-			public void addFactor(Sig factor) { }
-		};
     }
 
     private void parseModule(String doc) throws Err {
@@ -91,39 +82,27 @@ public class IntRefPreprocessorTest {
         		p.sigs.contains(Helpers.getSigByName(module.getAllReachableSigs(), "this/X")));
     }
 
-    @Test
-    public void retainNormalSigs2() throws Err {
-        parseModule("open util/intref\n" + simpleModuleDoc);
-        IntRefPreprocessor p = IntRefPreprocessor.processModule(module);
-        ConstList<Sig> msigs = module.getAllReachableSigs();
-        ConstList<Sig> nsigs = p.sigs;
-
-        assertEquals(msigs, nsigs);
-        assertStdSigsAreTheSame(module, p);
-        assertTrue("There should be no new instance for sig X.", 
-        		p.sigs.contains(Helpers.getSigByName(module.getAllReachableSigs(), "this/X")));
-    }
-
     private void assertDeclConversion(String decl, String newDecl) throws Err {
         String modstr = "open util/intref\nsig A {}\nsig X { v: " + decl + " }\n";
-		parseModule(modstr);
+		preprocessModule(modstr);
 		Sig sig = Helpers.getSigByName(module.getAllReachableSigs(), "this/X");
 		Sig.Field field = Helpers.getFieldByName(sig.getFields(), "v");
 		assertNotNull(field);
-		Expr exprN = IntRefPreprocessor.convertExpr(field.decl().expr, sigbuilder);
-		assertNotNull(exprN);
+		Sig newsig = Helpers.getSigByName(ppresult.sigs, "this/X");
+		Sig.Field newfield = Helpers.getFieldByName(newsig.getFields(), "v");
+		assertNotNull(newfield);
         assertEquals(decl, field.decl().expr.toString());
-        assertEquals(newDecl, exprN.toString());
+        assertEquals(newDecl, newfield.decl().expr.toString());
     }
 
     @Test
     public void convertFieldDecl() throws Err {
         assertDeclConversion("one this/A",        "one this/A");
-        assertDeclConversion("one Int",           "one intref/IntRef1");
-        assertDeclConversion("univ -> Int",       "univ -> intref/IntRef2");
-        assertDeclConversion("Int -> Int",        "intref/IntRef3 -> intref/IntRef4");
-        assertDeclConversion("this/A -> Int",     "this/A -> intref/IntRef5");
-        assertDeclConversion("this/A ->lone Int", "this/A ->lone intref/IntRef6");
+        assertDeclConversion("one Int",           "one this/X$v$IntRef0");
+        assertDeclConversion("univ -> Int",       "univ -> this/X$v$IntRef0");
+        assertDeclConversion("Int -> Int",        "this/X$v$IntRef0 -> this/X$v$IntRef1");
+        assertDeclConversion("this/A -> Int",     "this/A -> this/X$v$IntRef0");
+        assertDeclConversion("this/A ->lone Int", "this/A ->lone this/X$v$IntRef0");
     }
     
     private void preprocessModule(String doc) throws Err {
@@ -171,9 +150,9 @@ public class IntRefPreprocessorTest {
     			"run show for 4 X\n" +
     			"run show for exactly 4 X\n");
     	assertEquals("Run show for 4 X", module.getAllCommands().get(0).toString());
-    	assertEquals("Run show for 4 X, 4 X$v$IntRef0", ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 4 X, exactly 4 X$v$IntRef0", ppresult.commands.get(0).command.toString());
     	assertEquals("Run show for exactly 4 X", module.getAllCommands().get(1).toString());
-    	assertEquals("Run show for exactly 4 X, 4 X$v$IntRef0", ppresult.commands.get(1).toString());
+    	assertEquals("Run show for exactly 4 X, exactly 4 X$v$IntRef0", ppresult.commands.get(1).command.toString());
     }
     
     @Test
@@ -185,8 +164,8 @@ public class IntRefPreprocessorTest {
     			"pred show {}\n" +
     			"run show for 4 X, 3 Y\n");
     	assertEquals("Run show for 4 X, 3 Y", module.getAllCommands().get(0).toString());
-    	assertEquals("Run show for 4 X, 3 Y, 12 X$v$IntRef0, 48 X$w$IntRef0",
-    			ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 4 X, 3 Y, exactly 12 X$v$IntRef0, exactly 48 X$w$IntRef0",
+    			ppresult.commands.get(0).command.toString());
     }
     
     @Test
@@ -197,8 +176,8 @@ public class IntRefPreprocessorTest {
     			"pred show {}\n" +
     			"run show for 5 X\n");
     	assertEquals("Run show for 5 X", module.getAllCommands().get(0).toString());
-    	assertEquals("Run show for 5 X, 5 X$v$IntRef0, 5 X$v$IntRef1",
-    			ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 5 X, exactly 5 X$v$IntRef0, exactly 5 X$v$IntRef1",
+    			ppresult.commands.get(0).command.toString());
     }
     
     @Test
@@ -210,7 +189,7 @@ public class IntRefPreprocessorTest {
     			"pred show {}\n" +
     			"run show for 5 X, 6 Y\n");
     	assertEquals("Run show for 5 X, 6 Y", module.getAllCommands().get(0).toString());
-    	assertEquals("Run show for 5 X, 6 Y, 180 X$v$IntRef0", ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 5 X, 6 Y, exactly 180 X$v$IntRef0", ppresult.commands.get(0).command.toString());
     }
     
     @Test
@@ -223,8 +202,8 @@ public class IntRefPreprocessorTest {
     			"pred show {}\n" +
     			"run show for 4 Y\n");
     	assertEquals("Run show for 4 Y", module.getAllCommands().get(0).toString());
-    	assertEquals("Run show for 4 Y, 1 X$u$IntRef0, 4 X$v$IntRef0, 1 X$w$IntRef0",
-    			ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 4 Y, exactly 1 X$u$IntRef0, exactly 4 X$v$IntRef0, exactly 1 X$w$IntRef0",
+    			ppresult.commands.get(0).command.toString());
     	
     	Sig sigXold = Helpers.getSigByName(module.getAllReachableSigs(), "this/X");
     	Sig sigXnew = Helpers.getSigByName(ppresult.sigs, "this/X");
@@ -232,8 +211,8 @@ public class IntRefPreprocessorTest {
     	Sig sigYnew = Helpers.getSigByName(ppresult.sigs, "this/Y");
     	assertNotNull(sigXold.isOne);
     	assertNotNull(sigXnew.isOne);
-    	assertEquals(sigYold, sigYnew);
     	assertNull(sigYold.isOne);
+    	assertNull(sigYnew.isOne);
     }
     
     @Test
@@ -247,9 +226,61 @@ public class IntRefPreprocessorTest {
     			"run show for 3 but 4 Y\n" +
     			"run show for 3\n");
     	assertEquals("Run show for 3 but 4 Y", module.getAllCommands().get(0).toString());
-    	assertEquals("Run show for 3 but 4 Y, 12 X$v$IntRef0, 4 Z$u$IntRef0", ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 3 but 4 Y, exactly 12 X$v$IntRef0, exactly 4 Z$u$IntRef0", 
+    			ppresult.commands.get(0).command.toString());
     	assertEquals("Run show for 3", module.getAllCommands().get(1).toString());
-    	assertEquals("Run show for 3 but 9 X$v$IntRef0, 3 Z$u$IntRef0", ppresult.commands.get(1).toString());
+    	assertEquals("Run show for 3 but exactly 9 X$v$IntRef0, exactly 3 Z$u$IntRef0", 
+    			ppresult.commands.get(1).command.toString());
+    }
+    
+    private static class FindAllSigs extends VisitQuery<Object> {
+    	
+    	public final List<Sig> sigs = new Vector<Sig>();
+
+		@Override
+		public Object visit(Sig x) throws Err {
+			sigs.add(x);
+			return super.visit(x);
+		}
+    	
+    }
+    
+    @Test
+    public void oldSigsAreNotReferencedAnymore() throws Err {
+    	preprocessModule(    			
+    			"open util/intref\n" +
+    			"sig X { v: Y ->one Int, r: Y } { all y: Y | r = y }\n" +
+    			"sig Y { f: X } { all x: X | f = x }\n" +
+    			"one sig Z { u: Y ->one Int }\n" +
+    			"fact { all x: X, y: Y | x.r = y }\n" +
+    			"pred show {}\n" +
+    			"run show for 3 but 4 Y\n");
+    	
+    	FindAllSigs fas = new FindAllSigs();
+    	fas.visitThis(ppresult.commands.get(0).command.formula);
+    	for (Sig sig : ppresult.sigs) {
+    		for (Expr expr : sig.getFacts()) fas.visitThis(expr);
+    		for (Field field : sig.getFields()) fas.visitThis(field.decl().expr);
+    	}
+    	assertTrue("fas.sigs = " + fas.sigs.size(), fas.sigs.size() >= 3);
+    	for (Sig sig : fas.sigs) {
+    		assertTrue("Old sig remains: " + sig.label, ppresult.sigs.contains(sig));
+    	}
+    }
+    
+    @Test
+    public void sigFactsAreRetained() throws Err {
+    	preprocessModule(    			
+    			"open util/intref\n" +
+    			"sig X { v: Y ->one Int, r: Y } { all y: Y | r = y }\n" +
+    			"sig Y { f: X } { all x: X | f = x }\n" +
+    			"one sig Z { u: Y ->one Int }\n" +
+    			"pred show {}\n" +
+    			"run show for 3 but 4 Y\n");
+    	
+    	assertTrue(Helpers.getSigByName(ppresult.sigs, "this/X").getFacts().size() > 0);
+    	assertTrue(Helpers.getSigByName(ppresult.sigs, "this/Y").getFacts().size() > 0);
+    	assertTrue(Helpers.getSigByName(ppresult.sigs, "this/Z").getFacts().size() == 0);
     }
     
     @Test
@@ -263,7 +294,7 @@ public class IntRefPreprocessorTest {
     		"fact { all b: B, a: A { b.m[a] = a implies b.m[a] = a else b.m[a] != a } }\n" +
     		"pred show {}\n" +
     		"run show for 4");
-    	assertEquals(module.getAllReachableFacts().toString(), ppresult.facts.toString());
+    	assertEquals(module.getAllReachableFacts().toString(), ppresult.commands.get(0).command.formula.toString());
     }
     
     @Test
@@ -282,12 +313,12 @@ public class IntRefPreprocessorTest {
     			"intexpr_0 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass), " +
     			"intexpr_1 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass)" +
     			"]", 
-    			ppresult.facts.toString());
-    	assertEquals(2, ppresult.hysatExprs.size());
-    	assertEquals("((intexpr_0 + 2) = 4)", ppresult.hysatExprs.get(0));
-    	assertEquals("(intexpr_1 > 0)", ppresult.hysatExprs.get(1));
-    	assertNotNull(Helpers.getSigByName(ppresult.sigs, "intexpr_0"));
-    	assertNotNull(Helpers.getSigByName(ppresult.sigs, "intexpr_1"));
+    			ppresult.commands.get(0).command.formula.toString());
+    	assertEquals(2, ppresult.commands.get(0).hysatExprs.size());
+    	assertEquals("((intexpr_0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
+    	assertEquals("(intexpr_1 > 0)", ppresult.commands.get(0).hysatExprs.get(1));
+    	assertNotNull(Helpers.getSigByName(ppresult.commands.get(0).sigs, "intexpr_0"));
+    	assertNotNull(Helpers.getSigByName(ppresult.commands.get(0).sigs, "intexpr_1"));
     }
     
     @Test
@@ -307,9 +338,9 @@ public class IntRefPreprocessorTest {
     			"intexpr_0 . (intref/IntRef <: aqclass) = this/A . (this/A <: v) . (intref/IntRef <: aqclass), " +
     			"this/Y . (this/Y <: y) = this/Y" +
     			"]", 
-    			ppresult.facts.toString());
-    	assertEquals(1, ppresult.hysatExprs.size());
-    	assertEquals("((intexpr_0 + 2) = 4)", ppresult.hysatExprs.get(0));
+    			ppresult.commands.get(0).command.formula.toString());
+    	assertEquals(1, ppresult.commands.get(0).hysatExprs.size());
+    	assertEquals("((intexpr_0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
     }
     
     @Test
@@ -325,8 +356,8 @@ public class IntRefPreprocessorTest {
     }
     
     private void assertIntRefEqualsTupleSet(String tuplesetstr) {
-    	final Universe universe = new Universe(ppresult.intrefAtoms.get(0));
-    	assertEquals(tuplesetstr, ppresult.getIntRefEqualsTupleSet(0, universe.factory()).toString());
+    	final Universe universe = new Universe(ppresult.commands.get(0).intrefAtoms);
+    	assertEquals(tuplesetstr, ppresult.commands.get(0).getIntRefEqualsTupleSet(universe.factory()).toString());
     }
     
     @Test
@@ -337,14 +368,15 @@ public class IntRefPreprocessorTest {
     			"sig B {}\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
-    	assertEquals("Run show for 3 but 1 A$v$IntRef0, 3 A$w$IntRef0", ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 3 but exactly 1 A$v$IntRef0, exactly 3 A$w$IntRef0", 
+    			ppresult.commands.get(0).command.toString());
     	
     	List<String> intrefatoms = new Vector<String>();
     	intrefatoms.add("A$v$IntRef0$0");
     	intrefatoms.add("A$w$IntRef0$0");
     	intrefatoms.add("A$w$IntRef0$1");
     	intrefatoms.add("A$w$IntRef0$2");
-    	assertEquals(intrefatoms, ppresult.intrefAtoms.get(0));
+    	assertEquals(intrefatoms, ppresult.commands.get(0).intrefAtoms);
     	
     	assertIntRefEqualsTupleSet("[" +
     			"[A$v$IntRef0$0, A$w$IntRef0$0], " +
@@ -366,7 +398,8 @@ public class IntRefPreprocessorTest {
     			"fact { A.v > 0 }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
-    	assertEquals("Run show for 3 but 1 A$v$IntRef0, 3 A$w$IntRef0", ppresult.commands.get(0).toString());
+    	assertEquals("Run show for 3 but exactly 1 A$v$IntRef0, exactly 3 A$w$IntRef0", 
+    			ppresult.commands.get(0).command.toString());
     	
     	List<String> intrefatoms = new Vector<String>();
     	intrefatoms.add("A$v$IntRef0$0");
@@ -375,7 +408,7 @@ public class IntRefPreprocessorTest {
     	intrefatoms.add("A$w$IntRef0$2");
     	intrefatoms.add("intexpr_0$0");
     	intrefatoms.add("intexpr_1$0");
-    	assertEquals(intrefatoms, ppresult.intrefAtoms.get(0));
+    	assertEquals(intrefatoms, ppresult.commands.get(0).intrefAtoms);
     	
     	assertIntRefEqualsTupleSet("[" +
     			"[A$v$IntRef0$0, A$w$IntRef0$0], " +
