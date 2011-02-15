@@ -16,7 +16,7 @@ public class TranslatorTest {
 			"fact { X.v + Y.u = 4 }\n" +
 			"pred show {}\n" +
 			"run show for 1\n";
-		Translator.execute(doc);
+		HyTranslator.execute(doc);
 	}
 
 }

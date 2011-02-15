@@ -149,6 +149,8 @@ public class IntRefPreprocessor {
     		for (Sig s: module.getAllReachableSigs()) {
     			if (s == intref) {
     				old2newsigs.put(intref, intref);
+    				for (Field f : s.getFields())
+    					old2newfields.put(f, f);
     			} else if (!s.builtin && s instanceof PrimSig) {
     				Attr[] attrs = new Attr[1];
     				PrimSig newsig = new PrimSig(s.label, s.attributes.toArray(attrs));

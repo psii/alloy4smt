@@ -199,6 +199,8 @@ public final class A4Solution {
 
     /** The map from each Kodkod Variable to an Alloy Type and Alloy Pos. */
     private Map<Variable,Pair<Type,Pos>> decl2type;
+    
+    private Solution solution;
 
     //===================================================================================================//
 
@@ -875,7 +877,6 @@ public final class A4Solution {
         Formula fgoal = Formula.and(formulas);
         rep.debug("Generating the solution...\n");
         kEnumerator = null;
-        Solution sol = null;
         final Reporter oldReporter = solver.options().reporter();
         final boolean solved[] = new boolean[]{true};
         solver.options().setReporter(new AbstractReporter() { // Set up a reporter to catch the type+pos of skolems
@@ -898,7 +899,7 @@ public final class A4Solution {
         });
         if (!opt.solver.equals(SatSolver.CNF) && !opt.solver.equals(SatSolver.KK) && tryBookExamples) { // try book examples
            A4Reporter r = "yes".equals(System.getProperty("debug")) ? rep : null;
-           try { sol = BookExamples.trial(r, this, fgoal, solver, cmd.check); } catch(Throwable ex) { sol = null; }
+           try { solution = BookExamples.trial(r, this, fgoal, solver, cmd.check); } catch(Throwable ex) { solution = null; }
         }
         solved[0] = false; // this allows the reporter to report the # of vars/clauses
         for(Relation r: bounds.relations()) { formulas.add(r.eq(r)); } // Without this, kodkod refuses to grow unmentioned relations
@@ -915,33 +916,33 @@ public final class A4Solution {
             File tmpCNF = File.createTempFile("tmp", ".cnf", new File(opt.tempDirectory));
             String out = tmpCNF.getAbsolutePath();
             solver.options().setSolver(WriteCNF.factory(out));
-            try { sol = solver.solve(fgoal, bounds); } catch(WriteCNF.WriteCNFCompleted ex) { rep.resultCNF(out); return null; }
+            try { solution = solver.solve(fgoal, bounds); } catch(WriteCNF.WriteCNFCompleted ex) { rep.resultCNF(out); return null; }
             // The formula is trivial (otherwise, it would have thrown an exception)
             // Since the user wants it in CNF format, we manually generate a trivially satisfiable (or unsatisfiable) CNF file.
-            Util.writeAll(out, sol.instance()!=null ? "p cnf 1 1\n1 0\n" : "p cnf 1 2\n1 0\n-1 0\n");
+            Util.writeAll(out, solution.instance()!=null ? "p cnf 1 1\n1 0\n" : "p cnf 1 2\n1 0\n-1 0\n");
             rep.resultCNF(out);
             return null;
          }
         if (solver.options().solver()==SATFactory.ZChaff || !solver.options().solver().incremental()) {
            rep.debug("Begin solve()\n");
-           if (sol==null) sol = solver.solve(fgoal, bounds);
+           if (solution==null) solution = solver.solve(fgoal, bounds);
            rep.debug("End solve()\n");
         } else {
            rep.debug("Begin solveAll()\n");
            kEnumerator = new Peeker<Solution>(solver.solveAll(fgoal, bounds));
-           if (sol==null) sol = kEnumerator.next();
+           if (solution==null) solution = kEnumerator.next();
            rep.debug("End solveAll()\n");
         }
         if (!solved[0]) rep.solve(0, 0, 0);
-        final Instance inst = sol.instance();
+        final Instance inst = solution.instance();
         // To ensure no more output during SolutionEnumeration
         solver.options().setReporter(oldReporter);
         // If unsatisfiable, then retreive the unsat core if desired
         if (inst==null && solver.options().solver()==SATFactory.MiniSatProver) {
            try {
               lCore = new LinkedHashSet<Node>();
-              Proof p = sol.proof();
-              if (sol.outcome()==UNSATISFIABLE) {
+              Proof p = solution.proof();
+              if (solution.outcome()==UNSATISFIABLE) {
                  // only perform the minimization if it was UNSATISFIABLE, rather than TRIVIALLY_UNSATISFIABLE
                  int i = p.highLevelCore().size();
                  rep.minimizing(cmd, i);
@@ -970,6 +971,18 @@ public final class A4Solution {
         time = System.currentTimeMillis() - time;
         if (inst!=null) rep.resultSAT(cmd, time, this); else rep.resultUNSAT(cmd, time, this);
         return this;
+    }
+    
+    public Solution getSolution() {
+    	return solution;
+    }
+    
+    public Formula makeFormula(A4Reporter rep, Simplifier simp) throws Err {
+        if (simp!=null && formulas.size()>0 && !simp.simplify(rep, this, formulas)) addFormula(Formula.FALSE, Pos.UNKNOWN);
+    	ArrayList<Formula> tmpFormulas = new ArrayList<Formula>(formulas);
+        for(Relation r: bounds.relations()) { tmpFormulas.add(r.eq(r)); } // Without this, kodkod refuses to grow unmentioned relations
+        Formula fgoal = Formula.and(tmpFormulas);
+        return fgoal;
     }
 
     //===================================================================================================//
