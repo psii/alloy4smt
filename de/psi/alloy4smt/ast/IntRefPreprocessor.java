@@ -10,7 +10,9 @@ import kodkod.instance.TupleSet;
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.ConstList.TempList;
 import edu.mit.csail.sdg.alloy4.Err;
+import edu.mit.csail.sdg.alloy4.ErrorFatal;
 import edu.mit.csail.sdg.alloy4.ErrorSyntax;
+import edu.mit.csail.sdg.alloy4.Pos;
 import edu.mit.csail.sdg.alloy4compiler.ast.Attr;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.CommandScope;
@@ -36,6 +38,13 @@ public class IntRefPreprocessor {
     public final Sig.PrimSig intref;
     public final ConstList<CmdBundle> commands;
     public final ConstList<Sig> sigs;
+    
+    
+	public static class PreprocessError extends Exception {
+
+		private static final long serialVersionUID = 0L;
+				
+    }
 	
 	
 	public static class CmdBundle {
@@ -207,8 +216,9 @@ public class IntRefPreprocessor {
     			lastfield = currentField;
     		} else {
     			fieldcnt++;
+    			throw new ErrorFatal(currentField.pos, "unsupported decl");
     		}
-    		String label = currentSig.label + "$" + currentField.label + "$IntRef" + fieldcnt;
+    		String label = currentSig.label + "_" + currentField.label + "_IntRef";
     		Sig sig = new Sig.PrimSig(label, intref);
 			newintrefs.add(sig);
 			
@@ -219,7 +229,7 @@ public class IntRefPreprocessor {
     		String label = sig.label;
     		if (label.startsWith("this/"))
     			label = label.substring(5);
-    		return label + "$" + id;
+    		return label + "_" + id;
     	}
     	
     	private void integrateNewIntRefSigs() throws ErrorSyntax {
@@ -497,7 +507,7 @@ public class IntRefPreprocessor {
     			private int id = 0;
 				@Override
 				public PrimSig make() throws Err {
-					final PrimSig result = new PrimSig("intexpr_" + id++, intref, Attr.ONE);
+					final PrimSig result = new PrimSig("IntExpr" + id++, intref, Attr.ONE);
 					intexprs.add(result);
 					return result;
 				}
@@ -521,7 +531,7 @@ public class IntRefPreprocessor {
     	public ConstList<String> getIntExprAtoms() {
     		TempList<String> result = new TempList<String>();
     		for (Sig.PrimSig sig : intexprs) {
-    			result.add(sig.label + "$0");
+    			result.add(sig.label + "_0");
     		}
     		return result.makeConst();
     	}
