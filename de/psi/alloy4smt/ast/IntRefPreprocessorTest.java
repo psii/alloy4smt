@@ -382,7 +382,12 @@ public class IntRefPreprocessorTest {
     			"pred show {}\n" +
     			"run show for 3\n");
     	assertEquals("AND[(all a | int[a . (this/A <: v)] + 2 = 4)]", module.getAllReachableFacts().toString());
-    	// TODO: actual test
+    	assertEquals("Run show for 3 but exactly 3 A_v_IntRef, exactly 3 IntExpr0",
+    			ppresult.commands.get(0).command.toString());
+    	assertEquals("AND[" +
+    			"(all a | AND[(IntExpr0 <: map) . a . (intref/IntRef <: aqclass) = " +
+    			"a . (this/A <: v) . (intref/IntRef <: aqclass)])" +
+    			"]", ppresult.commands.get(0).command.formula.toString());
     }
     
     private void assertIntRefEqualsTupleSet(String tuplesetstr) {
@@ -428,7 +433,8 @@ public class IntRefPreprocessorTest {
     			"fact { A.v > 0 }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
-    	assertEquals("Run show for 3 but exactly 1 A_v_IntRef, exactly 3 A_w_IntRef", 
+    	assertEquals("Run show for 3 but exactly 1 A_v_IntRef, exactly 3 A_w_IntRef, " +
+    			"exactly 1 IntExpr0, exactly 1 IntExpr1", 
     			ppresult.commands.get(0).command.toString());
     	
     	List<String> intrefatoms = new Vector<String>();

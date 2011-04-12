@@ -1,6 +1,7 @@
 package de.psi.alloy4smt.ast;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -12,7 +13,7 @@ import edu.mit.csail.sdg.alloy4.ConstList.TempList;
 import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4.ErrorFatal;
 import edu.mit.csail.sdg.alloy4.ErrorSyntax;
-import edu.mit.csail.sdg.alloy4.Pos;
+import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4compiler.ast.Attr;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.CommandScope;
@@ -21,6 +22,7 @@ import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprBinary;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprCall;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprConstant;
+import edu.mit.csail.sdg.alloy4compiler.ast.ExprHasName;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprITE;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprLet;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprList;
@@ -30,6 +32,7 @@ import edu.mit.csail.sdg.alloy4compiler.ast.ExprVar;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
+import edu.mit.csail.sdg.alloy4compiler.ast.Type;
 import edu.mit.csail.sdg.alloy4compiler.ast.VisitReturn;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 
@@ -39,13 +42,6 @@ public class IntRefPreprocessor {
     public final ConstList<CmdBundle> commands;
     public final ConstList<Sig> sigs;
     
-    
-	public static class PreprocessError extends Exception {
-
-		private static final long serialVersionUID = 0L;
-				
-    }
-	
 	
 	public static class CmdBundle {
 		public final Command command;
@@ -92,14 +88,15 @@ public class IntRefPreprocessor {
     	
     	TempList<CmdBundle> tmpCommands = new TempList<CmdBundle>();
     	for (int i = 0; i < computer.commands.size(); ++i) {
-    		final FactRewriter rewriter = FactRewriter.rewrite(computer.commands.get(i).formula, intref);
-        	final Command command = computer.commands.get(i).change(rewriter.getFacts());
+    		final IntexprSigBuilder isbuilder = new IntexprSigBuilder(computer.commands.get(i), intref);
+    		final FactRewriter rewriter = FactRewriter.rewrite(computer.commands.get(i).formula, isbuilder);
+        	final Command command = isbuilder.getModifiedCommand().change(rewriter.getFacts());
     		final TempList<String> l = new TempList<String>();
     		l.addAll(computer.intrefAtoms.get(i));
     		l.addAll(rewriter.getIntExprAtoms());
     		final TempList<Sig> esigs = new TempList<Sig>();
     		esigs.addAll(sigs);
-    		esigs.addAll(rewriter.getIntExprSigs());
+    		esigs.addAll(isbuilder.getIntExprSigs());
     		
     		tmpCommands.add(new CmdBundle(command, rewriter.getHysatExprs(), l.makeConst(), esigs.makeConst(), intref));
     	}
@@ -117,6 +114,19 @@ public class IntRefPreprocessor {
     	}
     	
     	commands = tmpCommands.makeConst();
+    }
+    
+    private static int getScope(Command command, Sig sig) {
+		CommandScope scope = command.getScope(sig);
+		int result;
+		if (scope != null) {
+			result = scope.endingScope;
+		} else if (sig.isOne != null || sig.isLone != null) {
+			result = 1;
+		} else {
+			result = command.overall < 0 ? 1 : command.overall;
+		}
+		return result;
     }
     
     private static class Computer {
@@ -191,16 +201,7 @@ public class IntRefPreprocessor {
     	
     	public void addFactor(Sig factor) {
     		for (Command c: oldcommands) {
-    			CommandScope scope = c.getScope(factor);
-    			int mult;
-    			if (scope != null) {
-    				mult = c.getScope(factor).endingScope;
-    			} else if (factor.isOne != null || factor.isLone != null) {
-    				mult = 1;
-    			} else {
-    				mult = c.overall < 0 ? 1 : c.overall;
-    			}
-    			factors.put(c, factors.get(c) * mult);
+    			factors.put(c, factors.get(c) * getScope(c, factor));
     		}
     	}
     	
@@ -355,20 +356,111 @@ public class IntRefPreprocessor {
 
     }
     
-    private static interface IntexprSigBuilder {
-    	public Sig.PrimSig make() throws Err;
+    private static class IntexprSigBuilder {
+    	
+    	private LinkedHashMap<ExprVar, Expr> freeVars;
+    	private Context ctx;
+    	
+    	private static class Context {
+    		public int id = 0;
+    		public PrimSig intref;
+    		public Sig.Field aqclass;
+    		public List<PrimSig> intexprs = new Vector<Sig.PrimSig>();
+    		public List<Integer> intexprInstances = new Vector<Integer>();
+    		public Command command;
+    	}
+    	
+    	public IntexprSigBuilder(Command command, PrimSig intref) {
+    		ctx = new Context();
+    		ctx.command = command;
+    		ctx.intref = intref;
+    		ctx.aqclass = Helpers.getFieldByName(intref.getFields(), "aqclass");
+    		freeVars = new LinkedHashMap<ExprVar, Expr>();
+		}
+    	
+    	private IntexprSigBuilder(IntexprSigBuilder other) {
+    		ctx = other.ctx;
+    		freeVars = new LinkedHashMap<ExprVar, Expr>(other.freeVars);
+    	}
+    	
+    	public Pair<PrimSig, Expr> make(Expr intrefExpr) throws Err {
+    		final PrimSig result = new PrimSig("IntExpr" + ctx.id++, ctx.intref);
+    		final Expr right = ExprBinary.Op.JOIN.make(null, null, intrefExpr, ctx.aqclass);
+    		Expr left;
+    		int instances = 1;
+    		
+    		if (!freeVars.isEmpty()) {
+    			Type type = null;
+    			for (Expr e : freeVars.values()) {
+    				if (type == null) {
+    					type = e.type();
+    				} else {
+    					type = type.product(e.type());
+    				}
+    			}
+    			Sig.Field mapfield = result.addDefinedField(null, null, null, "map", type.toExpr());
+    			
+    			for (List<PrimSig> ss : type.fold()) {
+    				int ssinst = 0;
+    				for (PrimSig sig : ss) {
+    					ssinst += getScope(ctx.command, sig);
+    				}
+    				instances *= ssinst;
+    			}
+    			
+    			Expr varjoin = null;
+    			for (ExprVar var : freeVars.keySet()) {
+    				if (varjoin == null) {
+    					varjoin = var;
+    				} else {
+    					varjoin = ExprBinary.Op.JOIN.make(null, null, varjoin, var);
+    				}
+    			}
+    			
+    			left = ExprBinary.Op.JOIN.make(null, null, 
+    					ExprBinary.Op.JOIN.make(null, null, mapfield, varjoin),
+    					ctx.aqclass);
+    		} else {
+    			left = ExprBinary.Op.JOIN.make(null, null, result, ctx.aqclass);
+    		}
+    		
+    		ctx.intexprs.add(result);
+    		ctx.command = ctx.command.change(result, true, instances);
+    		ctx.intexprInstances.add(instances);
+    		
+    		return new Pair<Sig.PrimSig, Expr>(result, ExprBinary.Op.EQUALS.make(null, null, left, right));
+    	}
+    	
+    	public IntexprSigBuilder addFreeVariables(ConstList<Decl> decls) {
+    		IntexprSigBuilder result = new IntexprSigBuilder(this);
+    		
+    		for (Decl d : decls) {
+    			for (ExprHasName ehn : d.names) {
+    				result.freeVars.put((ExprVar) ehn, d.expr);
+    			}
+    		}
+    		
+    		return result;
+    	}
+    	
+    	public Command getModifiedCommand() {
+    		return ctx.command;
+    	}
+    	
+    	public List<PrimSig> getIntExprSigs() {
+    		return ctx.intexprs;
+    	}
+    	
     }
     
     private static class IntExprHandler extends VisitReturn<String> {
     	
     	private List<Expr> facts;
-    	private Sig.Field aqclass;
     	private IntexprSigBuilder builder;
     	private boolean cast2intSeen;
     	
-    	public IntExprHandler(Sig.Field aqclass, IntexprSigBuilder isb) {
+    	public IntExprHandler(IntexprSigBuilder isb) {
 			this.facts = new Vector<Expr>();
-			this.aqclass = aqclass;
 			this.builder = isb;
 			this.cast2intSeen = false;
 		}
@@ -404,11 +496,9 @@ public class IntRefPreprocessor {
 		@Override
 		public String visit(ExprBinary x) throws Err {
 			if (cast2intSeen && x.op == ExprBinary.Op.JOIN) {
-				final Sig.PrimSig exprsig = builder.make();
-				final Expr a = ExprBinary.Op.JOIN.make(null, null, exprsig, aqclass);
-				final Expr b = ExprBinary.Op.JOIN.make(null, null, x, aqclass);
-				facts.add(ExprBinary.Op.EQUALS.make(null, null, a, b));
-				return exprsig.label;
+				Pair<PrimSig, Expr> result = builder.make(x);
+				facts.add(result.b);
+				return result.a.label;
 			} else {
 				final String left = visitThis(x.left);
 				final String right = visitThis(x.right);
@@ -490,32 +580,18 @@ public class IntRefPreprocessor {
     
     private static class FactRewriter extends VisitReturn<Expr> {
     	
-    	private final Sig.PrimSig intref;
-    	private final Sig.Field aqclass;
-    	private final IntexprSigBuilder intexprBuilder;
-    	private List<Sig.PrimSig> intexprs;
-    	
+    	private IntexprSigBuilder intexprBuilder;
+
     	private Expr rewritten;
     	private TempList<String> hysatexprs;
     	
-    	private FactRewriter(Sig.PrimSig intref_) {
-    		intref = intref_;
-    		aqclass = Helpers.getFieldByName(intref.getFields(), "aqclass");
-    		intexprs = new Vector<Sig.PrimSig>();
+    	private FactRewriter(IntexprSigBuilder builder) {
     		hysatexprs = new TempList<String>();
-    		intexprBuilder = new IntexprSigBuilder() {
-    			private int id = 0;
-				@Override
-				public PrimSig make() throws Err {
-					final PrimSig result = new PrimSig("IntExpr" + id++, intref, Attr.ONE);
-					intexprs.add(result);
-					return result;
-				}
-			};
+    		intexprBuilder = builder;
 		}
     	
-    	public static FactRewriter rewrite(Expr expr, Sig.PrimSig intref) throws Err {
-    		FactRewriter rewriter = new FactRewriter(intref);
+    	public static FactRewriter rewrite(Expr expr, IntexprSigBuilder builder) throws Err {
+    		FactRewriter rewriter = new FactRewriter(builder);
     		rewriter.rewritten = rewriter.visitThis(expr);
     		return rewriter;
     	}
@@ -530,22 +606,18 @@ public class IntRefPreprocessor {
     	
     	public ConstList<String> getIntExprAtoms() {
     		TempList<String> result = new TempList<String>();
-    		for (Sig.PrimSig sig : intexprs) {
+    		for (Sig.PrimSig sig : intexprBuilder.getIntExprSigs()) {
     			result.add(sig.label + "_0");
     		}
     		return result.makeConst();
     	}
     	
-    	public ConstList<PrimSig> getIntExprSigs() {
-    		return ConstList.make(intexprs);
-    	}
-
 		@Override
 		public Expr visit(ExprBinary x) throws Err {
 			Expr result = null;
 			
 			if (x.left.type().is_int && x.right.type().is_int) {
-				final IntExprHandler ieh = new IntExprHandler(aqclass, intexprBuilder);
+				final IntExprHandler ieh = new IntExprHandler(intexprBuilder);
 				final String hexpr = ieh.visitThis(x);
 				hysatexprs.add(hexpr);
 				result = ieh.getFacts();
@@ -597,7 +669,10 @@ public class IntRefPreprocessor {
 
 		@Override
 		public Expr visit(ExprQt x) throws Err {
+			final IntexprSigBuilder tmpold = intexprBuilder;
+			intexprBuilder = tmpold.addFreeVariables(x.decls);
 			Expr sub = visitThis(x.sub);
+			intexprBuilder = tmpold;
 			return x.op.make(x.pos, x.closingBracket, x.decls, sub);
 		}
 
@@ -606,9 +681,6 @@ public class IntRefPreprocessor {
 			final Expr sub = visitThis(x.sub);
 			if (x.op == ExprUnary.Op.CAST2INT) {
 				throw new AssertionError();
-//				Sig.PrimSig exprsig = new Sig.PrimSig("intexpr_0", intref, Attr.ONE);
-//				intexprs.add(exprsig);
-//				return ExprBinary.Op.JOIN.make(null, null, sub, aqclass);
 			} else {
 				return x.op.make(x.pos, sub);
 			}

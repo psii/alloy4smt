@@ -2,21 +2,16 @@ package de.psi.alloy4smt.ast;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import kodkod.ast.Relation;
 import kodkod.engine.fol2sat.HigherOrderDeclException;
 import kodkod.engine.fol2sat.Translation;
-import kodkod.engine.fol2sat.TranslationRecord;
 import kodkod.engine.fol2sat.Translator;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.satlab.SATSolver;
 import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
-import kodkod.util.ints.IntSet;
 import de.psi.alloy4smt.hysat.HysatSolver;
 import edu.mit.csail.sdg.alloy4.A4Reporter;
 import edu.mit.csail.sdg.alloy4.ConstList;
@@ -156,7 +151,7 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 			int i = 0;
 			HysatSolver solver = (HysatSolver) tl.cnf();
 			for (Tuple t : equalsupper) {
-				solver.addHysatExpr("cnf_" + relvars[i] + "<-> (" + t.atom(0).toString() + " = " + t.atom(1).toString() + ")");
+				solver.addHysatExpr("cnf_" + relvars[i] + " <-> (" + t.atom(0).toString() + " = " + t.atom(1).toString() + ")");
 				++i;
 			}
 			solver.solve();
