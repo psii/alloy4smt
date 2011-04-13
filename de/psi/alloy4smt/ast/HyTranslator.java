@@ -12,6 +12,7 @@ import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.satlab.SATSolver;
 import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
+import de.psi.alloy4smt.ast.IntRefPreprocessor.IntrefSigRecord;
 import de.psi.alloy4smt.hysat.HysatSolver;
 import edu.mit.csail.sdg.alloy4.A4Reporter;
 import edu.mit.csail.sdg.alloy4.ConstList;
@@ -64,7 +65,7 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 		final Iterable<Sig> sigs = bundle.sigs;
 		final Command cmd = bundle.command;
 		final ConstList<String> hyexprs = bundle.hysatExprs;
-		final ConstList<String> intrefatoms = hyexprs != null ? bundle.intrefAtoms : null;
+		final ConstList<String> intrefatoms = hyexprs != null ? bundle.getIntrefAtoms() : null;
 		final Pair<A4Solution, ScopeComputer> pair = ScopeComputer.compute(rep, opt, sigs, cmd);
 		
 		BoundsComputer.compute(rep, pair.a, pair.b, sigs);
@@ -103,6 +104,14 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 			
 			Expr sub = e5.implies(e1.iff(e2).and(e3.implies(e4)));
 			formula = formula.and(ExprQt.Op.ALL.make(null, null, Arrays.asList(new Decl[] {da, db}), sub));
+			
+			for (IntrefSigRecord record : bundle.intrefRecords) {
+				if (record.mapfield != null) {
+					Relation rel = (Relation) pair.a.a2k(record.mapfield);
+					TupleSet bound = record.getMapBounds(bundle.command, pair.a.getFactory());
+					pair.a.shrink(rel, bound, bound);
+				}
+			}
 		}
 		
 		HyTranslator tr = null;
@@ -159,7 +168,7 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 		
 		return null;
 	}
-
+	
 	private HyTranslator(A4Reporter rep, Command cmd, A4Options opt, A4Solution frame) throws Err {
 		super(rep, opt, frame, cmd);
 	}

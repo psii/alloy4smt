@@ -17,9 +17,12 @@ import kodkod.instance.Universe;
 import org.junit.Before;
 import org.junit.Test;
 
+import de.psi.alloy4smt.ast.IntRefPreprocessor.IntrefSigRecord;
+
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4.ErrorFatal;
+import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
@@ -319,8 +322,8 @@ public class IntRefPreprocessorTest {
     			"]", 
     			ppresult.commands.get(0).command.formula.toString());
     	assertEquals(2, ppresult.commands.get(0).hysatExprs.size());
-    	assertEquals("((IntExpr0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
-    	assertEquals("(IntExpr1 > 0)", ppresult.commands.get(0).hysatExprs.get(1));
+    	assertEquals("((IntExpr0_0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
+    	assertEquals("(IntExpr1_0 > 0)", ppresult.commands.get(0).hysatExprs.get(1));
     	assertNotNull(Helpers.getSigByName(ppresult.commands.get(0).sigs, "IntExpr0"));
     	assertNotNull(Helpers.getSigByName(ppresult.commands.get(0).sigs, "IntExpr1"));
     }
@@ -344,7 +347,7 @@ public class IntRefPreprocessorTest {
     			"]", 
     			ppresult.commands.get(0).command.formula.toString());
     	assertEquals(1, ppresult.commands.get(0).hysatExprs.size());
-    	assertEquals("((IntExpr0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
+    	assertEquals("((IntExpr0_0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
     }
     
     @Test
@@ -373,6 +376,22 @@ public class IntRefPreprocessorTest {
     			ppresult.commands.get(0).command.formula.toString());
     }
     
+    private void assertIntexprBound(int intexprid, String expected) {
+    	List<String> atoms = new Vector<String>();
+    	for (Sig sig : ppresult.commands.get(0).sigs) {
+    		for (int i = 0; i < 10; ++i)
+    			atoms.add(IntRefPreprocessor.atomize(sig, i));
+    	}
+    	final Universe universe = new Universe(atoms);
+    	final Command command = ppresult.commands.get(0).command;
+    	IntrefSigRecord intexprRecord = null;
+    	for (IntrefSigRecord record : ppresult.commands.get(0).intrefRecords) {
+    		if (record.sig.label.equals("IntExpr" + intexprid))
+    			intexprRecord = record;
+    	}
+    	assertEquals(expected, intexprRecord.getMapBounds(command, universe.factory()).toString());
+    }
+    
     @Test
     public void rewriteFactsAndExtractIntExprsInQuantifiedFormula() throws Err {
     	preprocessModule(
@@ -388,10 +407,60 @@ public class IntRefPreprocessorTest {
     			"(all a | AND[(IntExpr0 <: map) . a . (intref/IntRef <: aqclass) = " +
     			"a . (this/A <: v) . (intref/IntRef <: aqclass)])" +
     			"]", ppresult.commands.get(0).command.formula.toString());
+    	assertIntexprBound(0, "[" +
+    			"[IntExpr0$0, A$0], " +
+    			"[IntExpr0$1, A$1], " +
+    			"[IntExpr0$2, A$2]" +
+    			"]");
+    }
+    
+    @Test
+    public void rewriteFactsAndExtractIntExprsWithSeveralFreeVariables() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"sig A { v: Int }\n" +
+    			"sig B { w: Int }\n" +
+    			"fact { all a: A { no b: B | int(a.v) + int(b.w) > 4  } }\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+    	assertEquals("AND[(all a | (no b | int[a . (this/A <: v)] + " +
+    			"int[b . (this/B <: w)] > 4))]", module.getAllReachableFacts().toString());
+    	assertEquals("Run show for 3 but exactly 3 A_v_IntRef, exactly 3 B_w_IntRef, " +
+    			"exactly 9 IntExpr0, exactly 9 IntExpr1",
+    			ppresult.commands.get(0).command.toString());
+    	assertEquals("AND[(all a | (no b | AND[" +
+    			"(IntExpr0 <: map) . a.b . (intref/IntRef <: aqclass) = " +
+    			"a . (this/A <: v) . (intref/IntRef <: aqclass), " +
+    			"(IntExpr1 <: map) . a.b . (intref/IntRef <: aqclass) = " +
+    			"b . (this/B <: w) . (intref/IntRef <: aqclass)" +
+    			"]))]", 
+    			ppresult.commands.get(0).command.formula.toString());
+    	assertIntexprBound(0, "[" +
+    			"[IntExpr0$0, B$0, A$0], " +
+    			"[IntExpr0$1, B$1, A$0], " +
+    			"[IntExpr0$2, B$2, A$0], " +
+    			"[IntExpr0$3, B$0, A$1], " +
+    			"[IntExpr0$4, B$1, A$1], " +
+    			"[IntExpr0$5, B$2, A$1], " +
+    			"[IntExpr0$6, B$0, A$2], " +
+    			"[IntExpr0$7, B$1, A$2], " +
+    			"[IntExpr0$8, B$2, A$2]" +
+    			"]");
+    	assertIntexprBound(1, "[" +
+    			"[IntExpr1$0, B$0, A$0], " +
+    			"[IntExpr1$1, B$1, A$0], " +
+    			"[IntExpr1$2, B$2, A$0], " +
+    			"[IntExpr1$3, B$0, A$1], " +
+    			"[IntExpr1$4, B$1, A$1], " +
+    			"[IntExpr1$5, B$2, A$1], " +
+    			"[IntExpr1$6, B$0, A$2], " +
+    			"[IntExpr1$7, B$1, A$2], " +
+    			"[IntExpr1$8, B$2, A$2]" +
+    			"]");
     }
     
     private void assertIntRefEqualsTupleSet(String tuplesetstr) {
-    	final Universe universe = new Universe(ppresult.commands.get(0).intrefAtoms);
+    	final Universe universe = new Universe(ppresult.commands.get(0).getIntrefAtoms());
     	assertEquals(tuplesetstr, ppresult.commands.get(0).getIntRefEqualsTupleSet(universe.factory()).toString());
     }
     
@@ -407,19 +476,19 @@ public class IntRefPreprocessorTest {
     			ppresult.commands.get(0).command.toString());
     	
     	List<String> intrefatoms = new Vector<String>();
-    	intrefatoms.add("A_v_IntRef_0");
-    	intrefatoms.add("A_w_IntRef_0");
-    	intrefatoms.add("A_w_IntRef_1");
-    	intrefatoms.add("A_w_IntRef_2");
-    	assertEquals(intrefatoms, ppresult.commands.get(0).intrefAtoms);
+    	intrefatoms.add("A_v_IntRef$0");
+    	intrefatoms.add("A_w_IntRef$0");
+    	intrefatoms.add("A_w_IntRef$1");
+    	intrefatoms.add("A_w_IntRef$2");
+    	assertEquals(intrefatoms, ppresult.commands.get(0).getIntrefAtoms());
     	
     	assertIntRefEqualsTupleSet("[" +
-    			"[A_v_IntRef_0, A_w_IntRef_0], " +
-    			"[A_v_IntRef_0, A_w_IntRef_1], " +
-    			"[A_v_IntRef_0, A_w_IntRef_2], " +
-    			"[A_w_IntRef_0, A_w_IntRef_1], " +
-    			"[A_w_IntRef_0, A_w_IntRef_2], " +
-    			"[A_w_IntRef_1, A_w_IntRef_2]" +
+    			"[A_v_IntRef$0, A_w_IntRef$0], " +
+    			"[A_v_IntRef$0, A_w_IntRef$1], " +
+    			"[A_v_IntRef$0, A_w_IntRef$2], " +
+    			"[A_w_IntRef$0, A_w_IntRef$1], " +
+    			"[A_w_IntRef$0, A_w_IntRef$2], " +
+    			"[A_w_IntRef$1, A_w_IntRef$2]" +
     			"]");
     }
 
@@ -438,30 +507,52 @@ public class IntRefPreprocessorTest {
     			ppresult.commands.get(0).command.toString());
     	
     	List<String> intrefatoms = new Vector<String>();
-    	intrefatoms.add("A_v_IntRef_0");
-    	intrefatoms.add("A_w_IntRef_0");
-    	intrefatoms.add("A_w_IntRef_1");
-    	intrefatoms.add("A_w_IntRef_2");
-    	intrefatoms.add("IntExpr0_0");
-    	intrefatoms.add("IntExpr1_0");
-    	assertEquals(intrefatoms, ppresult.commands.get(0).intrefAtoms);
+    	intrefatoms.add("A_v_IntRef$0");
+    	intrefatoms.add("A_w_IntRef$0");
+    	intrefatoms.add("A_w_IntRef$1");
+    	intrefatoms.add("A_w_IntRef$2");
+    	intrefatoms.add("IntExpr0$0");
+    	intrefatoms.add("IntExpr1$0");
+    	assertEquals(intrefatoms, ppresult.commands.get(0).getIntrefAtoms());
     	
     	assertIntRefEqualsTupleSet("[" +
-    			"[A_v_IntRef_0, A_w_IntRef_0], " +
-    			"[A_v_IntRef_0, A_w_IntRef_1], " +
-    			"[A_v_IntRef_0, A_w_IntRef_2], " +
-    			"[A_v_IntRef_0, IntExpr0_0], " +
-    			"[A_v_IntRef_0, IntExpr1_0], " +
-    			"[A_w_IntRef_0, A_w_IntRef_1], " +
-    			"[A_w_IntRef_0, A_w_IntRef_2], " +
-    			"[A_w_IntRef_0, IntExpr0_0], " +
-    			"[A_w_IntRef_0, IntExpr1_0], " +
-    			"[A_w_IntRef_1, A_w_IntRef_2], " +
-    			"[A_w_IntRef_1, IntExpr0_0], " +
-    			"[A_w_IntRef_1, IntExpr1_0], " +
-    			"[A_w_IntRef_2, IntExpr0_0], " +
-    			"[A_w_IntRef_2, IntExpr1_0], " +
-    			"[IntExpr0_0, IntExpr1_0]" +
+    			"[A_v_IntRef$0, A_w_IntRef$0], " +
+    			"[A_v_IntRef$0, A_w_IntRef$1], " +
+    			"[A_v_IntRef$0, A_w_IntRef$2], " +
+    			"[A_v_IntRef$0, IntExpr0$0], " +
+    			"[A_v_IntRef$0, IntExpr1$0], " +
+    			"[A_w_IntRef$0, A_w_IntRef$1], " +
+    			"[A_w_IntRef$0, A_w_IntRef$2], " +
+    			"[A_w_IntRef$0, IntExpr0$0], " +
+    			"[A_w_IntRef$0, IntExpr1$0], " +
+    			"[A_w_IntRef$1, A_w_IntRef$2], " +
+    			"[A_w_IntRef$1, IntExpr0$0], " +
+    			"[A_w_IntRef$1, IntExpr1$0], " +
+    			"[A_w_IntRef$2, IntExpr0$0], " +
+    			"[A_w_IntRef$2, IntExpr1$0], " +
+    			"[IntExpr0$0, IntExpr1$0]" +
     			"]");
+    }
+    
+    @Test
+    public void collectIntRefAtomsFromFactsWithQuantors() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"sig A { v: Int }\n" +
+    			"fact { all a: A | a.v + 2 = 4 }\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+
+    	assertEquals("Run show for 3 but exactly 3 A_v_IntRef, exactly 3 IntExpr0",
+    			ppresult.commands.get(0).command.toString());
+
+    	List<String> intrefatoms = new Vector<String>();
+    	intrefatoms.add("A_v_IntRef$0");
+    	intrefatoms.add("A_v_IntRef$1");
+    	intrefatoms.add("A_v_IntRef$2");
+    	intrefatoms.add("IntExpr0$0");
+    	intrefatoms.add("IntExpr0$1");
+    	intrefatoms.add("IntExpr0$2");
+    	assertEquals(intrefatoms, ppresult.commands.get(0).getIntrefAtoms());	
     }
 }

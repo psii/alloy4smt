@@ -461,7 +461,7 @@ public final class A4Solution {
     Expression a2k(Sig sig)  { return a2k.get(sig); }
 
     /** Returns the corresponding Kodkod expression for the given Field, or null if it is not associated with anything. */
-    Expression a2k(Field field)  { return a2k.get(field); }
+    public Expression a2k(Field field)  { return a2k.get(field); }
 
     /** Returns the corresponding Kodkod expression for the given Atom/Skolem, or null if it is not associated with anything. */
     Expression a2k(ExprVar var)  { return a2k.get(var); }
@@ -518,7 +518,7 @@ public final class A4Solution {
     }
 
     /** Shrink the bounds for the given relation; throws an exception if the new bounds is not sameAs/subsetOf the old bounds. */
-    void shrink(Relation relation, TupleSet lowerBound, TupleSet upperBound) throws Err {
+    public void shrink(Relation relation, TupleSet lowerBound, TupleSet upperBound) throws Err {
        if (solved) throw new ErrorFatal("Cannot shrink a Kodkod relation since solve() has completed.");
        TupleSet oldL = bounds.lowerBound(relation);
        TupleSet oldU = bounds.upperBound(relation);
