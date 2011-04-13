@@ -43,25 +43,30 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 		"module util/intref\n" +
 		"abstract sig IntRef { aqclass: IntRef }\n";
 	
-	public static A4Solution execute(String document) throws Err {
+	public static void execute(String document) throws Err {
 		Map<String, String> fm = new HashMap<String, String>();
 		fm.put("/tmp/x", document);
 		fm.put("/tmp/util/intref.als", intrefmod);
 		
 		final CompModule module = CompUtil.parseEverything_fromFile(null, fm, "/tmp/x");
 		final IntRefPreprocessor pp = IntRefPreprocessor.processModule(module);
-		final A4Options opt = new A4Options();
-		opt.recordKodkod = true;
-		opt.tempDirectory = "/tmp";
-		opt.solverDirectory = "/tmp";
-		opt.solver = SatSolver.SAT4J;
-		opt.skolemDepth = 4;
-		
-		return execute(null, opt, pp.commands.get(0));
+		execute(null, pp.commands.get(0), new HysatSolver());
 	}
 	
-	public static A4Solution execute(A4Reporter rep, A4Options opt, IntRefPreprocessor.CmdBundle bundle) throws Err {
+	public static void execute(String document, HysatSolver solver) throws Err {
+		Map<String, String> fm = new HashMap<String, String>();
+		fm.put("/tmp/x", document);
+		fm.put("/tmp/util/intref.als", intrefmod);
+		
+		final CompModule module = CompUtil.parseEverything_fromFile(null, fm, "/tmp/x");
+		final IntRefPreprocessor pp = IntRefPreprocessor.processModule(module);
+		execute(null, pp.commands.get(0), solver);		
+	}
+	
+	public static void execute(A4Reporter rep, IntRefPreprocessor.CmdBundle bundle,
+			                         final HysatSolver solver) throws Err {
 		rep = rep == null ? A4Reporter.NOP : rep;
+		final A4Options opt = makeA4Options();
 		final Iterable<Sig> sigs = bundle.sigs;
 		final Command cmd = bundle.command;
 		final ConstList<String> hyexprs = bundle.hysatExprs;
@@ -122,7 +127,6 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 			pair.a.solver.options().setSolver(new SATFactory() {
 				@Override
 				public SATSolver instance() {
-					HysatSolver solver = new HysatSolver();
 					if (hyexprs != null) {
 						for (String atom : intrefatoms) {
 							solver.addHysatVariable(atom, -1000000, 1000000);
@@ -145,9 +149,6 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 			tl = Translator.translate(tr.frame.makeFormula(rep, new Simplifier()), 
 					tr.frame.getBounds(), tr.frame.solver.options());
 			
-			tl.cnf().solve();
-			
-//			return tr.frame;
 		} catch (HigherOrderDeclException ex) {
             Pos p = tr!=null ? tr.frame.kv2typepos(ex.decl().variable()).b : Pos.UNKNOWN;
             throw new ErrorType(p, "Analysis cannot be performed since it requires higher-order quantification that could not be skolemized.");			
@@ -158,15 +159,22 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 		if (equalsrel != null) {
 			int[] relvars = tl.primaryVariables(equalsrel).toArray();
 			int i = 0;
-			HysatSolver solver = (HysatSolver) tl.cnf();
 			for (Tuple t : equalsupper) {
 				solver.addHysatExpr("cnf_" + relvars[i] + " <-> (" + t.atom(0).toString() + " = " + t.atom(1).toString() + ")");
 				++i;
 			}
 			solver.solve();
 		}
-		
-		return null;
+	}
+	
+	private static A4Options makeA4Options() {
+		final A4Options opt = new A4Options();
+		opt.recordKodkod = true;
+		opt.tempDirectory = "/tmp";
+		opt.solverDirectory = "/tmp";
+		opt.solver = SatSolver.SAT4J;
+		opt.skolemDepth = 4;
+		return opt;
 	}
 	
 	private HyTranslator(A4Reporter rep, Command cmd, A4Options opt, A4Solution frame) throws Err {

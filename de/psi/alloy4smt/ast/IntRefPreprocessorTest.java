@@ -1,6 +1,7 @@
 package de.psi.alloy4smt.ast;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -197,6 +198,21 @@ public class IntRefPreprocessorTest {
     			"run show for 5 X, 6 Y\n");
     	assertEquals("Run show for 5 X, 6 Y", module.getAllCommands().get(0).toString());
     	assertEquals("Run show for 5 X, 6 Y, exactly 180 X_v_IntRef", ppresult.commands.get(0).command.toString());
+    }
+    
+    @Test
+    public void commandScopeContainsNewSig() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"sig X { v: Int }\n" +
+    			"pred show {}\n" +
+    			"run show for 4 X\n");
+    	final Sig oldX = Helpers.getSigByName(module.getAllReachableSigs(), "this/X");
+    	final Sig newX = Helpers.getSigByName(ppresult.commands.get(0).sigs, "this/X");
+    	assertNotSame(oldX, newX);
+    	assertNull(ppresult.commands.get(0).command.getScope(oldX));
+    	assertNotNull(ppresult.commands.get(0).command.getScope(newX));
+    	assertEquals(4, ppresult.commands.get(0).command.getScope(newX).endingScope);
     }
     
     @Test
@@ -399,9 +415,9 @@ public class IntRefPreprocessorTest {
     			"sig A { v: Int }\n" +
     			"fact { all a: A | a.v + 2 = 4 }\n" +
     			"pred show {}\n" +
-    			"run show for 3\n");
+    			"run show for 3 A\n");
     	assertEquals("AND[(all a | int[a . (this/A <: v)] + 2 = 4)]", module.getAllReachableFacts().toString());
-    	assertEquals("Run show for 3 but exactly 3 A_v_IntRef, exactly 3 IntExpr0",
+    	assertEquals("Run show for 3 A, exactly 3 A_v_IntRef, exactly 3 IntExpr0",
     			ppresult.commands.get(0).command.toString());
     	assertEquals("AND[" +
     			"(all a | AND[(IntExpr0 <: map) . a . (intref/IntRef <: aqclass) = " +

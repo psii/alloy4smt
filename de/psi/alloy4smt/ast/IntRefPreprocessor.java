@@ -275,7 +275,9 @@ public class IntRefPreprocessor {
     		
     		for (Command c: oldcommands) {
     			TempList<CommandScope> scopes = new TempList<CommandScope>();
-    			scopes.addAll(c.scope);
+    			for (CommandScope scope : c.scope) {
+    				scopes.add(new CommandScope(old2newsigs.get(scope.sig), scope.isExact, scope.endingScope));
+    			}
     			scopes.addAll(newscopes.get(c));
     			commands.add(c.change(scopes.makeConst()).change(EXPR_REWRITER.visitThis(c.formula)));
     			intrefRecords.add(tmpIntrefRecords.get(c).makeConst());
