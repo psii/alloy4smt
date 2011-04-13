@@ -44,12 +44,12 @@ public class HysatSolverTest {
 		HysatSolver solver = new HysatSolver();
 		
 		solver.addHysatVariable("lala", -1000, 1000);
-		solver.addHysatVariable("abc", 4, 2030);
+		solver.addHysatVariable("abc$3", 4, 2030);
 		
 		assertEquals(
 				"DECL\n" +
 				"\tint [-1000, 1000] lala;\n" +
-				"\tint [4, 2030] abc;\n" +
+				"\tint [4, 2030] abc_3;\n" +
 				"EXPR\n", 
 				solver.toHysat());
 	}
@@ -59,13 +59,13 @@ public class HysatSolverTest {
 		HysatSolver solver = new HysatSolver();
 		
 		solver.addHysatExpr("a * a + b * b = c * c");
-		solver.addHysatExpr("cnf -> {x + y = z}");
+		solver.addHysatExpr("cnf -> {x + a$4 = z$3}");
 		
 		assertEquals(
 				"DECL\n" +
 				"EXPR\n" +
 				"\ta * a + b * b = c * c;\n" +
-				"\tcnf -> {x + y = z};\n",
+				"\tcnf -> {x + a_4 = z_3};\n",
 				solver.toHysat());
 	}
 	

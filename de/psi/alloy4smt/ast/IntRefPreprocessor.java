@@ -453,12 +453,12 @@ public class IntRefPreprocessor {
     		freeVars = new LinkedHashMap<ExprVar, Expr>(other.freeVars);
     	}
     	
-    	public Pair<PrimSig, Expr> make(Expr intrefExpr) throws Err {
-    		final PrimSig result = new PrimSig("IntExpr" + ctx.id++, ctx.intref);
+    	public Pair<IntrefSigRecord, Expr> make(Expr intrefExpr) throws Err {
+    		final PrimSig intexprsig = new PrimSig("IntExpr" + ctx.id++, ctx.intref);
     		final Expr right = ExprBinary.Op.JOIN.make(null, null, intrefExpr, ctx.aqclass);
     		Expr left;
     		Sig.Field mapfield = null;
-    		TempList<Sig> dependencies = new TempList<Sig>();
+    		List<Sig> dependencies = new Vector<Sig>();
     		int instances = 1;
     		
     		if (!freeVars.isEmpty()) {
@@ -467,40 +467,36 @@ public class IntRefPreprocessor {
     				if (type == null) {
     					type = e.type();
     				} else {
-    					type = type.product(e.type());
+    					type = e.type().product(type);
     				}
     			}
-    			mapfield = result.addDefinedField(null, null, null, "map", type.toExpr());
+    			mapfield = intexprsig.addDefinedField(null, null, null, "map", type.toExpr());
     			
     			for (List<PrimSig> ss : type.fold()) {
     				int ssinst = 1;
     				for (PrimSig sig : ss) {
     					ssinst *= getScope(ctx.command, sig);
-    					dependencies.add(sig);
+    					dependencies.add(0, sig);
     				}
     				instances *= ssinst;
     			}
     			
-    			Expr varjoin = null;
+    			Expr mapjoin = mapfield;
     			for (ExprVar var : freeVars.keySet()) {
-    				if (varjoin == null) {
-    					varjoin = var;
-    				} else {
-    					varjoin = ExprBinary.Op.JOIN.make(null, null, varjoin, var);
-    				}
+    				mapjoin = ExprBinary.Op.JOIN.make(null, null, mapjoin, var);
     			}
     			
-    			left = ExprBinary.Op.JOIN.make(null, null, 
-    					ExprBinary.Op.JOIN.make(null, null, mapfield, varjoin),
-    					ctx.aqclass);
+    			left = ExprBinary.Op.JOIN.make(null, null, mapjoin, ctx.aqclass);
     		} else {
-    			left = ExprBinary.Op.JOIN.make(null, null, result, ctx.aqclass);
+    			left = ExprBinary.Op.JOIN.make(null, null, intexprsig, ctx.aqclass);
     		}
     		
-    		ctx.command = ctx.command.change(result, true, instances);
-    		ctx.records.add(new IntrefSigRecord(result, mapfield, dependencies.makeConst(), instances));
+    		IntrefSigRecord result = new IntrefSigRecord(intexprsig, mapfield, ConstList.make(dependencies), instances);
     		
-    		return new Pair<Sig.PrimSig, Expr>(result, ExprBinary.Op.EQUALS.make(null, null, left, right));
+    		ctx.command = ctx.command.change(intexprsig, true, instances);
+    		ctx.records.add(result);
+    		
+    		return new Pair<IntrefSigRecord, Expr>(result, ExprBinary.Op.EQUALS.make(null, null, left, right));
     	}
     	
     	public IntexprSigBuilder addFreeVariables(ConstList<Decl> decls) {
@@ -532,7 +528,7 @@ public class IntRefPreprocessor {
     	}    	
     }
     
-    private static class IntExprHandler extends VisitReturn<String> {
+    private static class IntExprHandler extends VisitReturn<TempList<String>> {
     	
     	private List<Expr> facts;
     	private IntexprSigBuilder builder;
@@ -553,15 +549,15 @@ public class IntRefPreprocessor {
     	}
 
 		@Override
-		public String visit(ExprUnary x) throws Err {
-			String result;
+		public TempList<String> visit(ExprUnary x) throws Err {
+			TempList<String> result;
 			
 			if (x.op == ExprUnary.Op.CAST2INT) {
 				cast2intSeen = true;
 				result = visitThis(x.sub);
 				cast2intSeen = false;
 			} else {	
-				final String sub = visitThis(x.sub);
+				final TempList<String> sub = visitThis(x.sub);
 				switch (x.op) {
 				case NOOP: result = sub; break;
 				default:
@@ -573,14 +569,14 @@ public class IntRefPreprocessor {
 		}
 
 		@Override
-		public String visit(ExprBinary x) throws Err {
+		public TempList<String> visit(ExprBinary x) throws Err {
 			if (cast2intSeen && x.op == ExprBinary.Op.JOIN) {
-				Pair<PrimSig, Expr> result = builder.make(x);
+				Pair<IntrefSigRecord, Expr> result = builder.make(x);
 				facts.add(result.b);
-				return result.a.label + "_0";
+				return new TempList<String>(result.a.getAtoms());
 			} else {
-				final String left = visitThis(x.left);
-				final String right = visitThis(x.right);
+				final TempList<String> left = visitThis(x.left);
+				final TempList<String> right = visitThis(x.right);
 				String op = null;
 				
 				switch (x.op) {
@@ -601,57 +597,63 @@ public class IntRefPreprocessor {
 				default:
 					throwUnsupportedOperator(x);
 				}
-	
-				return "(" + left + " " + op + " " + right + ")";
+				
+				TempList<String> result = new TempList<String>();
+				for (String l : left.makeConst()) {
+					for (String r : right.makeConst()) {
+						result.add("(" + l + " " + op + " " + r + ")");
+					}
+				}
+				return result;
 			}
 		}
 
 		@Override
-		public String visit(ExprConstant x) throws Err {
+		public TempList<String> visit(ExprConstant x) throws Err {
 			if (x.op == ExprConstant.Op.NUMBER) {
-				return String.valueOf(x.num);
+				return new TempList<String>(String.valueOf(x.num));
 			} else {
 				throw new ErrorSyntax(x.pos, "Constant not convertible to HySAT");
 			}
 		}
 
 		@Override
-		public String visit(ExprList x) throws Err {
+		public TempList<String> visit(ExprList x) throws Err {
 			throw new AssertionError();
 		}
 
 		@Override
-		public String visit(ExprCall x) throws Err {
+		public TempList<String> visit(ExprCall x) throws Err {
 			throw new AssertionError();
 		}
 
 		@Override
-		public String visit(ExprITE x) throws Err {
+		public TempList<String> visit(ExprITE x) throws Err {
 			throw new AssertionError();
 		}
 
 		@Override
-		public String visit(ExprLet x) throws Err {
+		public TempList<String> visit(ExprLet x) throws Err {
 			throw new AssertionError();
 		}
 
 		@Override
-		public String visit(ExprQt x) throws Err {
+		public TempList<String> visit(ExprQt x) throws Err {
 			throw new AssertionError();
 		}
 
 		@Override
-		public String visit(ExprVar x) throws Err {
+		public TempList<String> visit(ExprVar x) throws Err {
 			throw new AssertionError();
 		}
 
 		@Override
-		public String visit(Sig x) throws Err {
+		public TempList<String> visit(Sig x) throws Err {
 			throw new AssertionError();
 		}
 
 		@Override
-		public String visit(Field x) throws Err {
+		public TempList<String> visit(Field x) throws Err {
 			throw new AssertionError();
 		}
 
@@ -689,8 +691,8 @@ public class IntRefPreprocessor {
 			
 			if (x.left.type().is_int && x.right.type().is_int) {
 				final IntExprHandler ieh = new IntExprHandler(intexprBuilder);
-				final String hexpr = ieh.visitThis(x);
-				hysatexprs.add(hexpr);
+				final TempList<String> hexpr = ieh.visitThis(x);
+				hysatexprs.addAll(hexpr.makeConst());
 				result = ieh.getFacts();
 			} else {
 				final Expr left = visitThis(x.left);

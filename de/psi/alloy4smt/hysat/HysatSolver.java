@@ -129,12 +129,12 @@ public class HysatSolver implements SATSolver {
 	}
 
 	public void addHysatVariable(String varname, int min, int max) {
-		hyvars.add(new Hyvar(varname, min, max));
+		hyvars.add(new Hyvar(varname.replace('$', '_'), min, max));
 	}
 
 	public void addHysatExpr(String expr) {
 		hyexprbuilder.append("\t");
-		hyexprbuilder.append(expr);
+		hyexprbuilder.append(expr.replace('$', '_'));
 		hyexprbuilder.append(";\n");
 	}
 

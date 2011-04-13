@@ -322,8 +322,8 @@ public class IntRefPreprocessorTest {
     			"]", 
     			ppresult.commands.get(0).command.formula.toString());
     	assertEquals(2, ppresult.commands.get(0).hysatExprs.size());
-    	assertEquals("((IntExpr0_0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
-    	assertEquals("(IntExpr1_0 > 0)", ppresult.commands.get(0).hysatExprs.get(1));
+    	assertEquals("((IntExpr0$0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
+    	assertEquals("(IntExpr1$0 > 0)", ppresult.commands.get(0).hysatExprs.get(1));
     	assertNotNull(Helpers.getSigByName(ppresult.commands.get(0).sigs, "IntExpr0"));
     	assertNotNull(Helpers.getSigByName(ppresult.commands.get(0).sigs, "IntExpr1"));
     }
@@ -347,7 +347,7 @@ public class IntRefPreprocessorTest {
     			"]", 
     			ppresult.commands.get(0).command.formula.toString());
     	assertEquals(1, ppresult.commands.get(0).hysatExprs.size());
-    	assertEquals("((IntExpr0_0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
+    	assertEquals("((IntExpr0$0 + 2) = 4)", ppresult.commands.get(0).hysatExprs.get(0));
     }
     
     @Test
@@ -412,6 +412,13 @@ public class IntRefPreprocessorTest {
     			"[IntExpr0$1, A$1], " +
     			"[IntExpr0$2, A$2]" +
     			"]");
+    	
+    	List<String> expectedHysatExprs = new Vector<String>();
+    	expectedHysatExprs.add("((IntExpr0$0 + 2) = 4)");
+    	expectedHysatExprs.add("((IntExpr0$1 + 2) = 4)");
+    	expectedHysatExprs.add("((IntExpr0$2 + 2) = 4)");
+    	assertEquals(expectedHysatExprs, ppresult.commands.get(0).hysatExprs);
+    	
     }
     
     @Test
@@ -429,9 +436,9 @@ public class IntRefPreprocessorTest {
     			"exactly 9 IntExpr0, exactly 9 IntExpr1",
     			ppresult.commands.get(0).command.toString());
     	assertEquals("AND[(all a | (no b | AND[" +
-    			"(IntExpr0 <: map) . a.b . (intref/IntRef <: aqclass) = " +
+    			"(IntExpr0 <: map) . a . b . (intref/IntRef <: aqclass) = " +
     			"a . (this/A <: v) . (intref/IntRef <: aqclass), " +
-    			"(IntExpr1 <: map) . a.b . (intref/IntRef <: aqclass) = " +
+    			"(IntExpr1 <: map) . a . b . (intref/IntRef <: aqclass) = " +
     			"b . (this/B <: w) . (intref/IntRef <: aqclass)" +
     			"]))]", 
     			ppresult.commands.get(0).command.formula.toString());
