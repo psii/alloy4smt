@@ -1,9 +1,17 @@
 package de.psi.alloy4smt.ast;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
+import org.junit.rules.TemporaryFolder;
+
+import kodkod.ast.Formula;
 import kodkod.ast.Relation;
 import kodkod.engine.fol2sat.HigherOrderDeclException;
 import kodkod.engine.fol2sat.Translation;
@@ -36,6 +44,7 @@ import edu.mit.csail.sdg.alloy4compiler.translator.BoundsComputer;
 import edu.mit.csail.sdg.alloy4compiler.translator.ScopeComputer;
 import edu.mit.csail.sdg.alloy4compiler.translator.Simplifier;
 import edu.mit.csail.sdg.alloy4compiler.translator.TranslateAlloyToKodkod;
+import edu.mit.csail.sdg.alloy4compiler.translator.TranslateKodkodToJava;
 
 public final class HyTranslator extends TranslateAlloyToKodkod {
 	
@@ -146,8 +155,18 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 			
 			tr.makeFacts(formula);
 			
-			tl = Translator.translate(tr.frame.makeFormula(rep, new Simplifier()), 
-					tr.frame.getBounds(), tr.frame.solver.options());
+			List<String> atoms = new Vector<String>();
+			for (Iterator<Object> it = tr.frame.getFactory().universe().iterator(); it.hasNext();) { 
+				atoms.add((String) it.next()); 
+			}
+			Formula kformula = tr.frame.makeFormula(rep, new Simplifier());
+			String kodkodout = TranslateKodkodToJava.convert(kformula, tr.frame.getBitwidth(), atoms, tr.frame.getBounds(), null);
+			File tmpout = File.createTempFile("kodkodout", ".txt");
+			FileWriter writer = new FileWriter(tmpout);
+			writer.write(kodkodout);
+			writer.close();
+			
+			tl = Translator.translate(kformula, tr.frame.getBounds(), tr.frame.solver.options());
 			
 		} catch (HigherOrderDeclException ex) {
             Pos p = tr!=null ? tr.frame.kv2typepos(ex.decl().variable()).b : Pos.UNKNOWN;
