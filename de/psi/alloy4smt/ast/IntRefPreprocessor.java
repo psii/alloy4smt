@@ -2,8 +2,10 @@ package de.psi.alloy4smt.ast;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 
 import kodkod.instance.TupleFactory;
@@ -33,6 +35,7 @@ import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
 import edu.mit.csail.sdg.alloy4compiler.ast.Type;
+import edu.mit.csail.sdg.alloy4compiler.ast.VisitQuery;
 import edu.mit.csail.sdg.alloy4compiler.ast.VisitReturn;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 
@@ -455,15 +458,17 @@ public class IntRefPreprocessor {
     	
     	public Pair<IntrefSigRecord, Expr> make(Expr intrefExpr) throws Err {
     		final PrimSig intexprsig = new PrimSig("IntExpr" + ctx.id++, ctx.intref);
+    		final Set<ExprVar> usedFreeVars = FreeVarFinder.find(intrefExpr);
     		final Expr right = ExprBinary.Op.JOIN.make(null, null, intrefExpr, ctx.aqclass);
     		Expr left;
     		Sig.Field mapfield = null;
     		List<Sig> dependencies = new Vector<Sig>();
     		int instances = 1;
     		
-    		if (!freeVars.isEmpty()) {
+    		if (!usedFreeVars.isEmpty()) {
     			Type type = null;
-    			for (Expr e : freeVars.values()) {
+    			for (ExprVar var : usedFreeVars) {
+    				final Expr e = freeVars.get(var);
     				if (type == null) {
     					type = e.type();
     				} else {
@@ -482,7 +487,7 @@ public class IntRefPreprocessor {
     			}
     			
     			Expr mapjoin = mapfield;
-    			for (ExprVar var : freeVars.keySet()) {
+    			for (ExprVar var : usedFreeVars) {
     				mapjoin = ExprBinary.Op.JOIN.make(null, null, mapjoin, var);
     			}
     			
@@ -526,6 +531,25 @@ public class IntRefPreprocessor {
     		}
     		return result;
     	}    	
+    }
+    
+    private static class FreeVarFinder extends VisitQuery<Object> {
+    	private Set<ExprVar> freeVars = new LinkedHashSet<ExprVar>();
+
+		@Override
+		public Object visit(ExprVar x) throws Err {
+			freeVars.add(x);
+			return super.visit(x);
+		}
+		
+		private FreeVarFinder() {
+		}
+		
+		public static Set<ExprVar> find(Expr x) throws Err {
+			FreeVarFinder finder = new FreeVarFinder();
+			finder.visitThis(x);
+			return finder.freeVars;
+		}
     }
     
     private static class IntExprHandler extends VisitReturn<TempList<String>> {

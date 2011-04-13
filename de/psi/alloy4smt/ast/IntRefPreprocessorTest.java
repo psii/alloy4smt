@@ -433,37 +433,99 @@ public class IntRefPreprocessorTest {
     	assertEquals("AND[(all a | (no b | int[a . (this/A <: v)] + " +
     			"int[b . (this/B <: w)] > 4))]", module.getAllReachableFacts().toString());
     	assertEquals("Run show for 3 but exactly 3 A_v_IntRef, exactly 3 B_w_IntRef, " +
-    			"exactly 9 IntExpr0, exactly 9 IntExpr1",
+    			"exactly 3 IntExpr0, exactly 3 IntExpr1",
     			ppresult.commands.get(0).command.toString());
     	assertEquals("AND[(all a | (no b | AND[" +
-    			"(IntExpr0 <: map) . a . b . (intref/IntRef <: aqclass) = " +
+    			"(IntExpr0 <: map) . a . (intref/IntRef <: aqclass) = " +
     			"a . (this/A <: v) . (intref/IntRef <: aqclass), " +
-    			"(IntExpr1 <: map) . a . b . (intref/IntRef <: aqclass) = " +
+    			"(IntExpr1 <: map) . b . (intref/IntRef <: aqclass) = " +
     			"b . (this/B <: w) . (intref/IntRef <: aqclass)" +
     			"]))]", 
     			ppresult.commands.get(0).command.formula.toString());
     	assertIntexprBound(0, "[" +
-    			"[IntExpr0$0, B$0, A$0], " +
-    			"[IntExpr0$1, B$1, A$0], " +
-    			"[IntExpr0$2, B$2, A$0], " +
-    			"[IntExpr0$3, B$0, A$1], " +
-    			"[IntExpr0$4, B$1, A$1], " +
-    			"[IntExpr0$5, B$2, A$1], " +
-    			"[IntExpr0$6, B$0, A$2], " +
-    			"[IntExpr0$7, B$1, A$2], " +
-    			"[IntExpr0$8, B$2, A$2]" +
+    			"[IntExpr0$0, A$0], " +
+    			"[IntExpr0$1, A$1], " +
+    			"[IntExpr0$2, A$2]" +
     			"]");
     	assertIntexprBound(1, "[" +
-    			"[IntExpr1$0, B$0, A$0], " +
-    			"[IntExpr1$1, B$1, A$0], " +
-    			"[IntExpr1$2, B$2, A$0], " +
-    			"[IntExpr1$3, B$0, A$1], " +
-    			"[IntExpr1$4, B$1, A$1], " +
-    			"[IntExpr1$5, B$2, A$1], " +
-    			"[IntExpr1$6, B$0, A$2], " +
-    			"[IntExpr1$7, B$1, A$2], " +
-    			"[IntExpr1$8, B$2, A$2]" +
+    			"[IntExpr1$0, B$0], " +
+    			"[IntExpr1$1, B$1], " +
+    			"[IntExpr1$2, B$2]" +
     			"]");
+    	List<String> expectedHysatExprs = new Vector<String>();
+    	expectedHysatExprs.add("((IntExpr0$0 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$0 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$0 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$1 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$1 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$1 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$2 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$2 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$2 + IntExpr1$2) > 4)");
+    	assertEquals(expectedHysatExprs, ppresult.commands.get(0).hysatExprs);
+    }
+    
+    @Test
+    public void rewriteFactsAndExtractIntExprsWithSeveralFreeVariables2() throws Err {
+    	preprocessModule(
+    			"open util/intref\n" +
+    			"sig A { v: B ->one Int }\n" +
+    			"sig B { w: Int }\n" +
+    			"fact { all a: A { no b: B | int(a.v[b]) + int(b.w) > 4  } }\n" +
+    			"pred show {}\n" +
+    			"run show for 3\n");
+    	assertEquals("AND[(all a | (no b | AND[" +
+    			"(IntExpr0 <: map) . b . a . (intref/IntRef <: aqclass) = " +
+    			"b . a . (this/A <: v) . (intref/IntRef <: aqclass), " +
+    			"(IntExpr1 <: map) . b . (intref/IntRef <: aqclass) = " +
+    			"b . (this/B <: w) . (intref/IntRef <: aqclass)" +
+    			"]))]", 
+    			ppresult.commands.get(0).command.formula.toString());
+    	assertIntexprBound(0, "[" +
+    			"[IntExpr0$0, A$0, B$0], " +
+    			"[IntExpr0$1, A$1, B$0], " +
+    			"[IntExpr0$2, A$2, B$0], " +
+    			"[IntExpr0$3, A$0, B$1], " +
+    			"[IntExpr0$4, A$1, B$1], " +
+    			"[IntExpr0$5, A$2, B$1], " +
+    			"[IntExpr0$6, A$0, B$2], " +
+    			"[IntExpr0$7, A$1, B$2], " +
+    			"[IntExpr0$8, A$2, B$2]" +
+    			"]");
+    	assertIntexprBound(1, "[" +
+    			"[IntExpr1$0, B$0], " +
+    			"[IntExpr1$1, B$1], " +
+    			"[IntExpr1$2, B$2]" +
+    			"]");
+    	List<String> expectedHysatExprs = new Vector<String>();
+    	expectedHysatExprs.add("((IntExpr0$0 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$0 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$0 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$1 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$1 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$1 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$2 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$2 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$2 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$3 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$3 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$3 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$4 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$4 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$4 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$5 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$5 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$5 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$6 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$6 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$6 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$7 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$7 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$7 + IntExpr1$2) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$8 + IntExpr1$0) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$8 + IntExpr1$1) > 4)");
+    	expectedHysatExprs.add("((IntExpr0$8 + IntExpr1$2) > 4)");
+    	assertEquals(expectedHysatExprs, ppresult.commands.get(0).hysatExprs);
     }
     
     private void assertIntRefEqualsTupleSet(String tuplesetstr) {
