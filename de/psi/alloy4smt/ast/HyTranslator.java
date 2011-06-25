@@ -47,6 +47,10 @@ import edu.mit.csail.sdg.alloy4compiler.translator.TranslateAlloyToKodkod;
 import edu.mit.csail.sdg.alloy4compiler.translator.TranslateKodkodToJava;
 
 public final class HyTranslator extends TranslateAlloyToKodkod {
+
+    public static class Dbg {
+        public static Formula kFormula;
+    }
 	
 	public static final String intrefmod = 
 		"module util/intref\n" +
@@ -160,6 +164,7 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 				atoms.add((String) it.next()); 
 			}
 			Formula kformula = tr.frame.makeFormula(rep, new Simplifier());
+            Dbg.kFormula = kformula;
 			String kodkodout = TranslateKodkodToJava.convert(kformula, tr.frame.getBitwidth(), atoms, tr.frame.getBounds(), null);
 			File tmpout = File.createTempFile("kodkodout", ".txt");
 			FileWriter writer = new FileWriter(tmpout);
@@ -182,8 +187,10 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 				solver.addHysatExpr("cnf_" + relvars[i] + " <-> (" + t.atom(0).toString() + " = " + t.atom(1).toString() + ")");
 				++i;
 			}
-			solver.solve();
+
 		}
+
+        solver.solve();
 	}
 	
 	private static A4Options makeA4Options() {
