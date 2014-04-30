@@ -715,7 +715,7 @@ public class IntRefPreprocessor {
 		public Expr visit(ExprBinary x) throws Err {
 			Expr result = null;
 			
-			if (x.left.type().is_int && x.right.type().is_int) {
+			if (x.left.type().is_int() && x.right.type().is_int()) {
 				final IntExprHandler ieh = new IntExprHandler(intexprBuilder);
 				final TempList<String> hexpr = ieh.visitThis(x);
 				hysatexprs.addAll(hexpr.makeConst());

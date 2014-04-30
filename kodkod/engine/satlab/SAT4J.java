@@ -297,7 +297,8 @@ final class SAT4J implements SATSolver {
 			return -1;
 		}
 
-        @Override
+
+/*   @Override
         public int indexOf(int e) {
             final int[] workArray = this.vec; // faster access
             final int n = vec.length;
@@ -317,8 +318,7 @@ final class SAT4J implements SATSolver {
         @Override
         public IVecInt[] subset(int cardinal) {
             return null;
-        }
-
+        }*/
         @Override
         public int[] toArray() {
             return vec;

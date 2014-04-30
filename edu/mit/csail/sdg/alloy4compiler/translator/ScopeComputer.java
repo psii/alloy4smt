@@ -71,7 +71,7 @@ import edu.mit.csail.sdg.alloy4compiler.ast.Type.ProductType;
  * <p> Please see ScopeComputer.java for the exact rules for deriving the missing scopes.
  */
 
-final class ScopeComputer {
+public final class ScopeComputer {
 
     // It calls A4Solution's constructor
 
@@ -392,7 +392,7 @@ final class ScopeComputer {
      *
      * <p> Please see ScopeComputer.java for the exact rules for deriving the missing scopes.
      */
-    static Pair<A4Solution,ScopeComputer> compute (A4Reporter rep, A4Options opt, Iterable<Sig> sigs, Command cmd) throws Err {
+    public static Pair<A4Solution,ScopeComputer> compute(A4Reporter rep, A4Options opt, Iterable<Sig> sigs, Command cmd) throws Err {
         ScopeComputer sc = new ScopeComputer(rep, sigs, cmd);
         Set<String> set = cmd.getAllStringConstants(sigs);
         if (sc.maxstring>=0 && set.size()>sc.maxstring) rep.scope("Sig String expanded to contain all "+set.size()+" String constant(s) referenced by this command.\n");

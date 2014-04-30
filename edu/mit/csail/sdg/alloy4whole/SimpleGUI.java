@@ -88,7 +88,6 @@ import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4.ErrorFatal;
 import edu.mit.csail.sdg.alloy4.ErrorType;
 import edu.mit.csail.sdg.alloy4.Listener;
-import edu.mit.csail.sdg.alloy4.MacUtil;
 import edu.mit.csail.sdg.alloy4.MailBug;
 import edu.mit.csail.sdg.alloy4.OurAntiAlias;
 import edu.mit.csail.sdg.alloy4.OurBorder;
@@ -1917,13 +1916,13 @@ public final class SimpleGUI implements ComponentListener, Listener {
         // Generate some informative log messages
         log.logBold("Alloy Analyzer "+Version.version()+" (build date: "+Version.buildDate()+")\n\n");
 
-        // If on Mac, then register an application listener
+      /*  // If on Mac, then register an application listener
         try {
             wrap = true;
             if (Util.onMac()) MacUtil.registerApplicationListener(doShow(), doAbout(), doOpenFile(""), doQuit());
         } finally {
             wrap = false;
-        }
+        }*/
 
         // Add the new JNI location to the java.library.path
         try {

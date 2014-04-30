@@ -76,7 +76,7 @@ import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
 
 /** Translate an Alloy AST into Kodkod AST then attempt to solve it using Kodkod. */
 
-public final class TranslateAlloyToKodkod extends VisitReturn<Object> {
+public class TranslateAlloyToKodkod extends VisitReturn<Object> {
 
     static int cnt = 0; 
     
@@ -89,7 +89,7 @@ public final class TranslateAlloyToKodkod extends VisitReturn<Object> {
     private Env<ExprVar,Object> env = new Env<ExprVar,Object>();
 
     /** If frame!=null, it stores the scope, bounds, and other settings necessary for performing a solve. */
-    private final A4Solution frame;
+    protected final A4Solution frame;
 
     /** If frame==null, it stores the mapping from each Sig/Field/Skolem/Atom to its corresponding Kodkod expression. */
     private final ConstMap<Expr,Expression> a2k;
@@ -154,6 +154,21 @@ public final class TranslateAlloyToKodkod extends VisitReturn<Object> {
         this.s2k = ConstMap.make(s2k);
     }
 
+
+    /** Contructor for usage from subclasses. */
+    protected TranslateAlloyToKodkod(A4Reporter rep, A4Options opt, A4Solution frame, Command cmd) {
+        this.unrolls = opt.unrolls;
+        this.frame = frame;
+        this.min = frame.min();
+        this.max = frame.max();
+        this.a2k = null;
+        this.s2k = null;
+        this.cmd = cmd;
+        this.bitwidth = frame.getBitwidth();
+        this.rep = (rep != null) ? rep : A4Reporter.NOP;
+    }
+
+
     /** Associate the given formula with the given expression, then return the formula as-is. */
     private Formula k2pos(Formula f, Expr e) throws Err {
         if (k2pos_enabled) if (frame!=null) frame.k2pos(f, e);
@@ -179,7 +194,7 @@ public final class TranslateAlloyToKodkod extends VisitReturn<Object> {
     private final List<Relation> totalOrderPredicates = new ArrayList<Relation>();
 
    /** Conjoin the constraints for "field declarations" and "fact" paragraphs */
-   private void makeFacts(Expr facts) throws Err {
+   protected void makeFacts(Expr facts) throws Err {
       rep.debug("Generating facts...\n");
       // convert into a form that hopefully gives better unsat core
       facts = (Expr) (new ConvToConjunction()).visitThis(facts);

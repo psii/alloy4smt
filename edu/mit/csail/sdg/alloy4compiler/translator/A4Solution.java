@@ -151,7 +151,7 @@ public final class A4Solution {
     private final TupleSet stringBounds;
 
     /** The Kodkod Solver object. */
-    private final Solver solver;
+    public final Solver solver;
 
     //====== mutable fields (immutable after solve() has been called) ===================================//
 
@@ -395,17 +395,17 @@ public final class A4Solution {
     //===================================================================================================//
 
     /** Returns the Kodkod TupleFactory object. */
-    TupleFactory getFactory() { return factory; }
+    public TupleFactory getFactory() { return factory; }
 
     /** Returns a modifiable copy of the Kodkod Bounds object. */
-    Bounds getBounds() { return bounds.clone(); }
+    public Bounds getBounds() { return bounds.clone(); }
 
     /** Add a new relation with the given label and the given lower and upper bound.
      * @param label - the label for the new relation; need not be unique
      * @param lower - the lowerbound; can be null if you want it to be the empty set
      * @param upper - the upperbound; cannot be null; must contain everything in lowerbound
      */
-    Relation addRel(String label, TupleSet lower, TupleSet upper) throws ErrorFatal {
+    public Relation addRel(String label, TupleSet lower, TupleSet upper) throws ErrorFatal {
        if (solved) throw new ErrorFatal("Cannot add a Kodkod relation since solve() has completed.");
        Relation rel = Relation.nary(label, upper.arity());
        if (lower == upper) {
@@ -436,7 +436,7 @@ public final class A4Solution {
      * <br> The expression must contain only constant Relations or Relations that are already bound in this solution.
      * <br> (If the field was already added by a previous call to addField(), then this call will return immediately without altering what it is associated with)
      */
-    void addField(Field f, Expression expr) throws ErrorFatal {
+    public void addField(Field f, Expression expr) throws ErrorFatal {
        if (solved) throw new ErrorFatal("Cannot add an additional field since solve() has completed.");
        if (expr.arity()!=f.type().arity()) throw new ErrorFatal("Field "+f+" must be associated with an "+f.type().arity()+"-ary relational value.");
        if (a2k.containsKey(f)) return;
@@ -467,7 +467,7 @@ public final class A4Solution {
     Expression a2k(Sig sig)  { return a2k.get(sig); }
 
     /** Returns the corresponding Kodkod expression for the given Field, or null if it is not associated with anything. */
-    Expression a2k(Field field)  { return a2k.get(field); }
+    public Expression a2k(Field field)  { return a2k.get(field); }
 
     /** Returns the corresponding Kodkod expression for the given Atom/Skolem, or null if it is not associated with anything. */
     Expression a2k(ExprVar var)  { return a2k.get(var); }
@@ -529,7 +529,7 @@ public final class A4Solution {
     }
 
     /** Shrink the bounds for the given relation; throws an exception if the new bounds is not sameAs/subsetOf the old bounds. */
-    void shrink(Relation relation, TupleSet lowerBound, TupleSet upperBound) throws Err {
+    public void shrink(Relation relation, TupleSet lowerBound, TupleSet upperBound) throws Err {
        if (solved) throw new ErrorFatal("Cannot shrink a Kodkod relation since solve() has completed.");
        TupleSet oldL = bounds.lowerBound(relation);
        TupleSet oldU = bounds.upperBound(relation);
@@ -668,7 +668,7 @@ public final class A4Solution {
     private Pair<Type,Pos> cachedPAIR = null;
 
     /** Maps a Kodkod variable to an Alloy Type and Alloy Pos (if no association exists, it will return (Type.EMPTY , Pos.UNKNOWN) */
-    Pair<Type,Pos> kv2typepos(Variable var) {
+    public Pair<Type,Pos> kv2typepos(Variable var) {
        Pair<Type,Pos> ans=decl2type.get(var);
        if (ans!=null) return ans;
        if (cachedPAIR==null) cachedPAIR=new Pair<Type,Pos>(Type.EMPTY, Pos.UNKNOWN);
@@ -979,6 +979,14 @@ public final class A4Solution {
         time = System.currentTimeMillis() - time;
         if (inst!=null) rep.resultSAT(cmd, time, this); else rep.resultUNSAT(cmd, time, this);
         return this;
+    }
+
+    public Formula makeFormula(A4Reporter rep, Simplifier simp) throws Err {
+        if (simp!=null && formulas.size()>0 && !simp.simplify(rep, this, formulas)) addFormula(Formula.FALSE, Pos.UNKNOWN);
+        ArrayList<Formula> tmpFormulas = new ArrayList<Formula>(formulas);
+        for(Relation r: bounds.relations()) { tmpFormulas.add(r.eq(r)); } // Without this, kodkod refuses to grow unmentioned relations
+        Formula fgoal = Formula.and(tmpFormulas);
+        return fgoal;
     }
 
     //===================================================================================================//

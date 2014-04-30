@@ -44,7 +44,7 @@ import edu.mit.csail.sdg.alloy4compiler.ast.Sig.SubsetSig;
 
 /** Immutable; this class assigns each sig and field to some Kodkod relation or expression, then set the bounds. */
 
-final class BoundsComputer {
+public final class BoundsComputer {
 
     // It calls these A4Solution methods...
     // getFactory(), query(), a2k(), addRel(), addSig(), addField(), addFormula()
@@ -323,7 +323,7 @@ final class BoundsComputer {
     //==============================================================================================================//
 
     /** Assign each sig and field to some Kodkod relation or expression, then set the bounds. */
-    static void compute (A4Reporter rep, A4Solution sol, ScopeComputer sc, Iterable<Sig> sigs) throws Err {
+    public static void compute(A4Reporter rep, A4Solution sol, ScopeComputer sc, Iterable<Sig> sigs) throws Err {
         new BoundsComputer(rep, sol, sc, sigs);
     }
 }
