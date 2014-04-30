@@ -261,7 +261,7 @@ public class IntRefPreprocessor {
     		}
     		    		
     		for (Sig s: module.getAllReachableSigs()) {
-    			if (s.builtin) {
+    			if (s.builtin || s == intref) {
     				sigs.add(s);
     			} else {
     				sigs.add(convertSig(s));
@@ -477,7 +477,7 @@ public class IntRefPreprocessor {
     					type = e.type().product(type);
     				}
     			}
-    			mapfield = intexprsig.addDefinedField(null, null, null, "map", type.toExpr());
+                mapfield = intexprsig.addField("map", type.toExpr());
     			
     			for (List<PrimSig> ss : type.fold()) {
     				int ssinst = 1;
