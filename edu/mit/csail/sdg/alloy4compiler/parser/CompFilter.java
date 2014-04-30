@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.io.Reader;
-import java_cup_11a.runtime.Scanner;
-import java_cup_11a.runtime.Symbol;
+import java_cup.runtime.Scanner;
+import java_cup.runtime.Symbol;
 import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4.ErrorFatal;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprConstant;
@@ -81,7 +81,7 @@ final class CompFilter implements Scanner {
     public Symbol next_token() throws Err {
        Symbol a = myread(), b;
        int c;
-       if (last==null || last.sym!=COLON) {
+       if (last==null || (last.sym!=COLON && last.sym!=DISJ)) {
           if (a.sym==NO) c=NO2;
              else if (a.sym==ALL) c=ALL2;
              else if (a.sym==SUM) c=SUM2;

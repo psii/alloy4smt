@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -72,7 +72,7 @@ final class SymmetryBreaker {
 	 * <b>Note that the constructor does not make a local copy of the given
 	 * bounds, so the caller must ensure that all modifications of the
 	 * given bounds are symmetry preserving.</b>  
-	 * @effects this.bounds' = bounds && this.symmetries' = SymmetryDetector.partition(bounds) &&
+	 * @ensures this.bounds' = bounds && this.symmetries' = SymmetryDetector.partition(bounds) &&
 	 * no this.broken'
 	 **/
 	SymmetryBreaker(Bounds bounds, Reporter reporter) {
@@ -121,8 +121,8 @@ final class SymmetryBreaker {
 	 * whose equivalent matrix has no entries on or below the main diagonal. The map m is then 
 	 * updated with a binding from c to the constraint "c in c_acyclic".</p>
 	 * 
-	 * @effects this.bounds' is modified as described above
-	 * @effects this.symmetries' is modified to no longer contain the partitions that made up the bounds of
+	 * @ensures this.bounds' is modified as described above
+	 * @ensures this.symmetries' is modified to no longer contain the partitions that made up the bounds of
 	 * the relations on which symmetries have been broken
 	 * @return a map m such that m.keySet() in preds.values(), and for all predicates p in m.keySet(), the formulas
 	 * "p and [[this.bounds]]" and "m.get(p) and [[this.bounds']]" are equisatisfiable
@@ -288,7 +288,7 @@ final class SymmetryBreaker {
 	 * Sorts the predicates in the given array in the ascending order of 
 	 * the names of the predicates' relations, and returns it.
 	 * @return broken'
-	 * @effects all i: [0..preds.size()) | all j: [0..i) | 
+	 * @ensures all i: [0..preds.size()) | all j: [0..i) | 
 	 *            broken[j].relation.name <= broken[i].relation.name 
 	 */
 	private static final <P extends RelationPredicate> P[] sort(final P[] preds) {
@@ -316,7 +316,7 @@ final class SymmetryBreaker {
 	 * @return null if symmetry cannot be broken on acyclic; otherwise returns a formula
 	 * f such that the meaning of acyclic with respect to this.bounds is equivalent to the
 	 * meaning of f with respect to this.bounds' 
-	 * @effects this.symmetries and this.bounds are modified as described in {@linkplain #breakMatrixSymmetries(Map, boolean)} iff this.bounds.upperBound[acyclic.relation] is the 
+	 * @ensures this.symmetries and this.bounds are modified as described in {@linkplain #breakMatrixSymmetries(Map, boolean)} iff this.bounds.upperBound[acyclic.relation] is the 
 	 * cross product of some partition in this.symmetries with itself
 	 * 
 	 * @see #breakMatrixSymmetries(Map,boolean)
@@ -368,7 +368,7 @@ final class SymmetryBreaker {
 	 * @return null if symmetry cannot be broken on total; otherwise returns a formula
 	 * f such that the meaning of total with respect to this.bounds is equivalent to the
 	 * meaning of f with respect to this.bounds' 
-	 * @effects this.symmetries and this.bounds are modified as desribed in {@linkplain #breakMatrixSymmetries(Map, boolean)} 
+	 * @ensures this.symmetries and this.bounds are modified as desribed in {@linkplain #breakMatrixSymmetries(Map, boolean)} 
 	 * iff total.first, total.last, and total.ordered have the same upper bound, which, when 
 	 * cross-multiplied with itself gives the upper bound of total.relation
 	 * 
@@ -429,7 +429,7 @@ final class SymmetryBreaker {
 
 	/**
 	 * Removes from this.symmetries the partition that contains the specified atom.
-	 * @effects this.symmetries' = { s: this.symmetries | !s.contains(atom) }
+	 * @ensures this.symmetries' = { s: this.symmetries | !s.contains(atom) }
 	 */
 	private final void removePartition(int atom) {
 		for(Iterator<IntSet> symIter = symmetries.iterator(); symIter.hasNext(); ) {

@@ -44,7 +44,7 @@ final class TrivialProof extends Proof {
 	 * Constructs a proof of unsatisfiability for the trivially unsatisfiable
 	 * formula whose translation is recorded in the given log.
 	 * @requires log != null
-	 * @effects this.formula' = log.formula
+	 * @ensures this.formula' = log.formula
 	 */
 	TrivialProof(TranslationLog log) {
 		super(log);
@@ -158,7 +158,7 @@ final class TrivialProof extends Proof {
 		
 		/**
 		 * Constructs a proof finder for the given log.
-		 * @effects this.log' = log
+		 * @ensures this.log' = log
 		 */
 		NodePruner(TranslationLog log) {
 			visited = new IdentityHashSet<Node>();
@@ -202,7 +202,7 @@ final class TrivialProof extends Proof {
 		
 		/**
 		 * Returns true if the given node has been visited before.
-		 * @effects this.visited' = this.visited + n
+		 * @ensures this.visited' = this.visited + n
 		 * @return n in this.visited 
 		 */
 		@Override

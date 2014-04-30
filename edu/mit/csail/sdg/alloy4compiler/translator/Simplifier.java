@@ -158,9 +158,7 @@ public class Simplifier {
                 rep.debug("Comment: Simplify "+b+" "+(b1.size()-b0.size())+"->"+(a1.size()-b0.size())+"\n");
                 sol.shrink((Relation)b, b0, b1=a1);
             }
-          } catch(Exception ex) {
-             // safe to ignore;
-          }
+          } catch(Exception ex) {}
         }
        return true;
     }
@@ -182,6 +180,53 @@ public class Simplifier {
        }
        return true;
     }
+    
+    // ALTERNATIVE VERSION THAT COMPUTES LOWER BOUNDS AS WELL
+//    /** Simplify the bounds based on the fact that "a is subset of b"; return false if we discover the formula is unsat. */
+//    private final boolean simplify_in(Expression a, Expression b) {
+//       a = condense(a);
+//       b = condense(b);
+//       if (a instanceof Relation) {
+//          return simpIn((Relation)a, b, true);
+//       } 
+//       if (b instanceof Relation) {
+//           return simpIn((Relation)b, a, false);
+//       }
+//       return true;
+//    }
+//    
+//    private final boolean simpIn(Relation r, Expression b, boolean bIsUpper) {
+//        try {
+//            TupleSet ub = sol.query(true, r, false);
+//            TupleSet lb = sol.query(false, r, false); 
+//            TupleSet t = sol.approximate(b);
+//            t.retainAll(ub);
+//            if (bIsUpper) {
+//                if (!t.containsAll(lb)) {
+//                    // This means the upperbound is shrunk BELOW the lowerbound.
+//                    rep.debug("Comment: Simplify upper "+r+" "+ub.size()+"->false\n"); 
+//                    return false; 
+//                } 
+//                if (t.size() < ub.size()) { 
+//                    rep.debug("Comment: Simplify upper "+r+" "+ub.size()+"->"+t.size()+"\n"); 
+//                    sol.shrink(r,lb,t); 
+//                }
+//            } else {
+//                if (!ub.containsAll(t)) {
+//                    // This means the upperbound is shrunk BELOW the lowerbound.
+//                    rep.debug("Comment: Simplify lower "+r+" "+lb.size()+"->false\n"); 
+//                    return false; 
+//                } 
+//                if (lb.size() < t.size()) { 
+//                    rep.debug("Comment: Simplify lower "+r+" "+lb.size()+"->"+t.size()+"\n"); 
+//                    sol.shrink(r,t,ub); 
+//                }
+//            }
+//         } catch(Throwable ex) {
+//            rep.debug("Comment: Simplify "+r+" exception: "+ex+"\n"+MailBug.dump(ex).trim()+"\n"); // Not fatal; let's report it to the debug() reporter
+//         }
+//        return true;
+//    }
 
     /** Simplify the bounds based on the fact that "form is true"; return false if we discover the formula is unsat. */
     private final boolean simplify_in (Formula form) {

@@ -115,9 +115,11 @@ pred TickTrans[tp, tn : Tick] {
     }
 }
 
+/**
+ * whether this process can enter its critical section
+ * on this tick
+ */  
 pred Privileged[p : Process, t : Tick] {
-  // whether this process can enter its critical section
-  // on this tick
   p = FirstProc =>
     t.val[p] = t.val[p.rightNeighbor]
   else
@@ -137,13 +139,15 @@ pred IsomorphicStates[val1, val2: Process -> one Val] {
    }
 }
 
+/**
+ * Find a trace that goes into a loop
+ * containing a bad tick, i.e. a tick
+ * at which two distinct processes
+ * try to run their critical sections
+ * simultaneously.  In such a trace the
+ * algorithm never "stabilizes".
+ */
 pred BadSafetyTrace {
-  // Find a trace that goes into a loop
-  // containing a bad tick, i.e. a tick
-  // at which two distinct processes
-  // try to run their critical sections
-  // simultaneously.  In such a trace the
-  // algorithm never "stabilizes".
   let lst = to/last |
     some t : Tick - lst | {
       //IsomorphicStates(ft.val, lst.val)
@@ -154,9 +158,11 @@ pred BadSafetyTrace {
     }
 }
 
+/**
+ * Two different processes simultaneously
+ * try to run their critical sections at this tick
+ */
 pred BadTick[badTick : Tick] {
-      // Two different processes simultaneously
-      // try to run their critical sections at this tick
       some p1 , p2 : Process | {
         p1!=p2
         Privileged[p1, badTick]

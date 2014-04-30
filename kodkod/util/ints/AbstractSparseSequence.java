@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ public abstract class AbstractSparseSequence<V> implements SparseSequence<V> {
 
 	/**
 	 * Constructs a sparse sequence
-	 * @effects no this.entries'
+	 * @ensures no this.entries'
 	 */
 	protected AbstractSparseSequence() {}
 	
@@ -306,7 +306,7 @@ public abstract class AbstractSparseSequence<V> implements SparseSequence<V> {
 	 * Copies all of the entries from the specified sparse sequence to 
 	 * this sequence. This implementation calls put(e.index, e.value) on 
 	 * this sequence once for each entry e in the specified sequence. 
-     * @effects this.entries' = this.entries ++ s.entries
+     * @ensures this.entries' = this.entries ++ s.entries
 	 */
 	public void putAll(SparseSequence<? extends V> s) {
 		Iterator<? extends IndexedEntry<? extends V>> i = s.iterator();

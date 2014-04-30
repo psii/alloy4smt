@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -68,7 +68,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 	
 	/**
 	 * Constructs an empty RangeSequence. 
-	 * @effects no this.entries'
+	 * @ensures no this.entries'
 	 */
 	public RangeSequence() {
 		view = new EntryView<V>(Integer.MIN_VALUE,null);
@@ -78,7 +78,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 
 	/**
 	 * Copy constructor.
-	 * @effects creatres a deep copy of the original
+	 * @ensures creatres a deep copy of the original
 	 */
 	@SuppressWarnings("unchecked")
 	private RangeSequence(RangeSequence<V> original) {
@@ -109,7 +109,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 
 	/**
 	 * Removes all entries from this sequences.
-	 * @effects no this.entries'
+	 * @ensures no this.entries'
 	 * @see kodkod.util.ints.SparseSequence#clear()
 	 */
 	public void clear() {
@@ -144,7 +144,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 	 * inserts into the tree.
 	 * @requires index !in this.nodes.key
 	 * @requires f = searchLTE(index) && c = searchGTE(index)
-	 * @effects this.entries' = this.entries + index->value
+	 * @ensures this.entries' = this.entries + index->value
 	 */
 	private void merge(int index, V value, Entry<V> f, Entry<V> c) {
 		if (isHeadOf(f, index, value)) {
@@ -223,7 +223,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 	 * that do not contain the given index.
 	 * @requires z.min() <= index <= z.max()
 	 * @requires z != NIL
-	 * @effects this.entries' = this.entries' - index->V
+	 * @ensures this.entries' = this.entries' - index->V
 	 * @return z.value
 	 */
 	private V split(int index, Entry<V> z) {
@@ -269,7 +269,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 	 * Removes the entry with the given index, if it exists, and
 	 * returns the value previously stored at the index.  If the
 	 * sequence had no previous mapping for the index, null is returned.
-	 * @effects this.entries' = this.entries - index->E
+	 * @ensures this.entries' = this.entries - index->E
 	 * @return this.entries[index]
 	 * @see kodkod.util.ints.SparseSequence#remove(int)
 	 */
@@ -335,6 +335,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 	 * @return a copy of this sparse sequence.
 	 * @see kodkod.util.ints.SparseSequence#clone()
 	 */
+	@SuppressWarnings("unchecked")
 	public RangeSequence<V> clone() {
 		// ok to use copy constructor to clone a final class
 		return new RangeSequence<V>(this);
@@ -387,6 +388,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		 * @throws CloneNotSupportedException 
 		 * @see java.lang.Object#clone()
 		 */
+		@SuppressWarnings("unchecked")
 		protected Entry<V> clone() throws CloneNotSupportedException {
 			return (Entry<V>) super.clone();
 		}
@@ -403,8 +405,8 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 	private static final class Point<V> extends Entry<V> {			
 		/**
 		 * Constructs an entry with the given index and value.
-		 * @effects this.index' = index && this.value' = value 
-		 * @effects this.min' = this.max' = index
+		 * @ensures this.index' = index && this.value' = value 
+		 * @ensures this.min' = this.max' = index
 		 */
 		Point(int index, V value) {
 			super(index, value);
@@ -416,6 +418,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		@Override
 		boolean isPoint() { return true; }
 
+		@SuppressWarnings("unchecked")
 		protected Point<V> clone() throws CloneNotSupportedException {
 			return (Point<V>) super.clone();
 		}
@@ -433,8 +436,8 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		
 		/**
 		 * Constructs an entry with the given min/max and value.
-		 * @effects this.index' = min && this.value' = value 
-		 * @effects this.min' = min &&  this.max' = max
+		 * @ensures this.index' = min && this.value' = value 
+		 * @ensures this.min' = min &&  this.max' = max
 		 */
 		Range(int min, int max, V value) {
 			super(max, value);
@@ -447,6 +450,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		@Override
 		boolean isPoint() { return false; }
 
+		@SuppressWarnings("unchecked")
 		protected Range<V> clone() throws CloneNotSupportedException {
 			return (Range<V>) super.clone();
 		}
@@ -463,7 +467,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		V value;
 		
 		/**
-		 * @effects this.endIndex' = endIndex && canRemove = false;
+		 * @ensures this.endIndex' = endIndex && canRemove = false;
 		 */
 		EntryIterator(int endIndex) {
 			this.endIndex = endIndex;
@@ -501,6 +505,7 @@ public final class RangeSequence<V> extends AbstractSparseSequence<V> implements
 		 * indeces between from and to.
 		 * @requires from <= to
 		 */
+		@SuppressWarnings("unchecked") 
 		AscendingIterator(int from, int to) {
 			super(to);
 			next = tree.searchGTE(from);

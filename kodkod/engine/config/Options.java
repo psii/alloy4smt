@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,27 +37,34 @@ import kodkod.util.ints.Ints;
  * @specfield intEncoding: IntEncoding // encoding to use for translating int expressions
  * @specfield bitwidth: int // the bitwidth to use for integer representation / arithmetic
  * @specfield skolemDepth: int // skolemization depth
+ * @specfield nof: boolean // no overflow (detect and forbid overflows)
  * @specfield flatten: boolean // eliminate intermediate variables when possible?  default is false.
  * @specfield logTranslation: [0..2] // log translation events, default is 0 (no logging)
  * @specfield coreGranularity: [0..3] // unsat core granularity, default is 0 (only top-level conjuncts are considered)
  * @author Emina Torlak
  */
 public final class Options {
-	private Reporter reporter = new AbstractReporter(){};
+    private Reporter reporter = new AbstractReporter(){};
 	private SATFactory solver = SATFactory.DefaultSAT4J;
 	private int symmetryBreaking = 20;
 	private IntEncoding intEncoding = IntEncoding.TWOSCOMPLEMENT;
 	private int bitwidth = 4;
 	private int sharing = 3;
+	private boolean nof = false; 
 	private int skolemDepth = 0;
 	private boolean flatten = false;
 	private int logTranslation = 0;
 	private int coreGranularity = 0;
 	
+	//[AM]
+	public static boolean isDebug() {
+	    return false; //TODO: read from the environment or something
+	}
+	
 	/**
 	 * Constructs an Options object initalized with 
 	 * default values.
-	 * @effects this.solver' = SATFactory.DefaultSAT4J
+	 * @ensures this.solver' = SATFactory.DefaultSAT4J
 	 *          this.reporter' is silent (no messages reported)
 	 *          this.symmetryBreaking' = 20
 	 *          this.sharing' = 3
@@ -81,7 +88,7 @@ public final class Options {
 	
 	/**
 	 * Sets the solver option to the given value.
-	 * @effects this.solver' = solver
+	 * @ensures this.solver' = solver
 	 * @throws NullPointerException - solver = null
 	 */
 	public void setSolver(SATFactory solver) {
@@ -101,7 +108,7 @@ public final class Options {
 	/**
 	 * Sets this.reporter to the given reporter.
 	 * @requires reporter != null
-	 * @effects this.reporter' = reporter
+	 * @ensures this.reporter' = reporter
 	 * @throws NullPointerException - reporter = null
 	 */
 	public void setReporter(Reporter reporter) {
@@ -109,6 +116,16 @@ public final class Options {
 			throw new NullPointerException();
 		this.reporter = reporter;
 	}
+	
+	/**
+	 * Returns the noOverflow flag
+	 */
+	public boolean noOverflow() { return nof; }
+	
+	/**
+	 * Sets the noOverflow flag
+	 */
+	public void setNoOverflow(boolean noOverflow) { this.nof = noOverflow; }
 		
 	/**
 	 * @throws IllegalArgumentException - arg !in [min..max]
@@ -133,7 +150,7 @@ public final class Options {
 	
 	/**
 	 * Sets the intEncoding option to the given value.
-	 * @effects this.intEncoding' = encoding
+	 * @ensures this.intEncoding' = encoding
 	 * @throws NullPointerException - encoding = null
 	 * @throws IllegalArgumentException - this.bitwidth is not a valid bitwidth for the specified encoding
 	 */
@@ -156,7 +173,7 @@ public final class Options {
 	
 	/**
 	 * Sets this.bitwidth to the given value.
-	 * @effects this.bitwidth' = bitwidth
+	 * @ensures this.bitwidth' = bitwidth
 	 * @throws IllegalArgumentException - bitwidth < 1
 	 * @throws IllegalArgumentException - this.intEncoding==BINARY && bitwidth > 32
 	 */
@@ -187,7 +204,7 @@ public final class Options {
 	
 	/**
 	 * Sets the flattening option to the given value.
-	 * @effects this.flatten' = flatten
+	 * @ensures this.flatten' = flatten
 	 * @throws IllegalArgumentException - this.logTranslation>0 && flatten
 	 */
 	public void setFlatten(boolean flatten) {
@@ -218,7 +235,7 @@ public final class Options {
 	
 	/**
 	 * Sets the symmetryBreaking option to the given value.
-	 * @effects this.symmetryBreaking' = symmetryBreaking
+	 * @ensures this.symmetryBreaking' = symmetryBreaking
 	 * @throws IllegalArgumentException - symmetryBreaking !in [0..Integer.MAX_VALUE]
 	 */
 	public void setSymmetryBreaking(int symmetryBreaking) {
@@ -238,7 +255,7 @@ public final class Options {
 	
 	/**
 	 * Sets the sharing option to the given value.
-	 * @effects this.sharing' = sharing
+	 * @ensures this.sharing' = sharing
 	 * @throws IllegalArgumentException - sharing !in [1..Integer.MAX_VALUE]
 	 */
 	public void setSharing(int sharing) {
@@ -260,7 +277,7 @@ public final class Options {
 	
 	/**
 	 * Sets the skolemDepth to the given value. 
-	 * @effects this.skolemDepth' = skolemDepth
+	 * @ensures this.skolemDepth' = skolemDepth
 	 */
 	public void setSkolemDepth(int skolemDepth) {
 		this.skolemDepth = skolemDepth;
@@ -284,7 +301,7 @@ public final class Options {
 	 * Sets the translation logging level.  If the level is above 0, 
 	 * flattening is automatically disabled.
 	 * @requires logTranslation in [0..2]
-	 * @effects this.logTranslation' = logTranslation &&
+	 * @ensures this.logTranslation' = logTranslation &&
 	 *          logTranslation>0 => this.flatten' = false 
 	 * @throws IllegalArgumentException - logTranslation !in [0..2]
 	 */
@@ -316,7 +333,7 @@ public final class Options {
 	/**
 	 * Sets the core granularity level.  
 	 * @requires coreGranularity in [0..3]
-	 * @effects this.coreGranularity' = coreGranularity  
+	 * @ensures this.coreGranularity' = coreGranularity  
 	 * @throws IllegalArgumentException - coreGranularity !in [0..3]
 	 */
 	public void setCoreGranularity(int coreGranularity) { 
@@ -345,6 +362,8 @@ public final class Options {
 		b.append(flatten);
 		b.append("\n symmetryBreaking: ");
 		b.append(symmetryBreaking);
+		b.append("\n noOverflow: ");
+        b.append(nof);
 		b.append("\n skolemDepth: ");
 		b.append(skolemDepth);
 		b.append("\n logTranslation: ");
@@ -391,5 +410,5 @@ public final class Options {
 		 */
 		abstract IntRange range(int bitwidth) ;
 	}
-	
+
 }

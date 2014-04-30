@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,7 @@
  */
 package kodkod.engine.fol2sat;
 
+import kodkod.ast.Expression;
 import kodkod.ast.Formula;
 import kodkod.engine.Solver;
 import kodkod.engine.bool.BooleanMatrix;
@@ -44,16 +45,16 @@ abstract class TranslationLogger {
 	 * given transformed formula to the given boolean value 
 	 * in the specified environment.
 	 * @requires f in this.formula.*children
-	 * @effects this.records' = this.records or this.records' = this.records + f -> translation -> freeVariables(f)<:env
+	 * @ensures this.records' = this.records or this.records' = this.records + f -> translation -> freeVariables(f)<:env
 	 * @throws IllegalArgumentException - some aspect of the given translation event prevents it from being logged
 	 * @throws IllegalStateException - this log has been closed
 	 */
-	abstract void log(Formula f, BooleanValue translation, Environment<BooleanMatrix> env);
+	abstract void log(Formula f, BooleanValue translation, Environment<BooleanMatrix, Expression> env);
 	
 	/**
 	 * Closes this logger and releases associated resources.  Attempts to call {@link #log(Formula, BooleanValue, Environment)}
 	 * after the log has been closed may result in an IllegalStateException.
-	 * @effects closes this logger and releases associated resources. 
+	 * @ensures closes this logger and releases associated resources. 
 	 */
 	abstract void close();
 	

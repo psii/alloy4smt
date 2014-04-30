@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -83,7 +83,7 @@ public final class AnnotatedNode<N extends Node> {
 	
 	/**
 	 * Constructs a new annotator for the given node.
-	 * @effects this.node' = node && this.source' = node.*components<:iden
+	 * @ensures this.node' = node && this.source' = node.*components<:iden
 	 */
 	private AnnotatedNode(N node) {
 		this.node = node;
@@ -96,7 +96,7 @@ public final class AnnotatedNode<N extends Node> {
 	
 	/**
 	 * Constructs a new annotator for the given node and source map.
-	 * @effects this.node' = node && this.source' = node.*components<:iden ++ source
+	 * @ensures this.node' = node && this.source' = node.*components<:iden ++ source
 	 */
 	private AnnotatedNode(N node, Map<? extends Node, ? extends Node> source) {
 		this.node = node;
@@ -290,7 +290,7 @@ public final class AnnotatedNode<N extends Node> {
 		 * it is mapped to Boolean.TRUE and true is returned.
 		 * The first time a Node is mapped to true, numSharedNodes
 		 * is incremented by one.
-		 * @effects no this.shared[node] => this.shared' = this.shared + node->FALSE,
+		 * @ensures no this.shared[node] => this.shared' = this.shared + node->FALSE,
 		 *          this.shared[node] = FALSE => this.shared' = this.shared + node->TRUE,
 		 *          this.shared' = this.shared
 		 * @return this.shared'[node]
@@ -332,7 +332,6 @@ public final class AnnotatedNode<N extends Node> {
 		 * The method returns TRUE if the creator body contains any 
 		 * variable not bound by the decls; otherwise returns FALSE.  
 		 */
-		@SuppressWarnings("unchecked")
 		private Boolean visit(Node creator, Decls decls, Node body) {
 			Boolean ret = lookup(creator);
 			if (ret!=null) return ret;
@@ -388,7 +387,7 @@ public final class AnnotatedNode<N extends Node> {
 		final EnumMap<RelationPredicate.Name, Set<RelationPredicate>> preds;
 		/**
 		 * Constructs a new collector.
-		 * @effects this.negated' = false
+		 * @ensures this.negated' = false
 		 */
 		PredicateCollector(Set<Node> sharedNodes) {
 			this.sharedNodes = sharedNodes;
@@ -402,7 +401,7 @@ public final class AnnotatedNode<N extends Node> {
 		/**
 		 * Returns true if n has already been visited with the current value of the
 		 * negated flag; otherwise returns false.
-		 * @effects records that n is being visited with the current value of the negated flag
+		 * @ensures records that n is being visited with the current value of the negated flag
 		 * @return true if n has already been visited with the current value of the
 		 * negated flag; otherwise returns false.
 		 */

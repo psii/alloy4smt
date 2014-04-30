@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,7 @@ public final class NaryFormula extends Formula implements Iterable<Formula> {
 	 * Constructs a new composite Formula: op(children)
 	 * @requires children array is not modified while in use by this composite Formula
 	 * @requires some op.op[children]
-	 * @effects this.children' = children && this.op' = op
+	 * @ensures this.children' = children && this.op' = op
 	 */
 	NaryFormula(FormulaOperator op, Formula[] children) { 
 		assert children.length>2;

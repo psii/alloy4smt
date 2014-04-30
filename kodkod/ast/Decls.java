@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,7 @@ public class Decls extends Node implements Iterable<Decl> {
 	 * declaration.  This constructor can only be called
 	 * from inside the Decl constructor; otherwise it will
 	 * throw a ClassCastException.
-	 * @effects this.declarations' = 0->this
+	 * @ensures this.declarations' = 0->this
 	 * @throws ClassCastException - this !in Decl
 	 */
     Decls() {
@@ -56,7 +56,7 @@ public class Decls extends Node implements Iterable<Decl> {
     /**
 	 * Constructs a new Decls with the specified head and tail.
 	 * @requires head.size > 0 && tail.size > 0
-	 * @effects this.size' = head.size + tail.size &&
+	 * @ensures this.size' = head.size + tail.size &&
 	 *          (all i: [0..head.size) | this.decls[i] = head.decls[i]) &&
 	 *          (all i: [head.size..this.size') | this.decls[i] = tail.decls[i])
 	 * @throws NullPointerException - head = null || tail is null 

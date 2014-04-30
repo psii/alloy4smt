@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -67,7 +67,7 @@ public interface SATProver extends SATSolver {
 	 * }
 	 * </pre>
 	 * @requires {@link SATSolver#solve()} has been called, and it returned false
-	 * @effects modifies this.clauses and this.resolvents according to the algorithm described above 
+	 * @ensures modifies this.clauses and this.resolvents according to the algorithm described above 
 	 * @throws IllegalStateException - {@link SATSolver#solve()} has not been called, 
 	 * or the last call to {@link SATSolver#solve()} returned true
 	 * @see ReductionStrategy

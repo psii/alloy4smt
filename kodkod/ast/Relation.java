@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ import kodkod.ast.visitor.VoidVisitor;
 public class Relation extends LeafExpression {
 	/**
 	 * Constructs a relation with the specified name and arity.
-	 * @effects this.name' = name && this.arity' = arity 
+	 * @ensures this.name' = name && this.arity' = arity 
 	 * @throws IllegalArgumentException - arity < 1 
 	 */
 	private Relation(String name, int arity) {

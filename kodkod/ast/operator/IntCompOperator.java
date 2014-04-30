@@ -6,6 +6,8 @@ package kodkod.ast.operator;
 public enum IntCompOperator {
 	/** `=' operator */
 	EQ 	{ public String toString() { return "="; } },
+	/** `!=' operator */
+	NEQ { public String toString() { return "!="; } },
 	/** `<' operator */
 	LT 	{ public String toString() { return "<"; } },
 	/** `<=' operator */

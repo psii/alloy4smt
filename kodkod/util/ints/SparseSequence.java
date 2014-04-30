@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ public interface SparseSequence<V> extends Iterable<IndexedEntry<V>> {
 	
 	/**
 	 * Removes all entries from this sequences.
-	 * @effects no this.entries'
+	 * @ensures no this.entries'
 	 */
 	public abstract void clear();
 	
@@ -65,7 +65,7 @@ public interface SparseSequence<V> extends Iterable<IndexedEntry<V>> {
 	 * sequence already mapped the index to a value, the 
 	 * previous value is replaced with the new one and returned.
 	 *
-	 * @effects this.entries' = this.entries + index->value
+	 * @ensures this.entries' = this.entries + index->value
 	 * @return this.entries[index]
 	 * @throws IndexOutOfBoundsException - the given index
 	 * is not valid for this sequence.
@@ -79,7 +79,7 @@ public interface SparseSequence<V> extends Iterable<IndexedEntry<V>> {
 	 * this sequence. The effect of this call is equivalent to that of 
 	 * calling put(e.index, e.value) on this sequence once for each entry 
      * e in the specified sequence. 
-     * @effects this.entries' = this.entries ++ s.entries
+     * @ensures this.entries' = this.entries ++ s.entries
      * @throws IndexOutOfBoundsException - s contains indeces that are
      * not valid for this sequence.
      * @throws IllegalArgumentException - s contains a value that cannot
@@ -99,7 +99,7 @@ public interface SparseSequence<V> extends Iterable<IndexedEntry<V>> {
 	 * Removes the entry with the given index, if it exists, and
 	 * returns the value previously stored at the index.  If the
 	 * sequence had no previous mapping for the index, null is returned.
-	 * @effects this.entries' = this.entries - index->E
+	 * @ensures this.entries' = this.entries - index->E
 	 * @return this.entries[index]
 	 */
 	public abstract V remove(int index);

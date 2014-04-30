@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@ final class IntTree<N extends IntTree.Node<N>> implements Cloneable {
 
 	/**
 	 * Creates an empty IntTree.
-	 * @effects no this.root'
+	 * @ensures no this.root'
 	 */
 	IntTree() {
 		root = null;
@@ -43,7 +43,7 @@ final class IntTree<N extends IntTree.Node<N>> implements Cloneable {
 
 	/**
 	 * Discards all elements from this tree.
-	 * @effects  no this.root' 
+	 * @ensures  no this.root' 
 	 **/
 	final void clear() {
 		root = null;
@@ -212,8 +212,8 @@ final class IntTree<N extends IntTree.Node<N>> implements Cloneable {
 	 * @requires o = o.parent.right => n.key > o.parent.key
 	 * @requires some o.left => n.key > o.left.key
 	 * @requires some o.right => n.key < o.right.key
-	 * @effects this.nodes' = this.nodes - o + n
-	 * @effects o.parent' = o.left' = o.right' = null
+	 * @ensures this.nodes' = this.nodes - o + n
+	 * @ensures o.parent' = o.left' = o.right' = null
 	 */
 	@SuppressWarnings("unchecked")
 	final void replace(N o, N n) {
@@ -238,7 +238,7 @@ final class IntTree<N extends IntTree.Node<N>> implements Cloneable {
 	/**
 	 * Implementation of the CLR insertion algorithm.
 	 * @requires no z.key & this.nodes.key
-	 * @effects this.nodes' = this.nodes + z
+	 * @ensures this.nodes' = this.nodes + z
 	 */
 	@SuppressWarnings("unchecked")
 	final void insert(N z) {
@@ -267,7 +267,7 @@ final class IntTree<N extends IntTree.Node<N>> implements Cloneable {
 	/**
 	 * A slightly modified implementation of the CLR deletion algorithm.
 	 * @requires z in this.nodes
-	 * @effects this.nodes' = this.nodes - z
+	 * @ensures this.nodes' = this.nodes - z
 	 */
 	@SuppressWarnings("unchecked")
 	final void delete(N z) {
@@ -516,7 +516,7 @@ final class IntTree<N extends IntTree.Node<N>> implements Cloneable {
 
 		/**
 		 * Constructs an empty node with the given key.
-		 * @effects no this.(parent' + left' + right') && this.key' = key 
+		 * @ensures no this.(parent' + left' + right') && this.key' = key 
 		 */
 		Node(int key) {
 			this.parent = this.left = this.right = null;

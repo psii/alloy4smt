@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -82,7 +82,7 @@ abstract class Skolemizer extends AbstractReplacer {
 	 * s a descendant of annotated.node from which t was derived.  Then, 
 	 * f.source[t] = annotated.source[s].  If options.trackFormulas is false, no source 
 	 * information will be recorded (i.e. f.source[t] = t for all descendants t of f).
-	 * @effects upper bound mappings for skolem constants, if any, are added to the bounds
+	 * @ensures upper bound mappings for skolem constants, if any, are added to the bounds
 	 * @return the skolemized version of the given formula
 	 * @throws NullPointerException - any of the arguments are null
 	 * @throws IllegalArgumentException - some Relation & annotated.node.^children - bounds.relations
@@ -121,7 +121,7 @@ abstract class Skolemizer extends AbstractReplacer {
 		BooleanMatrix upperBound;
 		/**
 		 * Constructs a DeclInfo for the given decl.
-		 * @effects this.decl' = decl && this.upperBound' = null
+		 * @ensures this.decl' = decl && this.upperBound' = null
 		 */
 		DeclInfo(Decl decl) {
 			this.decl = decl;
@@ -131,7 +131,7 @@ abstract class Skolemizer extends AbstractReplacer {
 
 	/* replacement environment; maps skolemized variables to their skolem expressions,
 	 * and non-skolemized variables to themselves */
-	private Environment<Expression> repEnv;
+	private Environment<Expression, Expression> repEnv;
 	/* the interpreter used to determine the upper bounds for skolem constants;
 	 * the upper bounds for skolem constants will be added to interpreter.bounds */
 	private final LeafInterpreter interpreter;
@@ -201,7 +201,7 @@ abstract class Skolemizer extends AbstractReplacer {
 	 * This method is always called when the result of visiting a node n will result
 	 * in the creation of a formula f such that f != n.
 	 * @return f
-	 * @effects Records that the given node is the source of the 
+	 * @ensures Records that the given node is the source of the 
 	 * specified formula, if this is a tracking skolemizer.  Otherwise does nothing.
 	 */
 	protected Formula source(Formula f, Node n) { 
@@ -239,7 +239,7 @@ abstract class Skolemizer extends AbstractReplacer {
 	 * that the environment is always extended, the method should be called using the
 	 * visit((Decls) node.declarations()) syntax, since the accept syntax may dynamically
 	 * dispatch the call to the {@link #visit(Decl)} method, producing UnboundLeafExceptions.
-	 * @effects this.repEnv in this.repEnv'.^parent &&
+	 * @ensures this.repEnv in this.repEnv'.^parent &&
 	 * #(this.repEnv'.*parent - this.repEnv.*parent) = decls.size() &&
 	 * all v: decls.variable | this.repEnv'.lookup(v) = v
 	 * @requires this.skolemDepth < 0
@@ -256,13 +256,13 @@ abstract class Skolemizer extends AbstractReplacer {
 				if (newDecl != decl) 
 					allSame = false;
 				visitedDecls = (visitedDecls==null) ? newDecl : visitedDecls.and(newDecl);
-				repEnv = repEnv.extend(decl.variable(), decl.variable());
+				repEnv = repEnv.extend(decl.variable(), decl.expression(), decl.variable());
 			}
 			ret = allSame ? decls : visitedDecls;
 			return cache(decls, ret);
 		} else { // just extend the replacement environment
 			for(Decl decl: decls) {
-				repEnv = repEnv.extend(decl.variable(), decl.variable());
+				repEnv = repEnv.extend(decl.variable(), decl.expression(), decl.variable());
 			}
 			return ret;
 		}
@@ -290,7 +290,7 @@ abstract class Skolemizer extends AbstractReplacer {
 	public final Expression visit(Comprehension expr) {
 		Expression ret = lookup(expr);
 		if (ret!=null) return ret;
-		final Environment<Expression> oldRepEnv = repEnv; // skolemDepth < 0 at this point
+		final Environment<Expression, Expression> oldRepEnv = repEnv; // skolemDepth < 0 at this point
 		final Decls decls = visit((Decls)expr.decls());
 		final Formula formula = expr.formula().accept(this);
 		ret = (decls==expr.decls() && formula==expr.formula()) ? expr : formula.comprehension(decls);
@@ -304,7 +304,7 @@ abstract class Skolemizer extends AbstractReplacer {
 	public final IntExpression visit(SumExpression intExpr) {
 		IntExpression ret = lookup(intExpr);
 		if (ret!=null) return ret;	
-		final Environment<Expression> oldRepEnv = repEnv; // skolemDepth < 0 at this point
+		final Environment<Expression, Expression> oldRepEnv = repEnv; // skolemDepth < 0 at this point
 		final Decls decls  = visit((Decls)intExpr.decls());
 		final IntExpression expr = intExpr.intExpr().accept(this);
 		ret =  (decls==intExpr.decls() && expr==intExpr.intExpr()) ? intExpr : expr.sum(decls);
@@ -317,7 +317,7 @@ abstract class Skolemizer extends AbstractReplacer {
 	 * Returns the least sound upper bound on the value of expr
 	 * @return the least sound upper bound on the value of expr
 	 */
-	private final BooleanMatrix upperBound(Expression expr, Environment<BooleanMatrix> env) {
+	private final BooleanMatrix upperBound(Expression expr, Environment<BooleanMatrix, Expression> env) {
 		return FOL2BoolTranslator.approximate(annotate(expr), interpreter, env);
 	}
 	
@@ -326,7 +326,7 @@ abstract class Skolemizer extends AbstractReplacer {
 	 * this.bounds, and returns the expression that should replace skolemDecl.variable in the final formula.
 	 * @requires skolem !in this.bounds.relations
 	 * @requires skolem.arity = nonSkolems.size() + skolemDecl.variable().arity() 
-	 * @effects adds a sound upper bound for the given skolem relation to this.bounds
+	 * @ensures adds a sound upper bound for the given skolem relation to this.bounds
 	 * @return the expression that should replace skolemDecl.variable in the final formula
 	 */
 	private Expression skolemExpr(Decl skolemDecl, Relation skolem) {
@@ -334,13 +334,13 @@ abstract class Skolemizer extends AbstractReplacer {
 		final int arity = depth + skolemDecl.variable().arity();
 
 		Expression skolemExpr = skolem;
-		Environment<BooleanMatrix> skolemEnv = Environment.empty();
+		Environment<BooleanMatrix, Expression> skolemEnv = Environment.empty();
 
 		for(DeclInfo info : nonSkolems) {
 			if (info.upperBound==null) {
 				info.upperBound = upperBound(info.decl.expression(), skolemEnv);
 			}
-			skolemEnv = skolemEnv.extend(info.decl.variable(), info.upperBound);
+			skolemEnv = skolemEnv.extend(info.decl.variable(), info.decl.expression(), info.upperBound);
 			skolemExpr = info.decl.variable().join(skolemExpr);
 		}
 
@@ -383,7 +383,7 @@ abstract class Skolemizer extends AbstractReplacer {
 		Formula ret = lookup(qf);
 		if (ret!=null) return ret;
 		
-		final Environment<Expression> oldRepEnv = repEnv;	
+		final Environment<Expression, Expression> oldRepEnv = repEnv;	
 		final Quantifier quant = qf.quantifier();
 		final Decls decls = qf.decls();
 		
@@ -408,7 +408,7 @@ abstract class Skolemizer extends AbstractReplacer {
 				if (!nonSkolems.isEmpty())
 					domConstraints.add(source(domainConstraint(skolemDecl, skolem), decl));
 				
-				repEnv = repEnv.extend(decl.variable(), skolemExpr);
+				repEnv = repEnv.extend(decl.variable(), decl.expression(), skolemExpr);
 			}
 		
 			ret = source(Formula.and(rangeConstraints), decls).compose(negated ? IMPLIES : AND, qf.formula().accept(this));

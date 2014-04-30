@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -128,7 +128,7 @@ public abstract class Dimensions {
 	 * is equal to the length argument. The dimensions at positions srcPos through srcPos+length-1 
 	 * are copied into positions destPos through destPos+length-1, respectively, of the destination 
 	 * array.
-	 * @effects dest[destPos..destPos+length) = this.dimensions[srcPos..srcPos+length)
+	 * @ensures dest[destPos..destPos+length) = this.dimensions[srcPos..srcPos+length)
 	 */
 	abstract void copy(int srcPos, int[] dest, int destPos, int length);
 	
@@ -246,7 +246,7 @@ public abstract class Dimensions {
 	 * vector representation of the given index.  The contents of the cells of <code>vectorIndex</code> 
 	 * beyond the first this.n cells are left unchanged. 
 	 * @requires vectorIndex.length <= this.n
-	 * @effects the first this.numDimensions entries of <code>vectorIndex</code> contain 
+	 * @ensures the first this.numDimensions entries of <code>vectorIndex</code> contain 
 	 * the vector index representation of the specified integer index into a 
 	 * this.dimensions[0]x...xthis.dimensions[n-1] matrix
 	 * @throws NullPointerException - vectorIndex = null
@@ -318,7 +318,7 @@ public abstract class Dimensions {
 		 * Constructs a new Dimensions object with n dimensions, each of
 		 * which has the specified size.
 		 * 
-		 * @effects this.n' = n && this.dimensions[int] = size
+		 * @ensures this.n' = n && this.dimensions[int] = size
 		 * @requires size > 0 && n > 0
 		 * @throws IllegalArgumentException - n < 1 || size < 1
 		 */
@@ -399,7 +399,7 @@ public abstract class Dimensions {
 		/**  
 		 * Constructs a new Dimensions object with the given dimensions.
 		 * 
-		 * @effects this.n' = dimensions.length && this.dimensions' = dimensions
+		 * @ensures this.n' = dimensions.length && this.dimensions' = dimensions
 		 * @requires - dimensions.length > 0 && 
 		 *             (all i: [0..dimensions.n) | dimensions[i] > 0) &&
 		 *             (some i, j: [0..dimensions.n) | dimensions[i] != dimensions[j]) &&

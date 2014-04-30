@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ public final class BooleanVariable extends BooleanFormula {
 	/**
 	 * Constructs a new BooleanVariable with the given label.
 	 * @requires label != 0
-	 * @effects this.label' = label
+	 * @ensures this.label' = label
 	 */
 	BooleanVariable(int label) {
 		super(null);

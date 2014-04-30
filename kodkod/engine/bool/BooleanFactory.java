@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,17 +56,22 @@ public abstract class BooleanFactory {
 	/** The bitwidth used for integer computations */
 	final int bitwidth;
 	
+	/** Whether or not it should forbid overflows */ //[AM]
+	final boolean noOverflow; 
+		
 	/**
 	 * Constructs a boolean factory with the given number of input variables.  Gates are
 	 * checked for semantic equality down to the given depth.  Integers are represented
-	 * using the given number of bits.
+	 * using the given number of bits. The noOverflow bit tells whether or not to forbid 
+	 * overflows.
+	 * 
 	 * @requires 0 <= numVars < Integer.MAX_VALUE
 	 * @requires checkToDepth >= 0 && bitwidth > 0
-	 * @effects #this.components' = numInputVariables && this.components' in BooleanVariable 
-	 * @effects this.bitwidth' = bitwidth
-	 * @effects this.comparisonDepth' = comparisonDepth
+	 * @ensures #this.components' = numInputVariables && this.components' in BooleanVariable 
+	 * @ensures this.bitwidth' = bitwidth
+	 * @ensures this.comparisonDepth' = comparisonDepth
 	 */
-	private BooleanFactory(int numVars, int comparisonDepth, int bitwidth) {
+	private BooleanFactory(int numVars, int comparisonDepth, int bitwidth, boolean noOverflow) {
 		if (numVars==0) {
 			if (CONSTANT_FACTORY==null)
 				CONSTANT_FACTORY = new CBCFactory(0, 1);
@@ -75,6 +80,7 @@ public abstract class BooleanFactory {
 			this.circuits = new CBCFactory(numVars, 1<<comparisonDepth);
 		}
 		this.bitwidth = bitwidth;
+		this.noOverflow = noOverflow;
 	}
 	
 	/**
@@ -97,7 +103,7 @@ public abstract class BooleanFactory {
 	public static BooleanFactory factory(int numVars, Options options) {
 		switch(options.intEncoding()) {
 		case TWOSCOMPLEMENT : 
-			return new TwosComplementFactory(numVars, options.sharing(), options.bitwidth()); 
+			return new TwosComplementFactory(numVars, options.sharing(), options.bitwidth(), options.noOverflow()); 
 		default :
 			throw new IllegalArgumentException("unknown encoding: " + options.intEncoding());
 		}
@@ -127,7 +133,7 @@ public abstract class BooleanFactory {
 	 * comparison depth to a high value will result in more 
 	 * subcomponents being shared.  However, it will also slow down
 	 * gate construction.
-	 * @effects this.comparisonDepth' = newDepth
+	 * @ensures this.comparisonDepth' = newDepth
 	 * @throws IllegalArgumentException - newDepth < 1
 	 */
 	public final void setComparisonDepth(int newDepth) {
@@ -140,7 +146,10 @@ public abstract class BooleanFactory {
 	 * Returns the bitwidth used for integer representation.
 	 * @return this.bitwidth
 	 */
-	public final int bitwidth() { return bitwidth; }
+	public final int bitwidth()       { return bitwidth; }
+	
+	/** Returns the noOverflow flag */ //[AM]
+	public final boolean noOverflow() { return noOverflow; }
 	
 	/**
 	 * Returns the encoding used by this factory to represent integers.
@@ -156,8 +165,6 @@ public abstract class BooleanFactory {
 	public final boolean contains(BooleanValue v) {
 		return circuits.canAssemble(v);
 	}
-	
-	
 	
 	/**
 	 * Returns the number of variables in this.components
@@ -177,7 +184,7 @@ public abstract class BooleanFactory {
 	/**
 	 * Returns the negation of the given boolean value.
 	 * @return {n: BooleanValue | n.label = -v.label && [[n]] = ![[v]] }
-	 * @effects (components.v).components' = (components.v).components + n 
+	 * @ensures (components.v).components' = (components.v).components + n 
 	 * @throws NullPointerException - v = null                             
 	 */
 	public final BooleanValue not(BooleanValue v) {
@@ -189,7 +196,7 @@ public abstract class BooleanFactory {
 	 * The behavior of this method is unspecified if v0 or v1 are not components of this factory.
 	 * @requires v0 + v1 in this.components
 	 * @return {v: BooleanValue | [[v]] = [[v0]] AND [[v1]] }
-	 * @effects this.components' = this.components + v 
+	 * @ensures this.components' = this.components + v 
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	public final BooleanValue and(BooleanValue v0, BooleanValue v1) {
@@ -201,7 +208,7 @@ public abstract class BooleanFactory {
 	 * The behavior of this method is unspecified if v0 or v1 are not components of this factory.
 	 * @requires v0 + v1 in this.components
 	 * @return {v: BooleanValue | [[v]] = [[v0]] OR [[v1]] }
-	 * @effects this.components' = this.components + v 
+	 * @ensures this.components' = this.components + v 
 	 * @throws NullPointerException - any of the arguments are null
 	 * @throws IllegalArgumentException - v0 + v1 !in this.components
 	 */
@@ -214,7 +221,7 @@ public abstract class BooleanFactory {
 	 * The behavior of this method is unspecified if v0 or v1 are not components of this factory.
 	 * @requires v0 + v1 in this.components
 	 * @return { v: BooleanValue | [[v]] = [[v0]] xor [[v1]] }
-	 * @effects this.components' = this.components + v
+	 * @ensures this.components' = this.components + v
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	public final BooleanValue xor(BooleanValue v0, BooleanValue v1) {
@@ -226,7 +233,7 @@ public abstract class BooleanFactory {
 	 * The behavior of this method is unspecified if v0 or v1 are not components of this factory.
 	 * @requires v0 + v1 in this.components
 	 * @return { v: BooleanValue | [[v]] = [[v0]] => [[v1]] }
-	 * @effects this.components' = this.components + v
+	 * @ensures this.components' = this.components + v
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	public final BooleanValue implies(BooleanValue v0, BooleanValue v1) {
@@ -238,7 +245,7 @@ public abstract class BooleanFactory {
 	 * The behavior of this method is unspecified if v0 or v1 are not components of this factory.
 	 * @requires v0 + v1 in this.components
 	 * @return { v: BooleanValue | [[v]] = [[v0]] iff [[v1]] }
-	 * @effects this.components' = this.components + v
+	 * @ensures this.components' = this.components + v
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	public final BooleanValue iff(BooleanValue v0, BooleanValue v1) {
@@ -250,7 +257,7 @@ public abstract class BooleanFactory {
 	 * The behavior of this method is unspecified if i, t, or e are not components of this factory.
 	 * @requires i + t + e in this.components 
 	 * @return { v: BooleanValue | [[v]] = [[i]] ? [[t]] : [[e]] }
-	 * @effects this.components' = this.components + v
+	 * @ensures this.components' = this.components + v
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	public final BooleanValue ite(BooleanValue i, BooleanValue t, BooleanValue e) {
@@ -262,7 +269,7 @@ public abstract class BooleanFactory {
 	 * The behavior of this method is unspecified if v0, v1, or cin are not components of this factory.
 	 * @requires v0 + v1 + cin in this.components 
 	 * @return { v: BooleanValue | [[v]] = [[cin]] xor [[v0]] xor [[v1]] }
-	 * @effects this.components' = this.components + v
+	 * @ensures this.components' = this.components + v
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	public final BooleanValue sum(BooleanValue v0, BooleanValue v1, BooleanValue cin) {
@@ -274,7 +281,7 @@ public abstract class BooleanFactory {
 	 * The behavior of this method is unspecified if v0, v1, or cin are not components of this factory.
 	 * @requires v0 + v1 + cin in this.components 
 	 * @return { v: BooleanValue | [[v]] = ([[v0]] and [[v1]]) or ([[cin]] and ([[v0]] xor [[v1]]))  }
-	 * @effects this.components' = this.components + v
+	 * @ensures this.components' = this.components + v
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	public final BooleanValue carry(BooleanValue v0, BooleanValue v1, BooleanValue cin) {
@@ -291,7 +298,7 @@ public abstract class BooleanFactory {
 	 * @return no g.inputs => g.op.identity(), 
 	 *         one g.inputs => g.inputs, 
 	 *         {g' : BooleanValue - BooleanAccumulator | [[g']] = [[g]] }
-	 * @effects this.components' = this.components + g'
+	 * @ensures this.components' = this.components + g'
 	 */
 	public final BooleanValue accumulate(BooleanAccumulator g) {
 		return circuits.assemble(g);
@@ -341,10 +348,10 @@ public abstract class BooleanFactory {
 	public final Int sum(Collection<BooleanValue> bits) {
 		return sum(bits.iterator(), 0, bits.size()-1);
 	}
-	
+		
 	/**
 	 * Removes all formulas with one or more inputs from this.components.
-	 * @effects this.componets' = 
+	 * @ensures this.componets' = 
 	 *    BooleanConstant + this.components & BooleanVariable
 	 */
 	public final void clear() {
@@ -416,13 +423,13 @@ public abstract class BooleanFactory {
 		 * using the given number of bits.
 		 * @requires 0 <= numVars < Integer.MAX_VALUE
 		 * @requires checkToDepth >= 0 && bitwidth > 0
-		 * @effects #this.components' = numInputVariables && this.components' in BooleanVariable 
-		 * @effects this.bitwidth' = bitwidth
-		 * @effects this.comparisonDepth' = comparisonDepth
-		 * @effects this.intEncoding' = BINARY
+		 * @ensures #this.components' = numInputVariables && this.components' in BooleanVariable 
+		 * @ensures this.bitwidth' = bitwidth
+		 * @ensures this.comparisonDepth' = comparisonDepth
+		 * @ensures this.intEncoding' = BINARY
 		 */
-		TwosComplementFactory(int numVars, int comparisonDepth, int bitwidth) {
-			super(numVars, comparisonDepth, bitwidth);
+		TwosComplementFactory(int numVars, int comparisonDepth, int bitwidth, boolean noOverflow) {
+			super(numVars, comparisonDepth, bitwidth, noOverflow);
 		}
 		/**
 		 * Returns TWOSCOMPLEMENT.

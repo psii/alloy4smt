@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import kodkod.ast.Expression;
 import kodkod.ast.Formula;
 import kodkod.ast.Node;
 import kodkod.ast.Variable;
@@ -58,10 +59,10 @@ final class MemoryLogger extends TranslationLogger {
 	
 	/**
 	 * Constructs a new memory logger from the given annotated formula.  
-	 * @effects this.formula' = annotated.node
-	 * @effects this.bounds' = bounds
-	 * @effects no this.records' 
-	 * @effects this.log().roots() = Nodes.conjuncts(annotated)
+	 * @ensures this.formula' = annotated.node
+	 * @ensures this.bounds' = bounds
+	 * @ensures no this.records' 
+	 * @ensures this.log().roots() = Nodes.conjuncts(annotated)
 	 */
 	MemoryLogger(final AnnotatedNode<Formula> annotated, Bounds bounds) {
 		this.annotated = annotated;
@@ -78,15 +79,15 @@ final class MemoryLogger extends TranslationLogger {
 
 	/**
 	 * Logs the translation of the given formula if and only if f is a root of this.formula.
-	 * @effects f in Nodes.conjuncts(this.formula) and no this.records[f] =>
+	 * @ensures f in Nodes.conjuncts(this.formula) and no this.records[f] =>
 	 *   this.records' = this.records ++ f -> translation -> env
 	 * @throws IllegalArgumentException - some this.records[f] and this.records[f] != translation -> env
 	 * @see kodkod.engine.fol2sat.TranslationLogger#log(kodkod.ast.Formula, kodkod.engine.bool.BooleanValue, kodkod.engine.fol2sat.Environment)
 	 */
 	@Override
-	void log(Formula f, BooleanValue translation, Environment<BooleanMatrix> env) {
+	void log(Formula f, BooleanValue translation, Environment<BooleanMatrix, Expression> env) {
 		if (logMap.containsKey(f)) { 
-			assert env.isEmpty();
+			//assert env.isEmpty();
 			final BooleanValue old = logMap.put(f, translation);
 			if (old!=null && old!=translation) 
 				throw new IllegalArgumentException("translation of root corresponding to the formula has already been logged: " + f);

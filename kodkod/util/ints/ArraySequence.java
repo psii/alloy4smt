@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,7 @@ public final class ArraySequence<V> extends AbstractSparseSequence<V> implements
 	/**
 	 * Constructs an array sequence that contains 
 	 * the given indeces.  
-	 * @effects this.indeces' = indeces && no this.entries'
+	 * @ensures this.indeces' = indeces && no this.entries'
 	 * @throws NullPointerException - indeces = null
 	 */
 	@SuppressWarnings("unchecked")
@@ -63,7 +63,7 @@ public final class ArraySequence<V> extends AbstractSparseSequence<V> implements
 	/**
 	 * Constructs a new array sequence with the same index/value mappings
 	 * as the given sequence.
-	 * @effects this.entries' = s.entries
+	 * @ensures this.entries' = s.entries
 	 * @throws NullPointerException - s = null || null in s
 	 */
 	@SuppressWarnings("unchecked")
@@ -80,7 +80,7 @@ public final class ArraySequence<V> extends AbstractSparseSequence<V> implements
 	
 	/**
 	 * Copy constructor.
-	 * @effects constructs a deep copy of the original array sequence.
+	 * @ensures constructs a deep copy of the original array sequence.
 	 */
 	@SuppressWarnings("unchecked")
 	private ArraySequence(ArraySequence<V> original) {
@@ -152,7 +152,7 @@ public final class ArraySequence<V> extends AbstractSparseSequence<V> implements
 	 * sequence already mapped the index to a value, the 
 	 * previous value is replaced with the new one and returned.
 	 *
-	 * @effects this.entries' = this.entries + index->value
+	 * @ensures this.entries' = this.entries + index->value
 	 * @return this.entries[index]
 	 * @throws IndexOutOfBoundsException - index !in this.indeces
 	 * @throws NullPointerException - value = null
@@ -183,7 +183,7 @@ public final class ArraySequence<V> extends AbstractSparseSequence<V> implements
 	 * Removes the entry with the given index, if it exists, and
 	 * returns the value previously stored at the index.  If the
 	 * sequence had no previous mapping for the index, null is returned.
-	 * @effects this.entries' = this.entries - index->E
+	 * @ensures this.entries' = this.entries - index->E
 	 * @return this.entries[index]
 	 * @see kodkod.util.ints.SparseSequence#remove(int)
 	 */

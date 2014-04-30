@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,7 @@ public final class ProjectExpression extends Expression {
 	/**
 	 * Constructs a new projection expression using the given
 	 * expr and columns.
-	 * @effects this.expression' = expr && this.indices' = columns
+	 * @ensures this.expression' = expr && this.indices' = columns
 	 */
 	ProjectExpression(Expression expr, IntExpression... columns) {
 		if (columns.length==0)

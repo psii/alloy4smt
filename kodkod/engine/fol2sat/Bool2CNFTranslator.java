@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -85,7 +85,7 @@ final class Bool2CNFTranslator implements BooleanVisitor<int[], Object> {
 	
 	/**
 	 * Constructs a translator for the given circuit.
-	 * @effects this.root' = circuit
+	 * @ensures this.root' = circuit
 	 */
 	private Bool2CNFTranslator(SATSolver solver, int numPrimaryVars, BooleanFormula circuit) {
 		final int maxLiteral = StrictMath.abs(circuit.label());
@@ -117,7 +117,7 @@ final class Bool2CNFTranslator implements BooleanVisitor<int[], Object> {
 	 * o = AND(i1, i2, ... ik) ---> (i1 | !o) & (i2 | !o) & ... & (ik | !o) & (!i1 | !i2 | ... | !ik | o),
 	 * o = OR(i1, i2, ... ik)  ---> (!i1 | o) & (!i2 | o) & ... & (!ik | o) & (i1 | i2 | ... | ik | !o).
 	 * @return o: int[] | o.length = 1 && o.[0] = multigate.literal
-	 * @effects if the multigate has not yet been visited, its children are visited
+	 * @ensures if the multigate has not yet been visited, its children are visited
 	 * and the clauses are added to the solver connecting the multigate's literal to
 	 * its input literal, as described above.
 	 */
@@ -155,7 +155,7 @@ final class Bool2CNFTranslator implements BooleanVisitor<int[], Object> {
 	 * gate's literal. The CNF clauses are generated according to the standard SAT to CNF translation:
 	 * o = ITE(i, t, e) ---> (!i | !t | o) & (!i | t | !o) & (i | !e | o) & (i | e | !o)
 	 * @return o: int[] | o.length = 1 && o.[0] = itegate.literal
-	 * @effects if the itegate has not yet been visited, its children are visited
+	 * @ensures if the itegate has not yet been visited, its children are visited
 	 * and the clauses are added to the solver connecting the multigate's literal to
 	 * its input literal, as described above.
 	 */
@@ -228,7 +228,7 @@ final class Bool2CNFTranslator implements BooleanVisitor<int[], Object> {
 		/**
 		 * Applies this detector to the given formula, and returns this.
 		 * @requires this.root = root
-		 * @effects this.visit(root)
+		 * @ensures this.visit(root)
 		 * @return this
 		 */
 		PolarityDetector apply(BooleanFormula root) {

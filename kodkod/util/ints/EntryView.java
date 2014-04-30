@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ class EntryView<V> implements IndexedEntry<V> {
 	
 	/**
 	 * Constructs a new entry view with the given index and value.
-	 * @effects this.index' = index and this.value' = value
+	 * @ensures this.index' = index and this.value' = value
 	 */
 	EntryView(int index, V value) {
 		this.index = index;
@@ -43,7 +43,7 @@ class EntryView<V> implements IndexedEntry<V> {
 	/**
 	 * Sets this.index to the given index, 
 	 * and returns the old index.
-	 * @effects this.index' = newIndex
+	 * @ensures this.index' = newIndex
 	 * @return this.index
 	 */
 	int setIndex(int newIndex) {
@@ -55,7 +55,7 @@ class EntryView<V> implements IndexedEntry<V> {
 	/**
 	 * Sets this.value to the given value, 
 	 * and returns the old value.
-	 * @effects this.value' = newValue
+	 * @ensures this.value' = newValue
 	 * @return this.value
 	 */
 	V setValue(V newValue) {
@@ -67,7 +67,7 @@ class EntryView<V> implements IndexedEntry<V> {
 	/**
 	 * Sets this.index and this.value to the given
 	 * index and value, and returns this.
-	 * @effects this.index' = newIndex && this.value' = newValue
+	 * @ensures this.index' = newIndex && this.value' = newValue
 	 * @return this
 	 */
 	IndexedEntry<V> setView(int newIndex, V newValue) {
@@ -79,7 +79,7 @@ class EntryView<V> implements IndexedEntry<V> {
 	/**
 	 * Sets this.index to the given
 	 * index, and returns this.
-	 * @effects this.index' = newIndex 
+	 * @ensures this.index' = newIndex 
 	 * @return this
 	 */
 	IndexedEntry<V> setIndexView(int newIndex) {
@@ -90,7 +90,7 @@ class EntryView<V> implements IndexedEntry<V> {
 	/**
 	 * Sets this.value to the given
 	 * value, and returns this.
-	 * @effects this.value' = newValue
+	 * @ensures this.value' = newValue
 	 * @return this
 	 */
 	IndexedEntry<V> setValueView(V newValue) {

@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,7 @@ public final class Comprehension extends Expression  {
      * Constructs a comprehension expression with the specified decls
      * and formula
      * 
-     * @effects this.decls' = decls && this.formula' = formula
+     * @ensures this.decls' = decls && this.formula' = formula
      * @throws NullPointerException - decls = null || formula = null
      */
     Comprehension(Decls declarations, Formula formula) {

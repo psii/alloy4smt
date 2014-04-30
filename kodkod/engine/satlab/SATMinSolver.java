@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ public interface SATMinSolver extends SATSolver {
 	/**
 	 * Sets the cost of the given variable to the specified value.
 	 * @requires variable in this.variables && cost >= 0
-	 * @effects this.cost' = this.cost ++ variable -> cost
+	 * @ensures this.cost' = this.cost ++ variable -> cost
 	 * @throws IllegalArgumentException - variable !in this.variables || cost < 0
 	 */
 	public abstract void setCost(int variable, int cost);

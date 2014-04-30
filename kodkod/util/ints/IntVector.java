@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -82,7 +82,7 @@ public interface IntVector extends IntCollection {
      * Replaces the element at the specified position in this vector with the
      * specified element, and returns the previous element (optional operation).
      *
-     * @effects this.elements' = this.elements' ++ index -> element
+     * @ensures this.elements' = this.elements' ++ index -> element
      * @return this.elements[index]
      * 
      * @throws UnsupportedOperationException if the <tt>set</tt> method is not
@@ -98,7 +98,7 @@ public interface IntVector extends IntCollection {
      * Removes all of the elements from this vector (optional operation).  This
      * vector will be empty after this call returns (unless it throws an
      * exception).
-     * @effects this.length' = 0 && no this.elements'
+     * @ensures this.length' = 0 && no this.elements'
      * @throws UnsupportedOperationException if the <tt>clear</tt> method is
      * 		  not supported by this vector.
      */
@@ -124,7 +124,7 @@ public interface IntVector extends IntCollection {
      * Adds the specified element to the end of this vector (optional
      * operation), and returns true if this vector has changed as a result
      * of the call.
-     * @effects this.length' = this.length + 1 && this.elements' = this.elements + this.length -> element
+     * @ensures this.length' = this.length + 1 && this.elements' = this.elements + this.length -> element
      * @return this.elements != this.elements'
      * @throws UnsupportedOperationException if the <tt>add</tt> method is not supported by this vector.
      * @throws IllegalArgumentException if some aspect of this element  prevents it from being added to this vector.
@@ -138,7 +138,7 @@ public interface IntVector extends IntCollection {
      * (if any) and any subsequent elements to the right (adds one to their
      * indices).
      *
-     * @effects this.length' = this.length + 1 && 
+     * @ensures this.length' = this.length + 1 && 
      *  this.elements' = { i: [0..this.length'), e: int | i < index => e = this.elements[i], 
      *    i = index => e = element, e = this.elements[i-1] }
      * @throws UnsupportedOperationException if the <tt>add</tt> method is not
@@ -153,7 +153,7 @@ public interface IntVector extends IntCollection {
     /**
      * Appends the specified elements to the end of this vector (optional
      * operation), and returns true if this vector has changed as a result of the call.
-     * @effects appends the specified elements to the end of this vector
+     * @ensures appends the specified elements to the end of this vector
      * @return this.elements != this.elements'
      * @throws UnsupportedOperationException if the <tt>add</tt> method is not
      * 		  supported by this vector.
@@ -168,7 +168,7 @@ public interface IntVector extends IntCollection {
      * Shifts the element currently at that position
      * (if any) and any subsequent elements to the right.
      *
-     * @effects inserts the specified elements at the specified position in this vector
+     * @ensures inserts the specified elements at the specified position in this vector
      * @return this.elements != this.elements
      * @throws UnsupportedOperationException if the <tt>add</tt> method is not
      *		  supported by this vector.
@@ -182,7 +182,7 @@ public interface IntVector extends IntCollection {
     /**
 	 * Removes the first occurrence of the given integer from this vector,
 	 * and returns true if this vector has changed as a result of the call.
-	 * @effects removes the first occurrence of the given integer from this vector
+	 * @ensures removes the first occurrence of the given integer from this vector
 	 * @return this.elements != this.elements'
 	 * @throws UnsupportedOperationException - this is an unmodifiable collection
 	 */
@@ -194,7 +194,7 @@ public interface IntVector extends IntCollection {
      * from their indices).  Returns the element that was removed from the
      * vector.
      * @return this.elements[index]
-     * @effects this.length' = this.length - 1 &&
+     * @ensures this.length' = this.length - 1 &&
      *  this.elements' = { i: [0..this.length'), e: int | i < index => e = this.elements[i], 
      *    e = this.elements[i+1] }
      * @throws UnsupportedOperationException if the <tt>remove</tt> method is
@@ -208,7 +208,7 @@ public interface IntVector extends IntCollection {
 	 * Removes all of this vector's elements that are also contained in the specified 
 	 * collection. After this call returns, this collection will contain no elements in 
 	 * common with the specified collection. Returns true if this collection has changed as a result of the call. 
-	 * @effects removes all of this vector's elements that are also contained in the specified 
+	 * @ensures removes all of this vector's elements that are also contained in the specified 
 	 * collection
 	 * @return this.elements != this.elements'
 	 * @throws NullPointerException - c = null
@@ -220,7 +220,7 @@ public interface IntVector extends IntCollection {
 	 * Retains only the elements in this vector that are contained in the specified 
 	 * collection. In other words, removes from this collection all of its elements that 
 	 * are not contained in the specified collection.  Returns true if this collection has changed as a result of the call. 
-	 * @effects retains only the elements in this vector that are contained in the specified 
+	 * @ensures retains only the elements in this vector that are contained in the specified 
 	 * collection
 	 * @return this.elements != this.elements'
 	 * @throws NullPointerException - c = null
@@ -263,7 +263,7 @@ public interface IntVector extends IntCollection {
      * k in this vector is copied into component k of the given array. If the 
      * given array is not large enough, the effect of this method is the same as
      * calling {@linkplain #toArray()}.
-     * @effects array.length>=this.length => all i: [0..this.length) | array'[i] = this.elements[i]
+     * @ensures array.length>=this.length => all i: [0..this.length) | array'[i] = this.elements[i]
      * @return array.length>=this.length => array' else this.toArray()
      * @throws NullPointerException - array = null
      */

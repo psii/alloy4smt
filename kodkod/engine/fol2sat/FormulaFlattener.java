@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -248,7 +248,7 @@ final class FormulaFlattener extends AbstractVoidVisitor {
 	/**
 	 * Adds f (resp. f.not()) to this.conjuncts if the negated flag is false (resp. true) and
 	 * the given node has not been visited; otherwise does nothing.
-	 * @effects !this.visited(f) => 
+	 * @ensures !this.visited(f) => 
 	 * 	(this.conjuncts' = conjuncts + (negated => f.not() else f)) else
 	 * 	(this.conjuncts' = this.conjuncts) 
 	 */

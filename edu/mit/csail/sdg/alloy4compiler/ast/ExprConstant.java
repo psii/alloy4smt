@@ -64,7 +64,7 @@ public final class ExprConstant extends Expr {
             (op==Op.IDEN ? Type.make2(UNIV) :
                 (op==Op.NEXT ? Type.make2(Sig.SIGINT) :
                     (op==Op.TRUE || op==Op.FALSE ? Type.FORMULA :
-                        (op==Op.EMPTYNESS ? UNIV.type : (op==Op.STRING ? Sig.STRING.type : Type.INT))))), 0, 0, null);
+                        (op==Op.EMPTYNESS ? UNIV.type : (op==Op.STRING ? Sig.STRING.type : Type.smallIntType()))))), 0, 0, null);
         this.op = op;
         this.num = (op==Op.NUMBER ? num : 0);
         this.string = (op==Op.STRING ? string : "");
@@ -151,13 +151,13 @@ public final class ExprConstant extends Expr {
     @Override public Expr resolve(Type type, Collection<ErrorWarning> warns) { return this; }
 
     /** {@inheritDoc} */
-    @Override final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
+    @Override public final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
 
     /** {@inheritDoc} */
     public int getDepth() { return 1; }
 
     /** {@inheritDoc} */
-    @Override public String getDescription() {
+    @Override public String getHTML() {
         switch(op) {
           case TRUE: return "<b>true</b>";
           case FALSE: return "<b>false</b>";

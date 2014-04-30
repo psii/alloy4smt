@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ public final class IntBitSet extends AbstractIntSet implements Cloneable {
 	/**
 	 * Constructs an empty IntBitSet that can store up
 	 * to capacity elements.
-	 * @effects no this.ints' && this.capacity' = capacity
+	 * @ensures no this.ints' && this.capacity' = capacity
 	 * @throws IllegalArgumentException - capacity < 0
 	 */
 	public IntBitSet(int capacity) {
@@ -234,7 +234,7 @@ public final class IntBitSet extends AbstractIntSet implements Cloneable {
 	/**
 	 * Adds the given integer to this set if not already present
 	 * and returns true.  Otherwise does nothing and returns false.
-	 * @effects this.ints' = this.ints + i
+	 * @ensures this.ints' = this.ints + i
 	 * @return i in this.ints'
 	 * @throws IllegalArgumentException - i !in [0..this.capacity)
 	 * @see kodkod.util.ints.IntSet#add(int)
@@ -256,7 +256,7 @@ public final class IntBitSet extends AbstractIntSet implements Cloneable {
 	/**
 	 * Removes the given integer from this set if already present and
 	 * returns true.  Otherwise does nothing and returns false.
-	 * @effects this.ints' = this.ints - i
+	 * @ensures this.ints' = this.ints - i
 	 * @return i !in this.ints'
 	 * @see kodkod.util.ints.IntSet#remove(int)
 	 */
@@ -376,7 +376,7 @@ public final class IntBitSet extends AbstractIntSet implements Cloneable {
 
 	/**
 	 * Removes all elements from this set. 
-	 * @effects no this.ints'
+	 * @ensures no this.ints'
 	 * @see kodkod.util.ints.IntCollection#clear()
 	 */
 	@Override

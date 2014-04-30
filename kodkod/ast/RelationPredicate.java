@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -114,7 +114,7 @@ public abstract class RelationPredicate extends Formula {
 	public static final class Acyclic extends RelationPredicate {
 		/**
 		 * Constructs a new acyclic predicate over the given relation.
-		 * @effects this.relation' = relation && this.name' = ACYCLIC
+		 * @ensures this.relation' = relation && this.name' = ACYCLIC
 		 * @throws IllegalArgumentException - relation.arity != 2
 		 */
 		Acyclic(Relation relation) {
@@ -168,7 +168,7 @@ public abstract class RelationPredicate extends Formula {
 		/**
 		 * Constructs a new function predicate over the given relation and domain, 
 		 * with the specified target multiplicity.
-		 * @effects this.name' = FUNCTION && this.relation' = relation && this.domain' = domain &&
+		 * @ensures this.name' = FUNCTION && this.relation' = relation && this.domain' = domain &&
 		 *          this.range' = range
 		 * @throws IllegalArgumentException - relation.arity != 2 || domain.arity != 1 || range.arity != 1 || 
 		 *                                    targetMult !in ONE + LONE
@@ -261,7 +261,7 @@ public abstract class RelationPredicate extends Formula {
 
 		/**
 		 * Constructs a new total ordering predicate.
-		 * @effects this.relation' = relation && this.first' = first && this.last' = last &&
+		 * @ensures this.relation' = relation && this.first' = first && this.last' = last &&
 		 *          this.name' = TOTAL_ORDERING
 		 * @throws NullPointerException - any of the arguments are null
 		 * @throws IllegalArgumentException - relation.arity != 2 || first.arity != 1 || last.arity != 1

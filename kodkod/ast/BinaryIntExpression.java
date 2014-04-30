@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ public final class BinaryIntExpression extends IntExpression  {
 	/**  
 	 * Constructs a new binary int formula: left op right
 	 * 
-	 * @effects this.left' = left && this.right' = right && this.op' = op
+	 * @ensures this.left' = left && this.right' = right && this.op' = op
 	 * @throws NullPointerException - left = null || right = null || op = null
 	 */
 	public BinaryIntExpression(final IntExpression left, final IntOperator op, final IntExpression right) {

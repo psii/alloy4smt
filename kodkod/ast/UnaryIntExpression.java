@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@ public final class UnaryIntExpression extends IntExpression {
 	
 	/**
 	 * Constructs a new unary int formula: op intExpr
-	 * @effects this.op' = op && this.intExpr' = intExpr
+	 * @ensures this.op' = op && this.intExpr' = intExpr
 	 */
 	UnaryIntExpression(IntOperator op, IntExpression intExpr) {
 		if (!op.unary()) throw new IllegalArgumentException("Not a unary operator: " + op);

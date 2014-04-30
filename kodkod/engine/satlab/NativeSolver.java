@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,8 +21,14 @@
  */
 package kodkod.engine.satlab;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Arrays;
 
-
+import kodkod.engine.config.Options;
 
 /**
  * A skeleton implementation of a wrapper for a sat solver
@@ -38,6 +44,8 @@ abstract class NativeSolver implements SATSolver {
 	private Boolean sat;
 	private int clauses, vars;
 	
+	private OutputStream cnfFile;  
+	
 	/**
 	 * Constructs a new wrapper for the given 
 	 * instance of the native solver.
@@ -46,19 +54,23 @@ abstract class NativeSolver implements SATSolver {
 		this.peer = peer;
 		this.clauses = this.vars = 0;
 		this.sat = null;
-//		System.out.println("created " + peer);
+		try {
+		    if (Options.isDebug())
+		        cnfFile = new BufferedOutputStream(new FileOutputStream(new File(System.getProperty("java.io.tmpdir"), "cnf_kk.cnf")));
+        } catch (IOException e) {
+        }
 	}
 	
 	/**
 	 * Loads the JNI library with the given name.
 	 */
 	static void loadLibrary(String library) {
-		try { System.loadLibrary(library);      return; } catch(UnsatisfiedLinkError ex) { }
-		try { System.loadLibrary(library+"x1"); return; } catch(UnsatisfiedLinkError ex) { }
-		try { System.loadLibrary(library+"x2"); return; } catch(UnsatisfiedLinkError ex) { }
-		try { System.loadLibrary(library+"x3"); return; } catch(UnsatisfiedLinkError ex) { }
-		try { System.loadLibrary(library+"x4"); return; } catch(UnsatisfiedLinkError ex) { }
-		try { System.loadLibrary(library+"x5"); return; } catch(UnsatisfiedLinkError ex) { }
+	    try { System.loadLibrary(library);      return; } catch(UnsatisfiedLinkError ex) { }
+        try { System.loadLibrary(library+"x1"); return; } catch(UnsatisfiedLinkError ex) { }
+        try { System.loadLibrary(library+"x2"); return; } catch(UnsatisfiedLinkError ex) { }
+        try { System.loadLibrary(library+"x3"); return; } catch(UnsatisfiedLinkError ex) { }
+        try { System.loadLibrary(library+"x4"); return; } catch(UnsatisfiedLinkError ex) { }
+        System.loadLibrary(library+"x5");        
 	}
 	
 	/**
@@ -81,7 +93,7 @@ abstract class NativeSolver implements SATSolver {
 	 * Adjusts the internal clause count so that the next call to {@linkplain #numberOfClauses()}
 	 * will return the given value.      
 	 * @requires clauseCount >= 0 
-	 * @effects adjusts the internal clause so that the next call to {@linkplain #numberOfClauses()}
+	 * @ensures adjusts the internal clause so that the next call to {@linkplain #numberOfClauses()}
 	 * will return the given value.
 	 */
 	void adjustClauseCount(int clauseCount) {
@@ -111,12 +123,10 @@ abstract class NativeSolver implements SATSolver {
 	public final boolean addClause(int[] lits) {
 		if (lits.length > 0) {
 			if (addClause(peer, lits)) {
-//				for(int i : lits) {
-//					System.out.print(i + " ");
-//				}
-//				System.out.println(0);
-//				System.out.println(Arrays.toString(lits));
 				clauses++;
+				try {
+                    if (Options.isDebug()) cnfFile.write((Arrays.toString(lits) + " 0\n").getBytes());
+                } catch (IOException e) {}
 				return true;
 			}
 		}
@@ -144,6 +154,14 @@ abstract class NativeSolver implements SATSolver {
 	 * @see #solve(long)
 	 */
 	public final boolean solve() {
+	    try {
+            if (Options.isDebug()) {
+                cnfFile.write(String.format("p cnf %s %s\n", vars, clauses).getBytes());
+                cnfFile.flush();
+                cnfFile.close();
+            }
+        } catch (IOException e) {
+        }
 		return (sat = solve(peer));
 	}
 	
@@ -196,14 +214,14 @@ abstract class NativeSolver implements SATSolver {
 	 * This method must be called when the object holding the
 	 * given reference goes out of scope to avoid
 	 * memory leaks.
-	 * @effects releases the resources associated
+	 * @ensures releases the resources associated
 	 * with the given native peer
 	 */
 	abstract void free(long peer);
 	
 	/**
 	 * Adds the specified number of variables to the given native peer.
-	 * @effects increases the vocabulary of the given native peer by 
+	 * @ensures increases the vocabulary of the given native peer by 
 	 * the specified number of variables
 	 */
 	abstract void addVariables(long peer, int numVariables);
@@ -214,7 +232,7 @@ abstract class NativeSolver implements SATSolver {
 	 * changed as a result of the call.
 	 * @requires all i: [0..lits.length) | abs(lits[i]) in this.variables 
 	 * @requires all disj i,j: [0..lits.length) | abs(lits[i]) != abs(lits[j])
-	 * @effects ensures that the given native peer logically contains the specified clause
+	 * @ensures ensures that the given native peer logically contains the specified clause
 	 * @return true if the peer's clause database changed as a result of the call; a negative integer if not.
 	 */
 	abstract boolean addClause(long peer, int[] lits);

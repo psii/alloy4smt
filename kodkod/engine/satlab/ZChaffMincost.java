@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,7 +79,7 @@ final class ZChaffMincost extends NativeSolver implements SATMinSolver {
 	 * Sets the cost of the given variable to the specified value in the 
 	 * native zchaff instance at the given address.
 	 * @requires  variable is a valid variable identifier && cost >= 0
-	 * @effects sets the cost of the given variable to the specified value in the 
+	 * @ensures sets the cost of the given variable to the specified value in the 
 	 * native zchaff instance at the given address.
 	 */
 	private native void setCost(long peer, int variable, int cost);

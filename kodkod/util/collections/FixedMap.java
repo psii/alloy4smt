@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -70,7 +70,7 @@ public final class FixedMap<K, V> extends AbstractMap<K, V> implements Indexer<K
 
 	/**
 	 * Constructs a new fixed map from the given map.
-	 * @effects this.keys' = keys && this.map = map.map
+	 * @ensures this.keys' = keys && this.map = map.map
 	 */
 	public FixedMap(Map<K, V> map) {
 		this(map.keySet());
@@ -81,7 +81,7 @@ public final class FixedMap<K, V> extends AbstractMap<K, V> implements Indexer<K
 
 	/**
 	 * Constructs a new fixed map for the given set of keys.
-	 * @effects this.keys' = keys && no this.map'
+	 * @ensures this.keys' = keys && no this.map'
 	 */
 	public FixedMap(Set<K> keys) {
 		final int size = keys.size();
@@ -97,7 +97,7 @@ public final class FixedMap<K, V> extends AbstractMap<K, V> implements Indexer<K
 	 * these requirements are violated.
 	 * @requires no disj i, j: [0..keys.length) | keys[i] == keys[j]
 	 * @requires all i, j: [0..keys.length) | i < j => System.identityHashCode(keys[i]) <= System.identityHashCode(keys[j])
-	 * @effects this.keys' = keys && no this.map'
+	 * @ensures this.keys' = keys && no this.map'
 	 */
 	public FixedMap(K[] keys) {
 		this.keys = keys;
@@ -265,7 +265,7 @@ public final class FixedMap<K, V> extends AbstractMap<K, V> implements Indexer<K
      *
      * @requires key in this.keys
      * @return this.map[key]
-     * @effects this.map' = this.map ++ key->value
+     * @ensures this.map' = this.map ++ key->value
      * @throws IllegalArgumentException - key !in this.keys
      */
 
@@ -368,11 +368,13 @@ public final class FixedMap<K, V> extends AbstractMap<K, V> implements Indexer<K
 		@SuppressWarnings("unchecked")
 		public final V getValue() { return (V)values[index]; }
 
+		@SuppressWarnings("unchecked")
 		public V setValue(V value) { throw new UnsupportedOperationException();	}
 
 		public int hashCode() {
 			return System.identityHashCode(keys[index]) ^ System.identityHashCode(values[index]);
 		}
+		@SuppressWarnings("unchecked")
 		public boolean equals(Object o) {
 			if (o instanceof Map.Entry) {
 				final Map.Entry e = (Map.Entry) o;

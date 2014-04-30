@@ -228,10 +228,10 @@ public final class ExprList extends Expr {
     }
 
     /** {@inheritDoc} */
-    @Override final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
+    @Override public final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
 
     /** {@inheritDoc} */
-    @Override public String getDescription() { return "<b>" + op + " [ ]</b>"; }
+    @Override public String getHTML() { return "<b>" + op + " [ ]</b>"; }
 
     /** {@inheritDoc} */
     @Override public List<? extends Browsable> getSubnodes() { return args; }

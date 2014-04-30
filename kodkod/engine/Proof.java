@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@ public abstract class Proof {
 	
 	/**
 	 * Constructs a new Proof of unsatisfiability for log.formula.
-	 * @effects this.log = log
+	 * @ensures this.log = log
 	 */
 	Proof(TranslationLog log) {
 		this.log = log;
@@ -71,7 +71,7 @@ public abstract class Proof {
 	 * minimal core of this.log.originalFormula if the original problem was translated
 	 * with a non-zero {@linkplain Options#coreGranularity() core granularity} setting.  </p>
 	 * 
-	 * @effects minimizes the proof of this.log.formula's unsatisfiability
+	 * @ensures minimizes the proof of this.log.formula's unsatisfiability
 	 * using the specified proof reduction strategy (or the trivial 
 	 * strategy if this.formula is trivially unsatisfiable with respect
 	 * to this.bounds). 

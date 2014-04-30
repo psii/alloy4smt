@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,7 @@ public final class HomogenousSequence<V> extends AbstractSparseSequence<V> {
 	/**
 	 * Constructs a new homogenous sequence for the given value, backed
 	 * by a {@link IntTreeSet IntTreeSet} instance.
-	 * @effects this.value' = value && no this.indices'
+	 * @ensures this.value' = value && no this.indices'
 	 */
 	public HomogenousSequence(V value) {
 		this.value = value;
@@ -80,7 +80,7 @@ public final class HomogenousSequence<V> extends AbstractSparseSequence<V> {
 	 * be reflected in this sequence, and vice versa.  This sequence will
 	 * be unmodifiable if the given index set is unmodifiable.
 	 * @requires indices is cloneable
-	 * @effects this.value' = value &&  this.indices' = indices
+	 * @ensures this.value' = value &&  this.indices' = indices
 	 */
 	public HomogenousSequence(V value, IntSet indices) {
 		this.value = value;
@@ -90,7 +90,7 @@ public final class HomogenousSequence<V> extends AbstractSparseSequence<V> {
 	
 	/**
 	 * Copy constructor
-	 * @effects constructs a deep copy of the original
+	 * @ensures constructs a deep copy of the original
 	 */
 	private HomogenousSequence(HomogenousSequence<V> original) {
 		this.value = original.value;
@@ -106,7 +106,7 @@ public final class HomogenousSequence<V> extends AbstractSparseSequence<V> {
 	 * Constructs a new homogeneous sequence from the provided sequence. The
 	 * returned sequence is backed by a {@link IntTreeSet IntTreeSet} instance.
 	 * @requires one seq.entries[int]
-	 * @effects this.value' = seq.entries[int] && this.indices' = seq.indices()
+	 * @ensures this.value' = seq.entries[int] && this.indices' = seq.indices()
 	 * @throws NullPointerException - seq = null
 	 * @throws IllegalArgumentException - seq.isEmpty()
 	 * @throws IllegalArgumentException - #seq.entries[int] > 1
@@ -166,7 +166,7 @@ public final class HomogenousSequence<V> extends AbstractSparseSequence<V> {
 
 	/**
 	 * Removes all entries from this sequences.
-	 * @effects no this.entries'
+	 * @ensures no this.entries'
 	 * @see kodkod.util.ints.SparseSequence#clear()
 	 */
 	public void clear() {
@@ -179,7 +179,7 @@ public final class HomogenousSequence<V> extends AbstractSparseSequence<V> {
 	 * previous value is replaced with the new one and returned.
 	 *
 	 * @requires this.value = value
-	 * @effects this.indices' = this.indices + index
+	 * @ensures this.indices' = this.indices + index
 	 * @return this.entries[index]
 	 * @throws IllegalArgumentException - this.value != value
 	 * @see kodkod.util.ints.SparseSequence#put(int, Object)
@@ -204,7 +204,7 @@ public final class HomogenousSequence<V> extends AbstractSparseSequence<V> {
 	 * Removes the entry with the given index, if it exists, and
 	 * returns the value previously stored at the index.  If the
 	 * sequence had no previous mapping for the index, null is returned.
-	 * @effects this.entries' = this.entries - index->E
+	 * @ensures this.entries' = this.entries - index->E
 	 * @return this.entries[index]
 	 * @see kodkod.util.ints.SparseSequence#remove(int)
 	 */

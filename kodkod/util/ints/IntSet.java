@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -104,7 +104,7 @@ public interface IntSet extends IntCollection, Cloneable {
 	/**
 	 * Adds the given integer to this set if not already present
 	 * and returns true.  Otherwise does nothing and returns false.
-	 * @effects this.ints' = this.ints + i
+	 * @ensures this.ints' = this.ints + i
 	 * @return i in this.ints'
 	 * @throws IllegalArgumentException - this is a bounded set
 	 * and i is out of bounds
@@ -114,7 +114,7 @@ public interface IntSet extends IntCollection, Cloneable {
 	/**
 	 * Removes the given integer from this set if already present and
 	 * returns true.  Otherwise does nothing and returns false.
-	 * @effects this.ints' = this.ints - i
+	 * @ensures this.ints' = this.ints - i
 	 * @return i !in this.ints'
 	 */
 	public abstract boolean remove(int i);
@@ -129,7 +129,7 @@ public interface IntSet extends IntCollection, Cloneable {
 	/**
 	 * Adds all of the elements in the specified collection to this set 
 	 * if they're not already present. 
-	 * @effects this.ints' = this.ints + { i: int | c.contains(i) }
+	 * @ensures this.ints' = this.ints + { i: int | c.contains(i) }
 	 * @return this.ints' != this.ints
 	 * @throws NullPointerException - c = null
 	 * @throws UnsupportedOperationException - this is an unmodifiable set
@@ -141,7 +141,7 @@ public interface IntSet extends IntCollection, Cloneable {
 	/**
 	 * Removes from this set all of its elements that are contained in the 
 	 * specified set. 
-	 * @effects this.ints' = this.ints - { i: int | c.contains(i) }
+	 * @ensures this.ints' = this.ints - { i: int | c.contains(i) }
 	 * @return this.ints' != this.ints
 	 * @throws NullPointerException - s = null
 	 * @throws UnsupportedOperationException - this is an unmodifiable set
@@ -151,7 +151,7 @@ public interface IntSet extends IntCollection, Cloneable {
 	/**
 	 * Retains only the elements in this set that are contained in the 
 	 * specified set. 
-	 * @effects this.ints' = this.ints & { i: int | c.contains(i) }
+	 * @ensures this.ints' = this.ints & { i: int | c.contains(i) }
 	 * @return this.ints' != this.ints
 	 * @throws NullPointerException - s = null
 	 * @throws UnsupportedOperationException - this is an unmodifiable set
@@ -160,7 +160,7 @@ public interface IntSet extends IntCollection, Cloneable {
 	
 	/**
 	 * Removes all elements from this set. 
-	 * @effects no this.ints'
+	 * @ensures no this.ints'
 	 */
 	public abstract void clear();
 	
@@ -187,7 +187,7 @@ public interface IntSet extends IntCollection, Cloneable {
      * Copies the elements of this set into the specified array, in the ascending
      * order, provided that the array is large enough. If the array is not large enough,
      * the effect of this method is the same as calling {@linkplain #toArray()}.
-     * @effects array.length>=this.size() => all i: [0..this.size()) | array'[i] in this.ints and #{e: this.ints | e < array'[i]} = i
+     * @ensures array.length>=this.size() => all i: [0..this.size()) | array'[i] in this.ints and #{e: this.ints | e < array'[i]} = i
      * @return array.length>=this.size() => array' else this.toArray()
      * @throws NullPointerException - array = null
      */

@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -146,7 +146,9 @@ final class SAT4J implements SATSolver {
 	 * @author Emina Torlak
 	 */
 	private static final class ReadOnlyIVecInt implements IVecInt {
-		private int[] vec;
+		private static final long serialVersionUID = 1451465675531453944L;
+		
+        private int[] vec;
 		
 		/**
 		 * Sets this.vec to the given vector
@@ -294,12 +296,34 @@ final class SAT4J implements SATSolver {
 			if (from<vec.length) for(int n=vec.length, i=from+1; i<n; i++) if (vec[i]==e) return i;
 			return -1;
 		}
+
+        @Override
+        public int indexOf(int e) {
+            final int[] workArray = this.vec; // faster access
+            final int n = vec.length;
+            for (int i = 0; i < n; i++) {
+                if (workArray[i] == e) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        @Override
+        public void moveTo(int sourceStartingIndex, int[] dest) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public IVecInt[] subset(int cardinal) {
+            return null;
+        }
+
+        @Override
+        public int[] toArray() {
+            return vec;
+        }
 		
-		public int [] toArray() {
-			int [] ans = new int[vec.length];
-			System.arraycopy(vec, 0, ans, 0, vec.length);
-			return ans;
-		}
 	}
 	
 	public static void main(String[] args) {

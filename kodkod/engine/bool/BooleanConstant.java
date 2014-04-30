@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ public final class BooleanConstant extends BooleanValue {
 	/**
 	 * Constructs a BooleanConstant that represent the given boolean
 	 * value.
-	 * @effects value => this.label' = Integer.MAX_VALUE, this.label' = -Integer.MAX_VALUE
+	 * @ensures value => this.label' = Integer.MAX_VALUE, this.label' = -Integer.MAX_VALUE
 	 */
 	private BooleanConstant(boolean value) {
 		this.label = (value ? Integer.MAX_VALUE : -Integer.MAX_VALUE);

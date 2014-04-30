@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -78,7 +78,7 @@ public interface Reporter {
 	/**
 	 * Reports that the analysis of the given (optimized) formula
 	 * and bounds is in stage 3.  The given bounds must not be mutated.
-	 * @effects bounds' = bounds
+	 * @ensures bounds' = bounds
 	 */
 	public void translatingToBoolean(Formula formula, Bounds bounds);
 	

@@ -31,17 +31,22 @@ sig DirEntry {
   one this.~entries
 }
 
+
+/**
+ * all directories besides root have one parent
+ */
 pred OneParent_buggyVersion {
-    // all directories besides root have one parent
     all d: Dir - Root | one d.parent
 }
 
+/**
+ * all directories besides root have one parent
+ */
 pred OneParent_correctVersion {
-    // all directories besides root have one parent
     all d: Dir - Root | (one d.parent && one contents.d)
 }
 
-/*
+/**
  * Only files may be linked (that is, have more than one entry)
  * That is, all directories are the contents of at most one directory entry
  */

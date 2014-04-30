@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@ public abstract class MultiGate extends BooleanFormula {
 	/**
 	 * Constructs a new MultiGate gate with the given operator and label.
 	 * @requires op != null && label >= 0
-	 * @effects this.op' = op && this.label' = label
+	 * @ensures this.op' = op && this.label' = label
 	 */
 	 MultiGate(Operator.Nary op, int label, int hashcode) {
 		super(null);

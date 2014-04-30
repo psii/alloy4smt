@@ -151,7 +151,7 @@ public final class A4Solution {
     private final TupleSet stringBounds;
 
     /** The Kodkod Solver object. */
-    public final Solver solver;
+    private final Solver solver;
 
     //====== mutable fields (immutable after solve() has been called) ===================================//
 
@@ -199,8 +199,6 @@ public final class A4Solution {
 
     /** The map from each Kodkod Variable to an Alloy Type and Alloy Pos. */
     private Map<Variable,Pair<Type,Pos>> decl2type;
-    
-    private Solution solution;
 
     //===================================================================================================//
 
@@ -225,10 +223,14 @@ public final class A4Solution {
         this.originalCommand = (originalCommand==null ? "" : originalCommand);
         this.bitwidth = bitwidth;
         this.maxseq = maxseq;
-        if (bitwidth < 1)   throw new ErrorSyntax("Cannot specify a bitwidth less than 1");
+        if (bitwidth < 0)   throw new ErrorSyntax("Cannot specify a bitwidth less than 0");
         if (bitwidth > 30)  throw new ErrorSyntax("Cannot specify a bitwidth greater than 30");
         if (maxseq < 0)     throw new ErrorSyntax("The maximum sequence length cannot be negative.");
-        if (maxseq > max()) throw new ErrorSyntax("With integer bitwidth of "+bitwidth+", you cannot have sequence length longer than "+max());
+        if (maxseq > 0 && maxseq > max()) throw new ErrorSyntax("With integer bitwidth of "+bitwidth+", you cannot have sequence length longer than "+max());
+        if (atoms.isEmpty()) {
+            atoms = new ArrayList<String>(1);
+            atoms.add("<empty>");
+        }
         kAtoms = ConstList.make(atoms);
         bounds = new Bounds(new Universe(kAtoms));
         factory = bounds.universe().factory();
@@ -236,7 +238,8 @@ public final class A4Solution {
         TupleSet seqidxBounds = factory.noneOf(1);
         TupleSet stringBounds = factory.noneOf(1);
         final TupleSet next = factory.noneOf(2);
-        for(int min=min(), max=max(), i=min; i<=max; i++) { // Safe since we know 1 <= bitwidth <= 30
+        int min=min(), max=max();
+        if (max >= min) for(int i=min; i<=max; i++) { // Safe since we know 1 <= bitwidth <= 30
            Tuple ii = factory.tuple(""+i);
            TupleSet is = factory.range(ii, ii);
            bounds.boundExactly(i, is);
@@ -264,14 +267,16 @@ public final class A4Solution {
         bounds.boundExactly(KK_STRING, this.stringBounds);
         int sym = (expected==1 ? 0 : opt.symmetry);
         solver = new Solver();
+        solver.options().setNoOverflow(opt.noOverflow);
         solver.options().setFlatten(false); // added for now, since multiplication and division circuit takes forever to flatten
         if (opt.solver.external()!=null) {
             String ext = opt.solver.external();
             if (opt.solverDirectory.length()>0 && ext.indexOf(File.separatorChar)<0) ext=opt.solverDirectory+File.separatorChar+ext;
             try {
                 File tmp = File.createTempFile("tmp", ".cnf", new File(opt.tempDirectory));
-                tmp.deleteOnExit();
-                solver.options().setSolver(SATFactory.externalFactory(ext, tmp.getAbsolutePath(), "", opt.solver.options()));
+                tmp.deleteOnExit(); 
+	            solver.options().setSolver(SATFactory.externalFactory(ext, tmp.getAbsolutePath(), "", opt.solver.options()));
+                //solver.options().setSolver(SATFactory.externalFactory(ext, tmp.getAbsolutePath(), opt.solver.options()));
             } catch(IOException ex) { throw new ErrorFatal("Cannot create temporary directory.", ex); }
         } else if (opt.solver.equals(A4Options.SatSolver.ZChaffJNI)) {
             solver.options().setSolver(SATFactory.ZChaff);
@@ -281,12 +286,13 @@ public final class A4Solution {
             sym=20;
             solver.options().setSolver(SATFactory.MiniSatProver);
             solver.options().setLogTranslation(2);
+            solver.options().setCoreGranularity(opt.coreGranularity);
         } else {
             solver.options().setSolver(SATFactory.DefaultSAT4J); // Even for "KK" and "CNF", we choose SAT4J here; later, just before solving, we'll change it to a Write2CNF solver
         }
         solver.options().setSymmetryBreaking(sym);
         solver.options().setSkolemDepth(opt.skolemDepth);
-        solver.options().setBitwidth(bitwidth);
+        solver.options().setBitwidth(bitwidth > 0 ? bitwidth : (int) Math.ceil(Math.log(atoms.size())) + 1);
         solver.options().setIntEncoding(Options.IntEncoding.TWOSCOMPLEMENT);
      }
 
@@ -359,11 +365,11 @@ public final class A4Solution {
     /** Returns the maximum allowed sequence length; always between 0 and 2^(bitwidth-1)-1. */
     public int getMaxSeq() { return maxseq; }
 
-    /** Returns the largest allowed integer. */
-    public int max() { return (1<<(bitwidth-1)) - 1; }
+    /** Returns the largest allowed integer, or -1 if no integers are allowed. */
+    public int max() { return Util.max(bitwidth); }
 
-    /** Returns the smallest allowed integer. */
-    public int min() { return 0 - (1<<(bitwidth-1)); }
+    /** Returns the smallest allowed integer, or 0 if no integers are allowed */
+    public int min() { return Util.min(bitwidth); }
 
     /** Returns the maximum number of allowed loop unrolling or recursion level. */
     public int unrolls() { return unrolls; }
@@ -389,17 +395,17 @@ public final class A4Solution {
     //===================================================================================================//
 
     /** Returns the Kodkod TupleFactory object. */
-    public TupleFactory getFactory() { return factory; }
+    TupleFactory getFactory() { return factory; }
 
     /** Returns a modifiable copy of the Kodkod Bounds object. */
-    public Bounds getBounds() { return bounds.clone(); }
+    Bounds getBounds() { return bounds.clone(); }
 
     /** Add a new relation with the given label and the given lower and upper bound.
      * @param label - the label for the new relation; need not be unique
      * @param lower - the lowerbound; can be null if you want it to be the empty set
      * @param upper - the upperbound; cannot be null; must contain everything in lowerbound
      */
-    public Relation addRel(String label, TupleSet lower, TupleSet upper) throws ErrorFatal {
+    Relation addRel(String label, TupleSet lower, TupleSet upper) throws ErrorFatal {
        if (solved) throw new ErrorFatal("Cannot add a Kodkod relation since solve() has completed.");
        Relation rel = Relation.nary(label, upper.arity());
        if (lower == upper) {
@@ -417,7 +423,7 @@ public final class A4Solution {
      * <br> The expression must contain only constant Relations or Relations that are already bound in this solution.
      * <br> (If the sig was already added by a previous call to addSig(), then this call will return immediately without altering what it is associated with)
      */
-    public void addSig(Sig s, Expression expr) throws ErrorFatal {
+    void addSig(Sig s, Expression expr) throws ErrorFatal {
        if (solved) throw new ErrorFatal("Cannot add an additional sig since solve() has completed.");
        if (expr.arity()!=1) throw new ErrorFatal("Sig "+s+" must be associated with a unary relational value.");
        if (a2k.containsKey(s)) return;
@@ -430,7 +436,7 @@ public final class A4Solution {
      * <br> The expression must contain only constant Relations or Relations that are already bound in this solution.
      * <br> (If the field was already added by a previous call to addField(), then this call will return immediately without altering what it is associated with)
      */
-    public void addField(Field f, Expression expr) throws ErrorFatal {
+    void addField(Field f, Expression expr) throws ErrorFatal {
        if (solved) throw new ErrorFatal("Cannot add an additional field since solve() has completed.");
        if (expr.arity()!=f.type().arity()) throw new ErrorFatal("Field "+f+" must be associated with an "+f.type().arity()+"-ary relational value.");
        if (a2k.containsKey(f)) return;
@@ -461,7 +467,7 @@ public final class A4Solution {
     Expression a2k(Sig sig)  { return a2k.get(sig); }
 
     /** Returns the corresponding Kodkod expression for the given Field, or null if it is not associated with anything. */
-    public Expression a2k(Field field)  { return a2k.get(field); }
+    Expression a2k(Field field)  { return a2k.get(field); }
 
     /** Returns the corresponding Kodkod expression for the given Atom/Skolem, or null if it is not associated with anything. */
     Expression a2k(ExprVar var)  { return a2k.get(var); }
@@ -485,6 +491,7 @@ public final class A4Solution {
               case ARROW: return a2k(a).product(a2k(b));
               case PLUS: return a2k(a).union(a2k(b));
               case MINUS: return a2k(a).difference(a2k(b));
+              //TODO: IPLUS, IMINUS???
             }
         }
         return null; // Current only UNION, PRODUCT, and DIFFERENCE of Sigs and Fields and ExprConstant.EMPTYNESS are allowed in a defined field's definition.
@@ -495,7 +502,7 @@ public final class A4Solution {
        return factory.setOf(expression.arity(), Translator.approximate(expression, bounds, solver.options()).denseIndices());
     }
 
-    /** Query the Bounds object to find the lower/upper bound; throws ErrorFatal if expr is not Relation, nor a union of Relations. */
+    /** Query the Bounds object to find the lower/upper bound; throws ErrorFatal if expr is not Relation, nor a {union, product} of Relations. */
     TupleSet query(boolean findUpper, Expression expr, boolean makeMutable) throws ErrorFatal {
        if (expr==Relation.NONE) return factory.noneOf(1);
        if (expr==Relation.INTS) return makeMutable ? sigintBounds.clone() : sigintBounds;
@@ -512,13 +519,17 @@ public final class A4Solution {
              TupleSet right = query(findUpper, b.right(), false);
              left.addAll(right);
              return left;
+          } else if (b.op() == ExprOperator.PRODUCT) {
+              TupleSet left = query(findUpper, b.left(), true);
+              TupleSet right = query(findUpper, b.right(), false);
+              return left.product(right);
           }
        }
        throw new ErrorFatal("Unknown expression encountered during bounds computation: "+expr);
     }
 
     /** Shrink the bounds for the given relation; throws an exception if the new bounds is not sameAs/subsetOf the old bounds. */
-    public void shrink(Relation relation, TupleSet lowerBound, TupleSet upperBound) throws Err {
+    void shrink(Relation relation, TupleSet lowerBound, TupleSet upperBound) throws Err {
        if (solved) throw new ErrorFatal("Cannot shrink a Kodkod relation since solve() has completed.");
        TupleSet oldL = bounds.lowerBound(relation);
        TupleSet oldU = bounds.upperBound(relation);
@@ -592,7 +603,7 @@ public final class A4Solution {
            if (expr.ambiguous && !expr.errors.isEmpty()) expr = expr.resolve(expr.type(), null);
            if (!expr.errors.isEmpty()) throw expr.errors.pick();
            Object result = TranslateAlloyToKodkod.alloy2kodkod(this, expr);
-           if (result instanceof IntExpression) return eval.evaluate((IntExpression)result);
+           if (result instanceof IntExpression) return eval.evaluate((IntExpression)result) + (eval.wasOverflow() ? " (OF)" : "");
            if (result instanceof Formula) return eval.evaluate((Formula)result);
            if (result instanceof Expression) return new A4TupleSet(eval.evaluate((Expression)result), this);
            throw new ErrorFatal("Unknown internal error encountered in the evaluator.");
@@ -657,7 +668,7 @@ public final class A4Solution {
     private Pair<Type,Pos> cachedPAIR = null;
 
     /** Maps a Kodkod variable to an Alloy Type and Alloy Pos (if no association exists, it will return (Type.EMPTY , Pos.UNKNOWN) */
-    public Pair<Type,Pos> kv2typepos(Variable var) {
+    Pair<Type,Pos> kv2typepos(Variable var) {
        Pair<Type,Pos> ans=decl2type.get(var);
        if (ans!=null) return ans;
        if (cachedPAIR==null) cachedPAIR=new Pair<Type,Pos>(Type.EMPTY, Pos.UNKNOWN);
@@ -852,7 +863,7 @@ public final class A4Solution {
     //===================================================================================================//
 
     /** Solve for the solution if not solved already; if cmd==null, we will simply use the lowerbound of each relation as its value. */
-    public A4Solution solve(final A4Reporter rep, Command cmd, Simplifier simp, boolean tryBookExamples) throws Err, IOException {
+    A4Solution solve(final A4Reporter rep, Command cmd, Simplifier simp, boolean tryBookExamples) throws Err, IOException {
         // If already solved, then return this object as is
         if (solved) return this;
         // If cmd==null, then all four arguments are ignored, and we simply use the lower bound of each relation
@@ -877,6 +888,7 @@ public final class A4Solution {
         Formula fgoal = Formula.and(formulas);
         rep.debug("Generating the solution...\n");
         kEnumerator = null;
+        Solution sol = null;
         final Reporter oldReporter = solver.options().reporter();
         final boolean solved[] = new boolean[]{true};
         solver.options().setReporter(new AbstractReporter() { // Set up a reporter to catch the type+pos of skolems
@@ -899,7 +911,7 @@ public final class A4Solution {
         });
         if (!opt.solver.equals(SatSolver.CNF) && !opt.solver.equals(SatSolver.KK) && tryBookExamples) { // try book examples
            A4Reporter r = "yes".equals(System.getProperty("debug")) ? rep : null;
-           try { solution = BookExamples.trial(r, this, fgoal, solver, cmd.check); } catch(Throwable ex) { solution = null; }
+           try { sol = BookExamples.trial(r, this, fgoal, solver, cmd.check); } catch(Throwable ex) { sol = null; }
         }
         solved[0] = false; // this allows the reporter to report the # of vars/clauses
         for(Relation r: bounds.relations()) { formulas.add(r.eq(r)); } // Without this, kodkod refuses to grow unmentioned relations
@@ -916,33 +928,29 @@ public final class A4Solution {
             File tmpCNF = File.createTempFile("tmp", ".cnf", new File(opt.tempDirectory));
             String out = tmpCNF.getAbsolutePath();
             solver.options().setSolver(WriteCNF.factory(out));
-            try { solution = solver.solve(fgoal, bounds); } catch(WriteCNF.WriteCNFCompleted ex) { rep.resultCNF(out); return null; }
+            try { sol = solver.solve(fgoal, bounds); } catch(WriteCNF.WriteCNFCompleted ex) { rep.resultCNF(out); return null; }
             // The formula is trivial (otherwise, it would have thrown an exception)
             // Since the user wants it in CNF format, we manually generate a trivially satisfiable (or unsatisfiable) CNF file.
-            Util.writeAll(out, solution.instance()!=null ? "p cnf 1 1\n1 0\n" : "p cnf 1 2\n1 0\n-1 0\n");
+            Util.writeAll(out, sol.instance()!=null ? "p cnf 1 1\n1 0\n" : "p cnf 1 2\n1 0\n-1 0\n");
             rep.resultCNF(out);
             return null;
          }
-        if (solver.options().solver()==SATFactory.ZChaff || !solver.options().solver().incremental()) {
-           rep.debug("Begin solve()\n");
-           if (solution==null) solution = solver.solve(fgoal, bounds);
-           rep.debug("End solve()\n");
+        if (solver.options().solver()==SATFactory.ZChaffMincost || !solver.options().solver().incremental()) {
+           if (sol==null) sol = solver.solve(fgoal, bounds);
         } else {
-           rep.debug("Begin solveAll()\n");
            kEnumerator = new Peeker<Solution>(solver.solveAll(fgoal, bounds));
-           if (solution==null) solution = kEnumerator.next();
-           rep.debug("End solveAll()\n");
+           if (sol==null) sol = kEnumerator.next();
         }
         if (!solved[0]) rep.solve(0, 0, 0);
-        final Instance inst = solution.instance();
+        final Instance inst = sol.instance();
         // To ensure no more output during SolutionEnumeration
         solver.options().setReporter(oldReporter);
         // If unsatisfiable, then retreive the unsat core if desired
         if (inst==null && solver.options().solver()==SATFactory.MiniSatProver) {
            try {
               lCore = new LinkedHashSet<Node>();
-              Proof p = solution.proof();
-              if (solution.outcome()==UNSATISFIABLE) {
+              Proof p = sol.proof();
+              if (sol.outcome()==UNSATISFIABLE) {
                  // only perform the minimization if it was UNSATISFIABLE, rather than TRIVIALLY_UNSATISFIABLE
                  int i = p.highLevelCore().size();
                  rep.minimizing(cmd, i);
@@ -971,18 +979,6 @@ public final class A4Solution {
         time = System.currentTimeMillis() - time;
         if (inst!=null) rep.resultSAT(cmd, time, this); else rep.resultUNSAT(cmd, time, this);
         return this;
-    }
-    
-    public Solution getSolution() {
-    	return solution;
-    }
-    
-    public Formula makeFormula(A4Reporter rep, Simplifier simp) throws Err {
-        if (simp!=null && formulas.size()>0 && !simp.simplify(rep, this, formulas)) addFormula(Formula.FALSE, Pos.UNKNOWN);
-    	ArrayList<Formula> tmpFormulas = new ArrayList<Formula>(formulas);
-        for(Relation r: bounds.relations()) { tmpFormulas.add(r.eq(r)); } // Without this, kodkod refuses to grow unmentioned relations
-        Formula fgoal = Formula.and(tmpFormulas);
-        return fgoal;
     }
 
     //===================================================================================================//

@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,7 @@ public final class CacheSet<E> extends AbstractSet<E> {
 	/**
 	 * Constructs a new, empty set; the backing map has
 	 * default initial capacity (16) and load factor (0.75).
-	 * @effects no this.elts'
+	 * @ensures no this.elts'
 	 */
 	@SuppressWarnings("unchecked")
 	public CacheSet() {
@@ -112,7 +112,7 @@ public final class CacheSet<E> extends AbstractSet<E> {
 	 * @param      loadFactor        the load factor of the hash map.
 	 * @throws     IllegalArgumentException if the initial capacity is less
 	 *             than zero, or if the load factor is nonpositive.
-	 * @effects no this.elts'
+	 * @ensures no this.elts'
 	 */
 	@SuppressWarnings("unchecked")
 	public CacheSet(int initialCapacity, float loadFactor) {
@@ -228,7 +228,7 @@ public final class CacheSet<E> extends AbstractSet<E> {
 	
 	/**
 	 * Adds the given element to this set, if not already present.
-	 * @effects this.elts' = this.elts + elt
+	 * @ensures this.elts' = this.elts + elt
 	 * @throws NullPointerException - elt = null
 	 * @return elt !in this.elts
 	 */
@@ -300,7 +300,7 @@ public final class CacheSet<E> extends AbstractSet<E> {
 	
 	/**
 	 * Removes the specified object from this set, if present.
-	 * @effects this.elts' = this.elts - elt
+	 * @ensures this.elts' = this.elts - elt
 	 * @return elt in this.elts
 	 * @throws NullPointerException - elt = null
 	 * @see java.util.Set#remove(java.lang.Object)
@@ -377,7 +377,7 @@ public final class CacheSet<E> extends AbstractSet<E> {
 	
 	/**
 	 * Removes all elements from this set.
-	 * @effects no this.elts'
+	 * @ensures no this.elts'
 	 * @see java.util.Set#clear()
 	 */
 	public void clear() {

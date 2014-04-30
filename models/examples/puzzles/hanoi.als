@@ -36,9 +36,11 @@ sig Stake { }
 
 sig Disc { }
 
-// sig State: the complete state of the system --
-// which disc is on which stake.  An solution is a
-// sequence of states.
+/**
+ * sig State: the complete state of the system --
+ * which disc is on which stake.  An solution is a
+ * sequence of states.
+ */
 sig State {
   on: Disc -> one Stake  // _each_ disc is on _exactly one_ stake
   // note that we simply record the set of discs on each stake --
@@ -47,27 +49,31 @@ sig State {
   // and largest on bottom, as the problem requires.
 }
 
-
+/**
+ * compute the set of discs on the given stake in this state.
+ * ~(this.on) map the stake to the set of discs on that stake.
+ */
 fun discsOnStake[st: State, stake: Stake]: set Disc {
-  // compute the set of discs on the given stake in this state.
-  // ~(this.on) map the stake to the set of discs on that stake.
   stake.~(st.on)
 }
 
+/**
+ * compute the top disc on the given stake, or the empty set
+ * if the stake is empty
+ */
 fun topDisc[st: State, stake: Stake]: lone Disc {
-  // compute the top disc on the given stake, or the empty set
-  // if the stake is empty
   { d: st.discsOnStake[stake] | st.discsOnStake[stake] in discs/nexts[d] + d }
 }
 
+/**
+ * Describes the operation of moving the top disc from stake fromStake
+ * to stake toStake.  This function is defined implicitly but is
+ * nevertheless deterministic, i.e. the result state is completely
+ * determined by the initial state and fromStake and toStake; hence
+ * the "det" modifier above.  (It's important to use the "det" modifier
+ * to tell the Alloy Analyzer that the function is in fact deterministic.)
+ */
 pred Move [st: State, fromStake, toStake: Stake, s': State] {
-   // Describes the operation of moving the top disc from stake fromStake
-   // to stake toStake.  This function is defined implicitly but is
-   // nevertheless deterministic, i.e. the result state is completely
-   // determined by the initial state and fromStake and toStake; hence
-   // the "det" modifier above.  (It's important to use the "det" modifier
-   // to tell the Alloy Analyzer that the function is in fact deterministic.)
-
    let d = st.topDisc[fromStake] | {
       // all discs on toStake must be larger than d,
       // so that we can put d on top of them
@@ -82,9 +88,11 @@ pred Move [st: State, fromStake, toStake: Stake, s': State] {
    }
 }
 
+/**
+ * there is a leftStake that has all the discs at the beginning,
+ * and a rightStake that has all the discs at the end
+ */ 
 pred Game1 {
-   // there is a leftStake that has all the discs at the beginning,
-   // and a rightStake that has all the discs at the end
    Disc in states/first.discsOnStake[stakes/first]
    some finalState: State | Disc in finalState.discsOnStake[stakes/last]
 
@@ -100,9 +108,11 @@ pred Game1 {
           }
 }
 
+/**
+ * there is a leftStake that has all the discs at the beginning,
+ * and a rightStake that has all the discs at the end
+ */
 pred Game2  {
-   // there is a leftStake that has all the discs at the beginning,
-   // and a rightStake that has all the discs at the end
    Disc in states/first.discsOnStake[stakes/first]
    some finalState: State | Disc in finalState.discsOnStake[stakes/last]
 

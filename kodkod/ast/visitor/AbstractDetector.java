@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -77,7 +77,7 @@ public abstract class AbstractDetector implements ReturnVisitor<Boolean, Boolean
 	/**
 	 * Constructs a depth first detector which will cache the results
 	 * of visiting the given nodes and re-use them on subsequent visits.
-	 * @effects this.cached' = cached && no this.cache
+	 * @ensures this.cached' = cached && no this.cache
 	 */
 	protected AbstractDetector(Set<Node> cached) { 
 		this.cached = cached;
@@ -88,7 +88,7 @@ public abstract class AbstractDetector implements ReturnVisitor<Boolean, Boolean
 	 * Constructs a depth-first detector which will cache
 	 * the results of visiting the given nodes in the given map, 
 	 * and re-use them on subsequent visits.
-	 * @effects this.cached' = cached && this.cache' = cache
+	 * @ensures this.cached' = cached && this.cache' = cache
 	 */
 	protected AbstractDetector(Set<Node> cached, Map<Node,Boolean> cache) { 
 		this.cached = cached;
@@ -108,7 +108,7 @@ public abstract class AbstractDetector implements ReturnVisitor<Boolean, Boolean
 	/**
 	 * Caches the given value for the specified node, if
 	 * this is a caching visitor, and returns Boolean.valueOf(val).
-	 * @effects n in this.cached => this.cache' = this.cache ++ n->Boolean.valueOf(val), this.cache' = this.cache
+	 * @ensures n in this.cached => this.cache' = this.cache ++ n->Boolean.valueOf(val), this.cache' = this.cache
 	 * @return Boolean.valueOf(val)
 	 */
 	protected Boolean cache(Node n, boolean val) {

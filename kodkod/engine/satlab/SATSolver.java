@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,7 @@ public interface SATSolver {
 	 * method is undefined if it is called after this.solve()
 	 * has returned <tt>false</tt>.
 	 * @requires numVars >= 0
-	 * @effects this.variables' = [1..#this.variables + numVars]
+	 * @ensures this.variables' = [1..#this.variables + numVars]
 	 * @throws IllegalArgumentException - numVars < 0
 	 */
 	public abstract void addVariables(int numVars);
@@ -69,7 +69,7 @@ public interface SATSolver {
 	 * has returned <tt>false</tt>.
 	 * @requires all i: [0..lits.length) | abs(lits[i]) in this.variables 
 	 * @requires all disj i,j: [0..lits.length) | abs(lits[i]) != abs(lits[j])
-	 * @effects [[this.clauses']] = ([[this.clauses]] and [[lits]])
+	 * @ensures [[this.clauses']] = ([[this.clauses]] and [[lits]])
 	 * @return #this.clauses' > #this.clauses
 	 * @throws NullPointerException - lits = null
 	 */
@@ -104,7 +104,7 @@ public interface SATSolver {
 	/**
 	 * Frees the memory used by this solver.  Once free() is called,
 	 * all subsequent calls to methods other than free() may fail.  
-	 * @effects frees the memory used by this solver
+	 * @ensures frees the memory used by this solver
 	 */
 	public abstract void free();
 	

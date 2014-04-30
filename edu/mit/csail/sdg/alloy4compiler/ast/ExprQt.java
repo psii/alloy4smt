@@ -157,7 +157,7 @@ public final class ExprQt extends Expr {
        * @param sub - the body of the expression
        */
       public final Expr make(Pos pos, Pos closingBracket, List<Decl> decls, Expr sub) {
-         Type t = this==SUM ? Type.INT : (this==COMPREHENSION ? Type.EMPTY : Type.FORMULA);
+         Type t = this==SUM ? Type.smallIntType() : (this==COMPREHENSION ? Type.EMPTY : Type.FORMULA);
          if (this!=SUM) sub = sub.typecheck_as_formula(); else sub = sub.typecheck_as_int();
          boolean ambiguous = sub.ambiguous;
          JoinableList<Err> errs = emptyListOfErrors;
@@ -263,10 +263,10 @@ public final class ExprQt extends Expr {
    }
 
    /** {@inheritDoc} */
-   @Override final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
+   @Override public final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
 
    /** {@inheritDoc} */
-   @Override public String getDescription() {
+   @Override public String getHTML() {
        StringBuilder sb = new StringBuilder("<b>").append(op).append("</b> ");
        boolean first = true;
        for (Decl d: decls) for(ExprHasName v: d.names) { if (!first) sb.append(", "); sb.append(v.label); first=false; }

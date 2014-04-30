@@ -65,10 +65,10 @@ public final class ExprVar extends ExprHasName {
     @Override public Expr resolve(Type p, Collection<ErrorWarning> warns) { return this; }
 
     /** {@inheritDoc} */
-    @Override <T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
+    @Override public <T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
 
     /** {@inheritDoc} */
-    @Override public String getDescription() { return "<b>variable</b>: " + label + " <i>" + type + "</i>"; }
+    @Override public String getHTML() { return "<b>variable</b>: " + label + " <i>" + type + "</i>"; }
 
     /** {@inheritDoc} */
     @Override public List<? extends Browsable> getSubnodes() { return new ArrayList<Browsable>(0); }

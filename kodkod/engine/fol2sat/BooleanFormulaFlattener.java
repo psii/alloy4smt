@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -64,7 +64,7 @@ final class BooleanFormulaFlattener implements BooleanVisitor<BooleanValue, Bool
 	 * The method assumes that all variables at the leaves of
 	 * the root are components of f.
 	 * @requires root.*inputs in f.components
-	 * @effects f.components' = f.components & Variable + flatRoot.*inputs
+	 * @ensures f.components' = f.components & Variable + flatRoot.*inputs
 	 * @return {flatRoot : BooleanValue | [[flatRoot]] = [[root]] && 
 	 *           no d, p: flatRoot.*inputs & MultiGate | d in p.inputs && d.op = p.op && inputs.d != p }  
 	 */

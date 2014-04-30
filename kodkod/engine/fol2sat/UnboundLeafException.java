@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ public final class UnboundLeafException extends RuntimeException {
 
 	/**
 	 * Constructs an UnboundLeafException for the given leaf.
-	 * @effects this.leaf' = leaf
+	 * @ensures this.leaf' = leaf
 	 */
 	UnboundLeafException(String msg, LeafExpression leaf) {
 		super(msg + ": " +leaf);

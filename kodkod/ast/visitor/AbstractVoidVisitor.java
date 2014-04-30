@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -73,7 +73,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits all the children of the given declarations node if
 	 * this.visited(decls) returns false.  Otherwise does nothing.
-	 * @effects all d: declarations.declarations | d.variable.accept(this) && d.expression.accept(this)
+	 * @ensures all d: declarations.declarations | d.variable.accept(this) && d.expression.accept(this)
 	 */
 	public void visit(Decls decls) {
 		if (visited(decls)) return;
@@ -85,7 +85,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the variable and expression of this decl if
 	 * this.visited(decl) returns false.  Otherwise does nothing.
-	 * @effects decl.variable.accept(this) && decl.expression.accept(this)
+	 * @ensures decl.variable.accept(this) && decl.expression.accept(this)
 	 */
 	public void visit(Decl decl) {
 		if (visited(decl)) return; 
@@ -110,7 +110,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	
 	/**
 	 * Visits the children if this.visited(expr) returns false.  Otherwise does nothing.
-	 * @effects all i: [0..#expr.children) | expr.child(i).accept(this)
+	 * @ensures all i: [0..#expr.children) | expr.child(i).accept(this)
 	 */
 	public void visit(NaryExpression expr) { 
 		if (visited(expr)) return;
@@ -122,7 +122,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the left and right subexpressions  if
 	 * this.visited(binExpr) returns false.  Otherwise does nothing.
-	 * @effects binExpr.left.accept(this) && binExpr.right.accept(this)
+	 * @ensures binExpr.left.accept(this) && binExpr.right.accept(this)
 	 */
 	public void visit(BinaryExpression binExpr) {
 		if (visited(binExpr)) return;
@@ -133,7 +133,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the subexpression  if
 	 * this.visited(unaryExpr) returns false.  Otherwise does nothing.
-	 * @effects unaryExpr.expression.accept(this)
+	 * @ensures unaryExpr.expression.accept(this)
 	 */
 	public void visit(UnaryExpression unaryExpr) {
 		if (visited(unaryExpr)) return;
@@ -143,7 +143,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the declarations and the formula  if
 	 * this.visited(comprehension) returns false.  Otherwise does nothing.
-	 * @effects comprehension.declarations.accept(this) && comprehension.formula.accept(this)
+	 * @ensures comprehension.declarations.accept(this) && comprehension.formula.accept(this)
 	 */
 	public void visit(Comprehension comprehension) {
 		if (visited(comprehension)) return;
@@ -154,7 +154,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the if-condition, the then-expression, and the else-expression  if
 	 * this.visited(ifExpr) returns false.  Otherwise does nothing.
-	 * @effects ifExpr.condition.accept(this) && ifExpr.thenExpr.accept(this) &&
+	 * @ensures ifExpr.condition.accept(this) && ifExpr.thenExpr.accept(this) &&
 	 *          ifExpr.elseExpr.accept(this)
 	 */
 	public void visit(IfExpression ifExpr) {
@@ -167,7 +167,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits project.expression and project.columns if this.visited(project) returns false.
 	 * Otherwise does nothing.
-	 * @effects project.expression.accept(this) && all i: project.arity | project.columns[i].accept(this)
+	 * @ensures project.expression.accept(this) && all i: project.arity | project.columns[i].accept(this)
 	 */
 	public void visit(ProjectExpression project) {
 		if (visited(project)) return;
@@ -180,7 +180,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits castExpr.intExpr  if
 	 * this.visited(castExpr) returns false.  Otherwise does nothing.
-	 * @effects castExpr.expression.accept(this)
+	 * @ensures castExpr.expression.accept(this)
 	 */
 	public void visit(IntToExprCast castExpr) {
 		if (visited(castExpr)) return;
@@ -195,7 +195,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the if-condition, the then-expression, and the else-expression  if
 	 * this.visited(intExpr) returns false.  Otherwise does nothing.
-	 * @effects intExpr.condition.accept(this) && intExpr.thenExpr.accept(this) &&
+	 * @ensures intExpr.condition.accept(this) && intExpr.thenExpr.accept(this) &&
 	 *          intExpr.elseExpr.accept(this)
 	 */
 	public void visit(IfIntExpression intExpr) {
@@ -208,7 +208,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits intExpr.expression  if
 	 * this.visited(intExpr) returns false.  Otherwise does nothing.
-	 * @effects intExpr.expression.accept(this)
+	 * @ensures intExpr.expression.accept(this)
 	 */
 	public void visit(ExprToIntCast intExpr) {
 		if (visited(intExpr)) return;
@@ -217,7 +217,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	
 	/**
 	 * Visits the children if this.visited(intExpr) returns false.  Otherwise does nothing.
-	 * @effects all i: [0..#intExpr.children) | intExpr.child(i).accept(this)
+	 * @ensures all i: [0..#intExpr.children) | intExpr.child(i).accept(this)
 	 */
 	public void visit(NaryIntExpression intExpr) {
 		if (visited(intExpr)) return;
@@ -229,7 +229,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the children of the given integer expression  if
 	 * this.visited(intExpr) returns false.  Otherwise does nothing.
-	 * @effects intExpr.left.accept(this) && intExpr.right.accept(this)
+	 * @ensures intExpr.left.accept(this) && intExpr.right.accept(this)
 	 */
 	public void visit(BinaryIntExpression intExpr) {
 		if (visited(intExpr)) return;
@@ -240,7 +240,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the subexpression  if
 	 * this.visited(intExpr) returns false.  Otherwise does nothing.
-	 * @effects unaryExpr.expression.accept(this)
+	 * @ensures unaryExpr.expression.accept(this)
 	 */
 	public void visit(UnaryIntExpression intExpr) {
 		if (visited(intExpr)) return;
@@ -250,7 +250,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the children of the given sum expression  if
 	 * this.visited(intExpr) returns false.  Otherwise does nothing.
-	 * @effects intExpr.decls.accept(this) && intExpr.intExpr.accept(this)
+	 * @ensures intExpr.decls.accept(this) && intExpr.intExpr.accept(this)
 	 */
 	public void visit(SumExpression intExpr) {
 		if (visited(intExpr)) return;
@@ -261,7 +261,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the children of the given integer comparison formula  if
 	 * this.visited(intComp) returns false.  Otherwise does nothing.
-	 * @effects intComp.left.accept(this) && intComp.right.accept(this)
+	 * @ensures intComp.left.accept(this) && intComp.right.accept(this)
 	 */
 	public void visit(IntComparisonFormula intComp) {
 		if (visited(intComp)) return;
@@ -272,7 +272,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the declarations and the formula  if
 	 * this.visited(quantFormula) returns false.  Otherwise does nothing.
-	 * @effects quantFormula.declarations.accept(this) && quantFormula.formula.accept(this)
+	 * @ensures quantFormula.declarations.accept(this) && quantFormula.formula.accept(this)
 	 */
 	public void visit(QuantifiedFormula quantFormula) {
 		if (visited(quantFormula)) return;
@@ -282,7 +282,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	
 	/**
 	 * Visits the children if this.visited(formula) returns false.  Otherwise does nothing.
-	 * @effects all i: [0..#formula.children) | formula.child(i).accept(this)
+	 * @ensures all i: [0..#formula.children) | formula.child(i).accept(this)
 	 */
 	public void visit(NaryFormula formula) {
 		if (visited(formula)) return;
@@ -294,7 +294,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the left and right children  if
 	 * this.visited(binFormula) returns false.  Otherwise does nothing.
-	 * @effects binFormula.left.accept(this) && binFormula.right.accept(this)
+	 * @ensures binFormula.left.accept(this) && binFormula.right.accept(this)
 	 */
 	public void visit(BinaryFormula binFormula) {
 		if (visited(binFormula)) return;
@@ -305,7 +305,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the subformula  if
 	 * this.visited(not) returns false.  Otherwise does nothing.
-	 * @effects not.formula.accept(this)
+	 * @ensures not.formula.accept(this)
 	 */
 	public void visit(NotFormula not) {
 		if (visited(not)) return;
@@ -320,7 +320,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the left and right children  if
 	 * this.visited(compFormula) returns false.  Otherwise does nothing.
-	 * @effects compFormula.left.accept(this) && compFormula.right.accept(this)
+	 * @ensures compFormula.left.accept(this) && compFormula.right.accept(this)
 	 */
 	public void visit(ComparisonFormula compFormula) {
 		if (visited(compFormula)) return;
@@ -331,7 +331,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the formula  if
 	 * this.visited(multFormula) returns false.  Otherwise does nothing.
-	 * @effects multFormula.expression.accept(this)
+	 * @ensures multFormula.expression.accept(this)
 	 */
 	public void visit(MultiplicityFormula multFormula) {
 		if (visited(multFormula)) return;
@@ -341,7 +341,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
 	/**
 	 * Visits the children of the predicate  if
 	 * this.visited(pred) returns false.  Otherwise does nothing.
-	 * @effects pred.relation.accept(this) && 
+	 * @ensures pred.relation.accept(this) && 
 	 *          (pred.name = FUNCTION => pred.domain.accept(this) && pred.range.accept(this)) && 
 	 *          (pred.name = TOTAL_ORDERING => 
 	 *            pred.ordered.accept(this) && pred.first.accept(this) && pred.last.accept(this) )

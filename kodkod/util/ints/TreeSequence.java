@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@ public final class TreeSequence<V> extends AbstractSparseSequence<V>
 	private int size;
 	/**
 	 * Constructs an empty tree sequence.
-	 * @effects no this.entries'
+	 * @ensures no this.entries'
 	 */
 	public TreeSequence() {
 		tree = new IntTree<Entry<V>>();
@@ -46,7 +46,7 @@ public final class TreeSequence<V> extends AbstractSparseSequence<V>
 
 	/**
 	 * Copy constructor.
-	 * @effects creatres a deep copy of the original
+	 * @ensures creatres a deep copy of the original
 	 */
 	@SuppressWarnings("unchecked")
 	private TreeSequence(TreeSequence<V> original) {
@@ -76,7 +76,7 @@ public final class TreeSequence<V> extends AbstractSparseSequence<V>
 
 	/**
 	 * Removes all entries from this sequences.
-	 * @effects no this.entries'
+	 * @ensures no this.entries'
 	 * @see kodkod.util.ints.SparseSequence#clear()
 	 */
 	public void clear() {
@@ -112,7 +112,7 @@ public final class TreeSequence<V> extends AbstractSparseSequence<V>
 	 * Removes the entry with the given index, if it exists, and
 	 * returns the value previously stored at the index.  If the
 	 * sequence had no previous mapping for the index, null is returned.
-	 * @effects this.entries' = this.entries - index->E
+	 * @ensures this.entries' = this.entries - index->E
 	 * @return this.entries[index]
 	 * @see kodkod.util.ints.SparseSequence#remove(int)
 	 */
@@ -202,7 +202,7 @@ public final class TreeSequence<V> extends AbstractSparseSequence<V>
 		
 		/**
 		 * Sets this.value to the given value and returns the previous value.
-		 * @effects this.value' = value
+		 * @ensures this.value' = value
 		 * @requires this.value
 		 */
 		V setValue(V value) {

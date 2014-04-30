@@ -39,7 +39,7 @@ final class ResolutionBasedProof extends Proof {
 	 * @requires solver.solve() has been called and it returned false.
 	 * @requires log.formula is the formula whose translation
 	 * resulted in the given SATProver
-	 * @effects this.formula' = log.formula
+	 * @ensures this.formula' = log.formula
 	 */
 	ResolutionBasedProof(SATProver solver, TranslationLog log) {
 		super(log);
@@ -72,8 +72,8 @@ final class ResolutionBasedProof extends Proof {
 			 * Returns true if the given node has been visited before or if 
 			 * it is not contained in this.nodes set.  Otherwise adds 
 			 * the node to the connected set and returns false.
-			 * @effects this.visited' = this.visited + n
-			 * @effects n !in this.visited && n in coreNodes => 
+			 * @ensures this.visited' = this.visited + n
+			 * @ensures n !in this.visited && n in coreNodes => 
 			 *  connected' = connected + n else connected' = connected
 			 * @return n in visited || n !in coreNodes
 			 */

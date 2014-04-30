@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +20,9 @@
  * THE SOFTWARE.
  */
 package kodkod.engine.fol2sat;
+
+import static kodkod.util.nodes.AnnotatedNode.annotate;
+import static kodkod.util.nodes.AnnotatedNode.annotateRoots;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -47,8 +50,6 @@ import kodkod.instance.Instance;
 import kodkod.util.ints.IntSet;
 import kodkod.util.nodes.AnnotatedNode;
 
-import static kodkod.util.nodes.AnnotatedNode.*;
-
 /** 
  * Translates, evaluates, and approximates {@link Node nodes} with
  * respect to given {@link Bounds bounds} (or {@link Instance instances}) and {@link Options}.
@@ -66,9 +67,9 @@ public final class Translator {
 	 * @throws UnboundLeafException - the expression refers to an undeclared variable or a relation not mapped by the instance
 	 * @throws HigherOrderDeclException - the expression contains a higher order declaration
 	 */
-	@SuppressWarnings("unchecked")
 	public static BooleanMatrix approximate(Expression expression, Bounds bounds, Options options) {
-		return FOL2BoolTranslator.approximate(annotate(expression), LeafInterpreter.overapproximating(bounds, options), Environment.EMPTY);
+		Environment<BooleanMatrix, Expression> emptyEnv = Environment.empty();
+        return FOL2BoolTranslator.approximate(annotate(expression), LeafInterpreter.overapproximating(bounds, options), emptyEnv);
 	}
 	
 	/**
@@ -80,7 +81,15 @@ public final class Translator {
 	 * @throws HigherOrderDeclException - the formula contains a higher order declaration
 	 */
 	public static BooleanConstant evaluate(Formula formula, Instance instance, Options options) {
-		return (BooleanConstant) FOL2BoolTranslator.translate(annotate(formula), LeafInterpreter.exact(instance, options));
+		final LeafInterpreter interpreter = LeafInterpreter.exact(instance, options);
+		final BooleanConstant eval = (BooleanConstant) FOL2BoolTranslator.translate(annotate(formula), interpreter);
+		//TODO: check OF
+//		final BooleanFactory factory = interpreter.factory();
+//        BooleanConstant overflow = (BooleanConstant) factory.of();
+//        if (options.noOverflow() && overflow.booleanValue()) { //[AM]
+//            eval = BooleanConstant.FALSE;
+//        }
+        return eval;
 	}
 	
 	/**
@@ -104,7 +113,16 @@ public final class Translator {
 	 * @throws HigherOrderDeclException - the expression contains a higher order declaration
 	 */
 	public static Int evaluate(IntExpression intExpr, Instance instance, Options options) {
-		return (Int) FOL2BoolTranslator.translate(annotate(intExpr), LeafInterpreter.exact(instance,options));
+		LeafInterpreter interpreter = LeafInterpreter.exact(instance, options);
+        Int ret = (Int) FOL2BoolTranslator.translate(annotate(intExpr), interpreter);
+        //TODO: check OF
+//		BooleanFactory factory = interpreter.factory();
+//		BooleanConstant bc = (BooleanConstant) factory.of();
+//		boolean overflow = false;
+//		if (options.noOverflow() && bc.booleanValue()) //[AM]
+//		    overflow = true;
+//		ret.setOverflowFlag(overflow);
+		return ret;
 	}
 	
 	/**
@@ -140,7 +158,7 @@ public final class Translator {
 	
 	/**
 	 * Constructs a Translator for the given formula, bounds and options.
-	 * @effects this.formula' = formula and 
+	 * @ensures this.formula' = formula and 
 	 * 	this.options' = options and 
 	 * 	this.bounds' = bounds.clone() and
 	 *  no this.log'
@@ -175,8 +193,8 @@ public final class Translator {
 	 * Removes bindings for unused relations/ints from this.bounds and
 	 * returns a SymmetryBreaker for the reduced bounds.
 	 * @requires annotated.node = this.formula
-	 * @effects this.bounds'.relations = this.formula.*children & Relations
-	 * @effects !annotated.usesInts() => no this.bounds'.int
+	 * @ensures this.bounds'.relations = this.formula.*children & Relations
+	 * @ensures !annotated.usesInts() => no this.bounds'.int
 	 * @return { b: SymmetryBreaker | b.bounds = this.bounds' }
 	 */
 	private SymmetryBreaker optimizeBounds(AnnotatedNode<Formula> annotated) {	
@@ -199,11 +217,15 @@ public final class Translator {
 	 */
 	private AnnotatedNode<Formula> optimizeFormula(AnnotatedNode<Formula> annotated, SymmetryBreaker breaker) {	
 		options.reporter().optimizingBoundsAndFormula();
-
 		if (options.logTranslation()==0) { // no logging
 			annotated = inlinePredicates(annotated, breaker.breakMatrixSymmetries(annotated.predicates(), true).keySet());
-			return options.skolemDepth()>=0 ? Skolemizer.skolemize(annotated, bounds, options) : annotated;
-		} else { // logging; inlining of predicates *must* happen last when logging is enabled
+			annotated = options.skolemDepth()>=0 ? Skolemizer.skolemize(annotated, bounds, options) : annotated;
+//			if (options.noOverflow()) {
+//	            annotated = NNFConverter.flatten(annotated); // FullNegationPropagator.flatten(annotated);
+//	        } 
+			return annotated;
+		} else { 
+		    // logging; inlining of predicates *must* happen last when logging is enabled
 			if (options.coreGranularity()==1) { 
 				annotated = FormulaFlattener.flatten(annotated, false);
 			}
@@ -213,6 +235,9 @@ public final class Translator {
 			if (options.coreGranularity()>1) { 
 				annotated = FormulaFlattener.flatten(annotated, options.coreGranularity()==3);
 			}
+//			if (options.noOverflow()) {
+//                annotated = NNFConverter.flatten(annotated); //FullNegationPropagator.flatten(annotated);          
+//            } 
 			return inlinePredicates(annotated, breaker.breakMatrixSymmetries(annotated.predicates(), false));
 		}
 	}
@@ -293,7 +318,7 @@ public final class Translator {
 	 * SBP generated by the given symmetry breaker, flattens the result if so specified by this.options, 
 	 * and returns its Translation to CNF.
 	 * @requires [[annotated.node]] <=> ([[this.formula]] and [[breaker.broken]])
-	 * @effects this.options.logTranslation => some this.log'
+	 * @ensures this.options.logTranslation => some this.log'
 	 * @return the result of calling  {@link #generateSBP(BooleanFormula, LeafInterpreter, SymmetryBreaker)}
 	 * on the translation of annotated.node with respect to this.bounds
 	 * @throws TrivialFormulaException - the translation of annotated is a constant or can be made into
@@ -304,10 +329,11 @@ public final class Translator {
 		options.reporter().translatingToBoolean(annotated.node(), bounds);
 		
 		final LeafInterpreter interpreter = LeafInterpreter.exact(bounds, options);
+		//final BooleanFactory factory = interpreter.factory();
 		
 		if (options.logTranslation()>0) {
 			final TranslationLogger logger = options.logTranslation()==1 ? new MemoryLogger(annotated, bounds) : new FileLogger(annotated, bounds);
-			final BooleanAccumulator circuit = FOL2BoolTranslator.translate(annotated, interpreter, logger);
+			BooleanAccumulator circuit = FOL2BoolTranslator.translate(annotated, interpreter, logger);
 			log = logger.log();
 			if (circuit.isShortCircuited()) {
 				throw new TrivialFormulaException(annotated.node(), bounds, circuit.op().shortCircuit(), log);
@@ -316,7 +342,7 @@ public final class Translator {
 			}
 			return generateSBP(circuit, interpreter, breaker);
 		} else {
-			final BooleanValue circuit = (BooleanValue)FOL2BoolTranslator.translate(annotated, interpreter);
+			BooleanValue circuit = (BooleanValue)FOL2BoolTranslator.translate(annotated, interpreter);
 			if (circuit.op()==Operator.CONST) {
 				throw new TrivialFormulaException(annotated.node(), bounds, (BooleanConstant)circuit, null);
 			} 

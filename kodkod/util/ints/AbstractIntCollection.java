@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@ public abstract class AbstractIntCollection implements IntCollection {
 
 	/**
 	 * Constructs an empty int collection.
-	 * @effects this.isEmpty()
+	 * @ensures this.isEmpty()
 	 */
 	protected AbstractIntCollection() {}
 	
@@ -64,7 +64,7 @@ public abstract class AbstractIntCollection implements IntCollection {
 	 * i if it finds it and returns true.  Otherwise
 	 * returns false.  Throws an UnsupportedOperationException
 	 * if this.iterator() does not support removal.
-	 * @effects iterates through the elements of this and removes i if it finds it
+	 * @ensures iterates through the elements of this and removes i if it finds it
 	 * @return true if this collection has changed as a result of the call 
 	 * @throws UnsupportedOperationException - this.iterator() does not support removal
 	 */

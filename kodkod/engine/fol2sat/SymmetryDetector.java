@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ final class SymmetryDetector {
 	
 	/**
 	 * Constructs a new SymmetryDetector for the given bounds.
-	 * @effects this.bounds' = bounds
+	 * @ensures this.bounds' = bounds
 	 */
 	private SymmetryDetector(Bounds bounds) {
 		this.bounds = bounds;
@@ -85,7 +85,7 @@ final class SymmetryDetector {
 	
 	/**
 	 * Partitions this.bounds.universe into sets of equivalent atoms.
-	 * @effects all disj s, q: this.parts'[int] | 
+	 * @ensures all disj s, q: this.parts'[int] | 
 	 *           some s.ints && some q.ints && (no s.ints & q.ints) &&
 	 *           this.parts'[int].ints = [0..this.bounds.universe.size()) &&
 	 *           (all ts: this.bounds.lowerBound[Relation] + this.bounds.upperBound[Relation] | 
@@ -143,7 +143,7 @@ final class SymmetryDetector {
 	 * @requires all disj s, q: this.parts[int] | 
 	 *            some s.ints && some q.ints && (no s.ints & q.ints) &&
 	 *            this.parts[int].ints = [0..this.bounds.universe.size())
-	 * @effects  let usize = this.bounds.universe.size(), firstColFactor = usize^(arit-1) |
+	 * @ensures  let usize = this.bounds.universe.size(), firstColFactor = usize^(arit-1) |
 	 *            all disj s, q: this.parts'[int] | 
 	 *             some s.ints && some q.ints && (no s.ints & q.ints) &&
 	 *             this.parts'[int].ints = [0..usize) &&
@@ -210,7 +210,7 @@ final class SymmetryDetector {
 	 * @requires all disj s, q: this.parts[int] | 
 	 *            some s.ints && some q.ints && (no s.ints & q.ints) &&
 	 *            this.parts[int].ints = [0..this.bounds.universe.size())
-	 * @effects  all disj s, q: this.parts'[int] | 
+	 * @ensures  all disj s, q: this.parts'[int] | 
 	 *            some s.ints && some q.ints && (no s.ints & q.ints) &&
 	 *            this.parts'[int].ints = [0..this.bounds.universe.size()) &&
 	 *            (all i: [0..this.parts'.size()) | 

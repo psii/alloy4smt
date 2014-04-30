@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,7 @@ public final class TupleFactory {
 	/**
 	 * Constructs a factory for the given universe.
 	 * @requires no (TupleFactory<:universe).universe
-	 * @effects this.universe' = universe
+	 * @ensures this.universe' = universe
 	 * @throws NullPointerException - universe = null
 	 */
 	TupleFactory(Universe universe) {
@@ -298,7 +298,7 @@ public final class TupleFactory {
 	     * Constructs a tuple with the specified arity and index, whose atoms
 	     * are drawn from the factory's universe.
 	     * 
-	     * @effects this.arity' = arity && 
+	     * @ensures this.arity' = arity && 
 	     *          this.index' = index 
 	     * @throws IllegalArgumentException - arity < 1 || index < 0 || index >= TupleFactory.this.base^arity
 	     */
@@ -316,7 +316,7 @@ public final class TupleFactory {
 	     * enclosing factory's universe.
 	     * 
 	     * @requires atoms.length > 0
-	     * @effects this.atoms' = atoms
+	     * @ensures this.atoms' = atoms
 	     * @throws NullPointerException - atoms = null
 	     * @throws IllegalArgumentException  - some a: atoms[int] | a !in universe.atoms[int]
 	     */
@@ -335,11 +335,12 @@ public final class TupleFactory {
 	    /**
 		 * Constructs a tuple with the specified arity, with the specified atom
 		 * at each position.  
-		 * @effects this.arity' = arity && this.atoms = [0..arity)->atom 
+		 * @ensures this.arity' = arity && this.atoms = [0..arity)->atom 
 		 * @throws NullPointerException - atom = null
 	     * @throws IllegalArgumentException - arity < 1 || atom !in this.universe.atoms[int]
 	     */
-	    IntTuple(final int arity, final Object atom) {
+	    @SuppressWarnings("unused")
+        IntTuple(final int arity, final Object atom) {
 	    	checkCapacity(arity);
 	    	if (arity < 1) throw new IllegalArgumentException("arity < 1");
 	    	this.arity = arity;

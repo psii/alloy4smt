@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,7 @@ public final class NaryExpression extends Expression implements Iterable<Express
 	 * Constructs a new associative expression: op(children)
 	 * @requires children array is not modified while in use by this associative expression
 	 * @requires some op.op[children]
-	 * @effects this.children' = children && this.op' = op
+	 * @ensures this.children' = children && this.op' = op
 	 */
 	NaryExpression(ExprOperator op, Expression[] children) {
 		assert children.length>2;

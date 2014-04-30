@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -125,7 +125,7 @@ final class LazyTrace implements ResolutionTrace {
 	 * corresponding clauses from the original trace and returns the number of axioms
 	 * in the reconstructed trace.  
 	 * @requires original, indices, and partial are as specified by {@linkplain #LazyTrace(LazyTrace, IntSet, int[][])} constructor
-	 * @effects modifies partial so that it conforms to the {@linkplain #trace LazyTrace.trace} spec
+	 * @ensures modifies partial so that it conforms to the {@linkplain #trace LazyTrace.trace} spec
 	 * using the provided original trace and indices.
 	 * @return number of axioms in the modified partial trace
 	 */
@@ -200,7 +200,7 @@ final class LazyTrace implements ResolutionTrace {
 	 * @requires src and axioms are as specified by the {@linkplain #LazyTrace(int[][], int)} constructor
 	 * @requires reachable.elts = reachable(src, axioms).elts
 	 * @requires core.elts = core(reachable, axioms).elts
-	 * @effects invalidates the contents of src; src should not be used after this method returns
+	 * @ensures invalidates the contents of src; src should not be used after this method returns
 	 * @return a new trace that contains the same axioms as the 
 	 * source but only the resolvents that are reachable from the conflict clause.
 	 */
@@ -288,7 +288,7 @@ final class LazyTrace implements ResolutionTrace {
 	/**
 	 * Computes the resolvent at the given index, sets this.trace index
 	 * to the computed resolvent and returns it.
-	 * @effects computes the resolvent at the given index and sets trace[index]
+	 * @ensures computes the resolvent at the given index and sets trace[index]
 	 * to the computed array.
 	 * @return this.trace'[index]
 	 */
@@ -612,7 +612,7 @@ final class LazyTrace implements ResolutionTrace {
 		/**
 		 * Sets the state of this clause view to represent
 		 * the ith clause in the trace and returns this.
-		 * @effects sets the state of this clause view to represent
+		 * @ensures sets the state of this clause view to represent
 		 * the ith clause in the trace
 		 * @return this
 		 */

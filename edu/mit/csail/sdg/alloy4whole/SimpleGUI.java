@@ -15,6 +15,25 @@
 
 package edu.mit.csail.sdg.alloy4whole;
 
+import static edu.mit.csail.sdg.alloy4.OurUtil.menu;
+import static edu.mit.csail.sdg.alloy4.OurUtil.menuItem;
+import static java.awt.event.KeyEvent.VK_A;
+import static java.awt.event.KeyEvent.VK_ALT;
+import static java.awt.event.KeyEvent.VK_E;
+import static java.awt.event.KeyEvent.VK_PAGE_DOWN;
+import static java.awt.event.KeyEvent.VK_PAGE_UP;
+import static java.awt.event.KeyEvent.VK_SHIFT;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Font;
+import java.awt.GraphicsEnvironment;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -32,22 +51,7 @@ import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.prefs.Preferences;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Container;
-import java.awt.Font;
-import java.awt.GraphicsEnvironment;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
-import static java.awt.event.KeyEvent.VK_PAGE_UP;
-import static java.awt.event.KeyEvent.VK_PAGE_DOWN;
-import static java.awt.event.KeyEvent.VK_ALT;
-import static java.awt.event.KeyEvent.VK_SHIFT;
-import static java.awt.event.KeyEvent.VK_A;
-import static java.awt.event.KeyEvent.VK_E;
+
 import javax.swing.Box;
 import javax.swing.Icon;
 import javax.swing.JButton;
@@ -71,43 +75,27 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
-import javax.swing.border.LineBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.text.html.HTMLDocument;
+
 import kodkod.engine.fol2sat.HigherOrderDeclException;
-import edu.mit.csail.sdg.alloy4.Err;
-import edu.mit.csail.sdg.alloy4compiler.ast.Browsable;
-import edu.mit.csail.sdg.alloy4compiler.ast.Command;
-import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
-import edu.mit.csail.sdg.alloy4compiler.ast.ExprVar;
-import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
-import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
-import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
-import edu.mit.csail.sdg.alloy4compiler.ast.Module;
-import edu.mit.csail.sdg.alloy4compiler.sim.SimInstance;
-import edu.mit.csail.sdg.alloy4compiler.sim.SimTuple;
-import edu.mit.csail.sdg.alloy4compiler.sim.SimTupleset;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4SolutionReader;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4Tuple;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4TupleSet;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4Options.SatSolver;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
 import edu.mit.csail.sdg.alloy4.A4Reporter;
 import edu.mit.csail.sdg.alloy4.Computer;
+import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4.ErrorFatal;
 import edu.mit.csail.sdg.alloy4.ErrorType;
 import edu.mit.csail.sdg.alloy4.Listener;
+import edu.mit.csail.sdg.alloy4.MacUtil;
 import edu.mit.csail.sdg.alloy4.MailBug;
-//import edu.mit.csail.sdg.alloy4.MacUtil;
 import edu.mit.csail.sdg.alloy4.OurAntiAlias;
 import edu.mit.csail.sdg.alloy4.OurBorder;
 import edu.mit.csail.sdg.alloy4.OurCombobox;
 import edu.mit.csail.sdg.alloy4.OurDialog;
-import edu.mit.csail.sdg.alloy4.OurTabbedSyntaxWidget;
 import edu.mit.csail.sdg.alloy4.OurSyntaxWidget;
+import edu.mit.csail.sdg.alloy4.OurTabbedSyntaxWidget;
 import edu.mit.csail.sdg.alloy4.OurTree;
 import edu.mit.csail.sdg.alloy4.OurUtil;
 import edu.mit.csail.sdg.alloy4.Pair;
@@ -115,19 +103,34 @@ import edu.mit.csail.sdg.alloy4.Pos;
 import edu.mit.csail.sdg.alloy4.Runner;
 import edu.mit.csail.sdg.alloy4.Subprocess;
 import edu.mit.csail.sdg.alloy4.Util;
-import edu.mit.csail.sdg.alloy4.Version;
-import edu.mit.csail.sdg.alloy4.WorkerEngine;
-import edu.mit.csail.sdg.alloy4.XMLNode;
 import edu.mit.csail.sdg.alloy4.Util.BooleanPref;
 import edu.mit.csail.sdg.alloy4.Util.IntPref;
 import edu.mit.csail.sdg.alloy4.Util.StringPref;
+import edu.mit.csail.sdg.alloy4.Version;
+import edu.mit.csail.sdg.alloy4.WorkerEngine;
 import edu.mit.csail.sdg.alloy4.WorkerEngine.WorkerCallback;
+import edu.mit.csail.sdg.alloy4.XMLNode;
+import edu.mit.csail.sdg.alloy4compiler.ast.Browsable;
+import edu.mit.csail.sdg.alloy4compiler.ast.Command;
+import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
+import edu.mit.csail.sdg.alloy4compiler.ast.ExprVar;
+import edu.mit.csail.sdg.alloy4compiler.ast.Module;
+import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
+import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
+import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
+import edu.mit.csail.sdg.alloy4compiler.sim.SimInstance;
+import edu.mit.csail.sdg.alloy4compiler.sim.SimTuple;
+import edu.mit.csail.sdg.alloy4compiler.sim.SimTupleset;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4Options.SatSolver;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4SolutionReader;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4Tuple;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4TupleSet;
 import edu.mit.csail.sdg.alloy4viz.VizGUI;
 import edu.mit.csail.sdg.alloy4whole.SimpleReporter.SimpleCallback1;
 import edu.mit.csail.sdg.alloy4whole.SimpleReporter.SimpleTask1;
 import edu.mit.csail.sdg.alloy4whole.SimpleReporter.SimpleTask2;
-import static edu.mit.csail.sdg.alloy4.OurUtil.menu;
-import static edu.mit.csail.sdg.alloy4.OurUtil.menuItem;
 
 /** Simple graphical interface for accessing various features of the analyzer.
  *
@@ -179,6 +182,9 @@ public final class SimpleGUI implements ComponentListener, Listener {
 
     /** True if Alloy Analyzer should enable the new Implicit This name resolution. */
     private static final BooleanPref ImplicitThis = new BooleanPref("ImplicitThis");
+    
+    /** True if Alloy Analyzer should not report models that overflow. */
+    private static final BooleanPref NoOverflow = new BooleanPref("NoOverflow");
 
     /** The latest X corrdinate of the Alloy Analyzer's main window. */
     private static final IntPref AnalyzerX = new IntPref("AnalyzerX",0,-1,65535);
@@ -215,6 +221,9 @@ public final class SimpleGUI implements ComponentListener, Listener {
 
     /** The unsat core minimization strategy. */
     private static final IntPref CoreMinimization = new IntPref("CoreMinimization",0,2,2);
+    
+    /** The unsat core granularity. */
+    private static final IntPref CoreGranularity = new IntPref("CoreGranularity",0,0,3);
 
     /** The amount of memory (in M) to allocate for Kodkod and the SAT solvers. */
     private static final IntPref SubMemory = new IntPref("SubMemory",16,768,65535);
@@ -992,9 +1001,11 @@ public final class SimpleGUI implements ComponentListener, Listener {
         opt.tempDirectory = alloyHome() + fs + "tmp";
         opt.solverDirectory = alloyHome() + fs + "binary";
         opt.recordKodkod = RecordKodkod.get();
+        opt.noOverflow = NoOverflow.get();
         opt.unrolls = Version.experimental ? Unrolls.get() : (-1);
         opt.skolemDepth = SkolemDepth.get();
         opt.coreMinimization = CoreMinimization.get();
+        opt.coreGranularity = CoreGranularity.get();
         opt.originalFilename = Util.canon(text.get().getFilename());
         opt.solver = SatSolver.get();
         task.bundleIndex = i;
@@ -1245,9 +1256,18 @@ public final class SimpleGUI implements ComponentListener, Listener {
             if (now!=SatSolver.MiniSatProverJNI) cmMenu.setEnabled(false);
             optmenu.add(cmMenu);
             //
+            final int gran = CoreGranularity.get();
+            final String[] granLabelLong=new String[]{"Top-level conjuncts only", "Flatten the formula once at the beginning", "Flatten the formula at the beginning and after skolemizing", "In addition to flattening the formula twice, expand the quantifiers"};
+            final String[] granLabelShort=new String[]{"Top-level", "Flatten once", "Flatten twice", "Expand quantifiers"};
+            final JMenu cgMenu = new JMenu("Core Granularity: "+granLabelShort[gran]);
+            for(int n=0; n<granLabelLong.length; n++) { menuItem(cgMenu, granLabelLong[n], doCoreGran(n), n==gran?iconYes:iconNo); }
+            if (now!=SatSolver.MiniSatProverJNI) cgMenu.setEnabled(false);
+            optmenu.add(cgMenu);
+            //
             menuItem(optmenu, "Visualize Automatically: "+(AutoVisualize.get()?"Yes":"No"), doOptAutoVisualize());
             menuItem(optmenu, "Record the Kodkod Input/Output: "+(RecordKodkod.get()?"Yes":"No"), doOptRecordKodkod());
             if (Version.experimental) menuItem(optmenu, "Enable \"implicit this\" name resolution: "+(ImplicitThis.get()?"Yes":"No"), doOptImplicitThis());
+            if (Version.experimental) menuItem(optmenu, "Forbid Overflow: "+(NoOverflow.get()?"Yes":"No"), doOptNoOverflow());
         } finally {
             wrap = false;
         }
@@ -1340,6 +1360,12 @@ public final class SimpleGUI implements ComponentListener, Listener {
         if (!wrap) CoreMinimization.set(speed.intValue());
         return wrapMe(speed);
     }
+    
+    /** This method changes the granularity of the unsat core (larger integer means more granular). */
+    private Runner doCoreGran(Integer gran) {
+        if (!wrap) CoreGranularity.set(gran.intValue());
+        return wrapMe(gran);
+    }
 
     /** This method toggles the "antialias" checkbox. */
     private Runner doOptAntiAlias() {
@@ -1365,6 +1391,11 @@ public final class SimpleGUI implements ComponentListener, Listener {
         return wrapMe();
     }
 
+    private Runner doOptNoOverflow() {
+        if (!wrap) NoOverflow.set(!NoOverflow.get());
+        return wrapMe();
+    }
+    
     /** This method toggles the "syntax highlighting" checkbox. */
     private Runner doOptSyntaxHighlighting() {
         if (!wrap) {
@@ -1522,7 +1553,9 @@ public final class SimpleGUI implements ComponentListener, Listener {
             text.clearShade();
             text.shade(hCore.b, subCoreColor, false);
             text.shade(hCore.a, coreColor, false);
-            if (false) text.shade(lCore, coreColor, false); // we are currently not highlighting the lowlevel core
+            // shade again, because if not all files were open, some shadings will have no effect
+            text.shade(hCore.b, subCoreColor, false);
+            text.shade(hCore.a, coreColor, false);
         }
         if (arg.startsWith("POS: ")) { // POS: x1 y1 x2 y2 filename
             Scanner s=new Scanner(arg.substring(5));
@@ -1567,6 +1600,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
             task.filename = arg;
             try {
                 WorkerEngine.run(task, SubMemory.get(), SubStack.get(), alloyHome() + fs + "binary", "", cb);
+//                task.run(cb);
             } catch(Throwable ex) {
                 WorkerEngine.stop();
                 log.logBold("Fatal Error: Solver failed due to unknown reason.\n" +
@@ -1648,9 +1682,10 @@ public final class SimpleGUI implements ComponentListener, Listener {
             }
             try {
                 Expr e = CompUtil.parseOneExpression_fromString(root, str);
-                if ("yes".equals(System.getProperty("debug")) && Verbosity.get()==Verbosity.FULLDEBUG)
-                   return convert(root, ans).visitThis(e).toString();
-                else
+                if ("yes".equals(System.getProperty("debug")) && Verbosity.get()==Verbosity.FULLDEBUG) {
+                    SimInstance simInst = convert(root, ans);
+                    return simInst.visitThis(e).toString() + (simInst.wasOverflow() ? " (OF)" : "");
+                } else
                    return ans.eval(e).toString();
             } catch(HigherOrderDeclException ex) {
                 throw new ErrorType("Higher-order quantification is not allowed in the evaluator.");
@@ -1687,7 +1722,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
         try { System.loadLibrary(library+"x2"); return true; } catch(UnsatisfiedLinkError ex) { }
         try { System.loadLibrary(library+"x3"); return true; } catch(UnsatisfiedLinkError ex) { }
         try { System.loadLibrary(library+"x4"); return true; } catch(UnsatisfiedLinkError ex) { }
-        try { System.loadLibrary(library+"x4"); return true; } catch(UnsatisfiedLinkError ex) { return false; }
+        try { System.loadLibrary(library+"x5"); return true; } catch(UnsatisfiedLinkError ex) { return false; }
     }
 
     /** Create a dummy task object for testing purpose. */
@@ -1885,7 +1920,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
         // If on Mac, then register an application listener
         try {
             wrap = true;
-//            if (Util.onMac()) MacUtil.registerApplicationListener(doShow(), doAbout(), doOpenFile(""), doQuit());
+            if (Util.onMac()) MacUtil.registerApplicationListener(doShow(), doAbout(), doOpenFile(""), doQuit());
         } finally {
             wrap = false;
         }
@@ -1904,8 +1939,9 @@ public final class SimpleGUI implements ComponentListener, Listener {
         // Testing the SAT solvers
         if (1==1) {
             satChoices = SatSolver.values().makeCopy();
-            String test1 = Subprocess.exec(20000, new String[]{binary+fs+"berkmin", binary+fs+"tmp.cnf"});
-            if (!isSat(test1)) satChoices.remove(SatSolver.BerkMinPIPE);
+//            String test1 = Subprocess.exec(20000, new String[]{binary+fs+"berkmin", binary+fs+"tmp.cnf"});
+//            if (!isSat(test1)) satChoices.remove(SatSolver.BerkMinPIPE);
+            satChoices.remove(SatSolver.BerkMinPIPE);
             String test2 = Subprocess.exec(20000, new String[]{binary+fs+"spear", "--model", "--dimacs", binary+fs+"tmp.cnf"});
             if (!isSat(test2)) satChoices.remove(SatSolver.SpearPIPE);
             if (!loadLibrary("minisat")) {

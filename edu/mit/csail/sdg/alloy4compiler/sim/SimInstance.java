@@ -99,6 +99,10 @@ public final class SimInstance extends VisitReturn<Object> {
     /** The maximum allowed integer based on the chosen bitwidth. */
     private final int max;
 
+    /** Whether the was overflow the last time "trunc" was called */
+    private boolean wasOverflow;
+    public boolean wasOverflow() { return wasOverflow; }
+
     /** Helper method that encodes the given string using UTF-8 and write to the output stream. */
     private static void write(BufferedOutputStream out, String string) throws IOException {
         out.write(string.getBytes("UTF-8"));
@@ -230,15 +234,15 @@ public final class SimInstance extends VisitReturn<Object> {
 
     /** Construct a new simulation context with the given bitwidth and the given maximum sequence length. */
     public SimInstance(Module root, int bitwidth, int maxseq) throws Err {
-        if (bitwidth<1 || bitwidth>32) throw new ErrorType("Bitwidth must be between 1 and 32.");
+        if (bitwidth<0 || bitwidth>32) throw new ErrorType("Bitwidth must be between 0 and 32.");
         this.root = root;
         this.bitwidth = bitwidth;
         this.maxseq = maxseq;
         this.callbacks = new HashMap<Func,SimCallback>();
-        if (bitwidth==32) { max=Integer.MAX_VALUE; min=Integer.MIN_VALUE; } else { max=(1<<(bitwidth-1))-1; min=(0-max)-1; }
+        if (bitwidth==32) { max=Integer.MAX_VALUE; min=Integer.MIN_VALUE; } else { max=Util.max(bitwidth); min=(0-max)-1; }
         if (maxseq < 0)   throw new ErrorSyntax("The maximum sequence length cannot be negative.");
-        if (maxseq > max) throw new ErrorSyntax("With integer bitwidth of "+bitwidth+", you cannot have sequence length longer than "+max);
-        shiftmask = (1 << (32 - Integer.numberOfLeadingZeros(bitwidth-1))) - 1;
+        if (maxseq > 0 && maxseq > max) throw new ErrorSyntax("With integer bitwidth of "+bitwidth+", you cannot have sequence length longer than "+max);
+        shiftmask = Util.shiftmask(bitwidth);
     }
 
     /** Construct a deep copy of this instance (except that it shares the same root Module object as the old instance) */
@@ -353,8 +357,13 @@ public final class SimInstance extends VisitReturn<Object> {
         cacheForConstants.clear();
     }
 
-    /** Truncate the given integer based on the current chosen bitwidth */
-    private int trunc(int i) { return (i<<(32-bitwidth)) >> (32-bitwidth); }
+    /** Truncate the given integer based on the current chosen bitwidth (as string) plus 
+     *  a flag to indicate overflow */
+    private int trunc(int i) { 
+        int ret = (i<<(32-bitwidth)) >> (32-bitwidth);
+        wasOverflow = ret != i;
+        return ret;
+    }
 
     /** Convenience method that evalutes x and casts the result to be a boolean.
      * @return the boolean - if x evaluates to a boolean
@@ -374,7 +383,8 @@ public final class SimInstance extends VisitReturn<Object> {
     public int cint(Expr x) throws Err {
         if (!x.errors.isEmpty()) throw x.errors.pick();
         Object y = visitThis(x);
-        if (y instanceof Integer) return trunc((Integer)y);
+        if (y instanceof Integer) return (Integer)y;
+        if (y instanceof SimTupleset) return ((SimTupleset) y).sum();
         throw new ErrorFatal(x.span(), "This should have been an integer expression.\nInstead it is "+y);
     }
 
@@ -386,6 +396,7 @@ public final class SimInstance extends VisitReturn<Object> {
         if (!x.errors.isEmpty()) throw x.errors.pick();
         Object y = visitThis(x);
         if (y instanceof SimTupleset) return (SimTupleset)y;
+        if (y instanceof Integer) return SimTupleset.make(SimTuple.make(SimAtom.make(((Integer) y).intValue())));
         throw new ErrorFatal(x.span(), "This should have been a set or a relation.\nInstead it is "+y);
     }
 
@@ -437,9 +448,17 @@ public final class SimInstance extends VisitReturn<Object> {
               if (a instanceof ExprConstant && ((ExprConstant)a).op==ExprConstant.Op.NUMBER && ((ExprConstant)a).num()==0)
                  if (b instanceof ExprConstant && ((ExprConstant)b).op==ExprConstant.Op.NUMBER && ((ExprConstant)b).num()==max+1)
                     return min;
-              if (x.left.type().is_int) return trunc(cint(x.left)-cint(x.right)); else return cset(x.left).difference(cset(x.right));
+              //[AM]
+//              if (x.left.type().is_int()) return trunc(cint(x.left)-cint(x.right)); else return cset(x.left).difference(cset(x.right));
+              return cset(x.left).difference(cset(x.right));
+          case IMINUS: 
+              return trunc(cint(x.left)-cint(x.right)); 
           case PLUS:
-              if (x.left.type().is_int) return trunc(cint(x.left)+cint(x.right)); else return cset(x.left).union(cset(x.right));
+              return cset(x.left).union(cset(x.right));
+              //[AM]
+//              if (x.left.type().is_int()) return trunc(cint(x.left)+cint(x.right)); else return cset(x.left).union(cset(x.right));
+          case IPLUS:
+              return trunc(cint(x.left)+cint(x.right));
           case PLUSPLUS:
               return cset(x.left).override(cset(x.right));
           case MUL:
@@ -516,8 +535,9 @@ public final class SimInstance extends VisitReturn<Object> {
         switch(x.op) {
           case NUMBER:
              int n = x.num();
-             if (n<min) throw new ErrorType(x.pos, "Current bitwidth is set to "+bitwidth+", thus this integer constant "+n+" is smaller than the minimum integer "+min);
-             if (n>max) throw new ErrorType(x.pos, "Current bitwidth is set to "+bitwidth+", thus this integer constant "+n+" is bigger than the maximum integer "+max);
+             //[am] const
+//             if (n<min) throw new ErrorType(x.pos, "Current bitwidth is set to "+bitwidth+", thus this integer constant "+n+" is smaller than the minimum integer "+min);
+//             if (n>max) throw new ErrorType(x.pos, "Current bitwidth is set to "+bitwidth+", thus this integer constant "+n+" is bigger than the maximum integer "+max);
              return n;
           case FALSE: return Boolean.FALSE;
           case TRUE: return Boolean.TRUE;
@@ -712,7 +732,7 @@ public final class SimInstance extends VisitReturn<Object> {
     /** Helper method that evaluates the formula "a = b" */
     public boolean equal(Expr a, Expr b) throws Err {
         if (a.type().is_bool) return cform(a)==cform(b);
-        if (a.type().is_int) return cint(a)==cint(b);
+        //[AM] if (a.type().is_int()) return cint(a)==cint(b);
         if (a.type().arity()<=0 || a.type().arity()!=b.type().arity()) return false; // type mismatch
         if (a.isSame(b)) return true; else return cset(a).equals(cset(b));
     }

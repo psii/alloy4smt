@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@ public final class Variable extends LeafExpression {
 
 	/**
 	 * Constructs a variable with the specified name and arity 1.
-	 * @effects this.name' = name && this.arity' = 1
+	 * @ensures this.name' = name && this.arity' = 1
 	 */
 	private Variable(String name) {
 		super(name, 1);
@@ -52,7 +52,7 @@ public final class Variable extends LeafExpression {
 
 	/**
 	 * Constructs a variable with the specified name and arity.
-	 * @effects this.name' = name && this.arity' = arity
+	 * @ensures this.name' = name && this.arity' = arity
 	 */
 	private Variable(String name, int arity) {
 		super(name, arity);
@@ -60,7 +60,7 @@ public final class Variable extends LeafExpression {
 
 	/**
 	 * Returns a new variable with the specified name and arity 1.
-	 * @effects this.name' = name && this.arity' = 1
+	 * @ensures this.name' = name && this.arity' = 1
 	 */
 	public static Variable unary(String name) {
 		return new Variable(name);
@@ -68,7 +68,7 @@ public final class Variable extends LeafExpression {
 
 	/**
 	 * Returns a new variable with the specified name and arity.
-	 * @effects this.name' = name && this.arity' = arity
+	 * @ensures this.name' = name && this.arity' = arity
 	 * @throws IllegalArgumentException - arity < 1
 	 */
 	public static Variable nary(String name, int arity) {

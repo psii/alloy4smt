@@ -15,21 +15,22 @@
 
 package edu.mit.csail.sdg.alloy4compiler.ast;
 
+import static edu.mit.csail.sdg.alloy4compiler.ast.ExprUnary.Op.NOOP;
+import static edu.mit.csail.sdg.alloy4compiler.ast.Type.EMPTY;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
-import edu.mit.csail.sdg.alloy4.Util;
-import edu.mit.csail.sdg.alloy4.Pos;
+
 import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4.ErrorType;
 import edu.mit.csail.sdg.alloy4.ErrorWarning;
 import edu.mit.csail.sdg.alloy4.JoinableList;
+import edu.mit.csail.sdg.alloy4.Pos;
+import edu.mit.csail.sdg.alloy4.Util;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
-import static edu.mit.csail.sdg.alloy4compiler.ast.ExprUnary.Op.NOOP;
-import static edu.mit.csail.sdg.alloy4compiler.ast.Sig.SIGINT;
-import static edu.mit.csail.sdg.alloy4compiler.ast.Type.EMPTY;
 
 /** Immutable; represents a formula or expression.
  *
@@ -106,7 +107,8 @@ public abstract class Expr extends Browsable {
       this.closingBracket = (closingBracket==null ? Pos.UNKNOWN : closingBracket);
       this.ambiguous      = ambiguous;
       if (errors==null) errors = emptyListOfErrors;
-      if (type==EMPTY && errors.size()==0) errors = errors.make(new ErrorType(pos, "This expression failed to be typechecked"));
+      if (type==EMPTY && errors.size()==0) 
+          errors = errors.make(new ErrorType(pos, "This expression failed to be typechecked"));
       this.mult   = (mult<0 || mult>2) ? 0 : mult;
       this.type   = (errors.size()>0 || type==null) ? EMPTY : type;
       this.weight = (weight>0) ? weight : 0;
@@ -144,7 +146,7 @@ public abstract class Expr extends Browsable {
    //================================================================================================================//
 
    /** Accepts the return visitor. */
-   abstract<T> T accept(VisitReturn<T> visitor) throws Err;
+   public abstract<T> T accept(VisitReturn<T> visitor) throws Err;
 
    /** Converts this into a "formula" if possible; otherwise, returns an Expr with a nonempty error list */
    public final Expr typecheck_as_formula() {
@@ -155,16 +157,29 @@ public abstract class Expr extends Browsable {
 
    /** Converts this into an "integer expression" if possible; otherwise, returns an Expr with a nonempty error list */
    public final Expr typecheck_as_int() {
-      if (!errors.isEmpty() || type.is_int) return this;
-      if (Type.SIGINT2INT && type.intersects(SIGINT.type)) return cast2int();
+      if (!errors.isEmpty())
+          return this;
+      if (type.is_small_int())
+          return this;
+      if (type.is_int()) {
+          return cast2int();
+      }
+      // else: error
       String msg = "This must be an integer expression.\nInstead, it has the following possible type(s):\n"+type;
       return NOOP.make(null, this, new ErrorType(span(), msg), 0);
    }
 
    /** Converts this into a "set or relation" if possible; otherwise, returns an Expr with a nonempty error list */
    public final Expr typecheck_as_set() {
-      if (!errors.isEmpty() || type.size()>0) return this;
-      if (Type.INT2SIGINT && type.is_int) return cast2sigint();
+      if (!errors.isEmpty())
+          return this;
+      if (type.is_small_int())
+          return cast2sigint();
+      if (type.is_int())
+          return this;
+      if (type.size()>0) 
+          return this;
+      // else: error
       String msg = "This must be a set or relation.\nInstead, it has the following possible type(s):\n"+type;
       return NOOP.make(null, this, new ErrorType(span(), msg), 0);
    }
@@ -207,7 +222,7 @@ public abstract class Expr extends Browsable {
     * @param warnings - the list that will receive any warning we generate; can be null if we wish to ignore warnings
     */
    public final Expr resolve_as_int(Collection<ErrorWarning> warnings) {
-      return typecheck_as_int().resolve(Type.INT, warnings).typecheck_as_int();
+      return typecheck_as_int().resolve(Type.smallIntType(), warnings).typecheck_as_int();
    }
 
    /** Converts this into a "set or relation" if possible, then resolves it if ambiguous.
@@ -353,12 +368,14 @@ public abstract class Expr extends Browsable {
     * <p> this and x must be expressions with the same arity, or both be integer expressions
     * <p> Note: as a special guarantee, if x==null, then the method will return this Expr object as-is.
     */
-   public final Expr plus(Expr x) { return (x==null) ? this : ExprBinary.Op.PLUS.make(span().merge(x.span()), null, this, x); }
+   public final Expr plus(Expr x)  { return (x==null) ? this : ExprBinary.Op.PLUS.make(span().merge(x.span()), null, this, x); }
+   public final Expr iplus(Expr x) { return (x==null) ? this : ExprBinary.Op.IPLUS.make(span().merge(x.span()), null, this, x); }
 
    /** Returns the expression (this-x)
     * <p> this and x must be expressions with the same arity, or both be integer expressions
     */
-   public final Expr minus(Expr x) { return ExprBinary.Op.MINUS.make(span().merge(x.span()), null, this, x); }
+   public final Expr minus(Expr x)  { return ExprBinary.Op.MINUS.make(span().merge(x.span()), null, this, x); }
+   public final Expr iminus(Expr x) { return ExprBinary.Op.IMINUS.make(span().merge(x.span()), null, this, x); }
 
    /** Returns the formula "this.mul[x]" (the result of multiplying this by x)
     * <p> this and x must both be integer expressions

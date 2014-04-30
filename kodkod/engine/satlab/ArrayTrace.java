@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -123,7 +123,7 @@ final class ArrayTrace implements ResolutionTrace {
 	 * The resolvents at indices [computeFrom..trace.length) are assumed to encode the remaining resolvents,
 	 * as specified by the {@linkplain #ArrayTrace(int[][], int)} constructor.  
 	 * @requires axioms <= computeFrom < trace.length
-	 * @effects modifies trace to conform to the specification of {@linkplain #trace}
+	 * @ensures modifies trace to conform to the specification of {@linkplain #trace}
 	 * @return modified trace
 	 */
 	private static int[][] computeResolventLiterals(int[][] trace, int axioms, int computeFrom) {
@@ -493,7 +493,7 @@ final class ArrayTrace implements ResolutionTrace {
 		/**
 		 * Sets the state of this clause view to represent
 		 * the ith clause in the trace and returns this.
-		 * @effects sets the state of this clause view to represent
+		 * @ensures sets the state of this clause view to represent
 		 * the ith clause in the trace
 		 * @return this
 		 */

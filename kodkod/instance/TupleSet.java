@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	 * Constructs an empty tuple set for storing tuples
 	 * of the specified arity, over the given universe.
 	 * 
-	 * @effects this.universe' = universe && this.arity' = arity && no this.tuples'
+	 * @ensures this.universe' = universe && this.arity' = arity && no this.tuples'
 	 * @throws NullPointerException - universe = null
 	 * @throws IllegalArgumentException - arity < 1
 	 */
@@ -72,7 +72,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	 * which initially contains all tuples whose indeces are between fromIndex
 	 * and toIndex, inclusive.
 	 * 
-	 * @effects this.universe' = universe && this.arity' = arity && 
+	 * @ensures this.universe' = universe && this.arity' = arity && 
 	 *          this.tuples' = {t: Tuple | t.universe=universe && t.arity=arity && 
 	 *                                     fromIndex()<=t.index()<=toIndex() }
 	 * @throws NullPointerException - universe = null 
@@ -115,7 +115,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	
 	/**
 	 * Copy constructor.
-	 * @effects constructs a deep copy of the given tupleset
+	 * @ensures constructs a deep copy of the given tupleset
 	 */
 	private TupleSet(TupleSet original) {
 		this.universe = original.universe;
@@ -291,7 +291,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	
 	/**
 	 * Removes all tuples from this tupleset.
-	 * @effects no this.tuples' 
+	 * @ensures no this.tuples' 
 	 */
 	@Override
 	public void clear() { 
@@ -302,7 +302,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	 * Adds the specified tuple to this tupleset.  Returns
 	 * true if this set was changed as the result of the
 	 * operation.
-	 * @effects this.tuples' = this.tuples + t
+	 * @ensures this.tuples' = this.tuples + t
 	 * @return o !in this.tuples
 	 * @throws IllegalArgumentException - t.universe != this.universe || t.arity != this.arity
 	 */
@@ -314,7 +314,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	/**
 	 * Removes the given object from this tupleset, if present, and
 	 * returns true.  Otherwise does nothing and returns false.
-	 * @effects this.tuples' = this.tuples - o
+	 * @ensures this.tuples' = this.tuples - o
 	 * @return o in this.tuples
 	 * @throws IllegalArgumentException - o.universe != this.universe || o.arity != this.arity
 	 */
@@ -356,7 +356,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	/**
 	 * Adds all tuples from c to this, if not present, and returns
 	 * true.  Otherwise does nothing and returns false.
-	 * @effects this.tuples' = this.tuples + c.elements
+	 * @ensures this.tuples' = this.tuples + c.elements
 	 * @return c.elements !in this.tuples
 	 * @throws IllegalArgumentException - some t: c.elements | t.universe != this.universe || t.arity != this.arity
 	 */
@@ -369,7 +369,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	/**
 	 * Removes all tuples in c from this, if present, and returns
 	 * true.  Otherwise does nothing and returns false.
-	 * @effects this.tuples' = this.tuples - c.elements
+	 * @ensures this.tuples' = this.tuples - c.elements
 	 * @return some c.elements & this.tuples
 	 * @throws IllegalArgumentException - some t: c.elements | t.universe != this.universe || t.arity != this.arity
 	 */
@@ -382,7 +382,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	/**
 	 * Removes all tuples from this that are not in c, if any, and
 	 * returns true. Otherwise does nothing and returns false.
-	 * @effects this.tuples' = this.tuples & c.elements
+	 * @ensures this.tuples' = this.tuples & c.elements
 	 * @return this.tuples !in c.elements
 	 * @throws IllegalArgumentException - some t: c.elements | t.universe != this.universe || t.arity != this.arity
 	 */

@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import kodkod.ast.Expression;
 import kodkod.ast.Node;
 import kodkod.ast.Variable;
 import kodkod.engine.bool.BooleanConstant;
@@ -47,7 +48,7 @@ final class FOL2BoolCache {
 	
 	/**
 	 * Constructs a new translation cache for the given annotated node.
-	 * @effects this.node' = annotated.node 
+	 * @ensures this.node' = annotated.node 
 	 */
 	FOL2BoolCache(AnnotatedNode<? extends Node> annotated) {
 		final CacheCollector collector = new CacheCollector(annotated.sharedNodes());
@@ -72,7 +73,7 @@ final class FOL2BoolCache {
 	 *         this.cache[node].map, null
 	 */
 	@SuppressWarnings("unchecked")
-	<T> T lookup(Node node, Environment<BooleanMatrix> env) {
+	<T> T lookup(Node node, Environment<BooleanMatrix, Expression> env) {
 		final Record info = cache.get(node);
 		return info==null ? null : (T) info.get(env);
 	}
@@ -81,12 +82,12 @@ final class FOL2BoolCache {
 	 * Caches the given translation for the specified node, if the given node is
 	 * in this.cached.  Otherwise does nothing.  
 	 * The method returns the specified translation. 
-	 * @effects node in this.cached => 
+	 * @ensures node in this.cached => 
 	 *           this.cache' = this.cache ++ node->translation->env, 
 	 *           this.cache' = this.cache
 	 * @return translation
 	 */
-	final <T> T cache(Node node, T translation, Environment<BooleanMatrix> env) {
+	final <T> T cache(Node node, T translation, Environment<BooleanMatrix, Expression> env) {
 		final Record info = cache.get(node);
 		if (info != null) {
 			info.set(translation, env);
@@ -123,7 +124,7 @@ final class FOL2BoolCache {
 		/**
 		 * We record the set of free variables for the given node if the node is shared,
 		 * or if it has free variables, none of which is the most recently declared variable.
-		 * @effects node in sharedNodes || 
+		 * @ensures node in sharedNodes || 
 		 *          ((node.^(~children) in (QuantifiedFormula + Comprehension)) &&
 		 *           (some varsInScope.top() => !freeVars.contains(varsInScope.top()))) => 
 		 *            this.cache' = this.cache ++ node->varsInScope,
@@ -164,19 +165,19 @@ final class FOL2BoolCache {
 		 * @return all v: varBinding.int | e.lookup(v).get(varBinding[v])=TRUE => this.translation, null
 		 * @throws NullPointerException - e = null
 		 */
-		abstract Object get(Environment<BooleanMatrix> e);
+		abstract Object get(Environment<BooleanMatrix, Expression> e);
 		
 		/**
 		 * Sets this.translation to the given translation
 		 * and sets the free variable bindings to those 
 		 * given by the specified environment.
 		 * @requires all v: varBinding.int | some env.lookup(v)
-		 * @effects this.translation' = translation && 
+		 * @ensures this.translation' = translation && 
 		 *          this.varBinding' = 
 		 *           {v: this.varBinding.int, tupleIndex: int | 
 		 *             tupleIndex = env.lookup(v).iterator().next().index() }
 		 */
-		abstract void set(Object transl, Environment<BooleanMatrix> env);
+		abstract void set(Object transl, Environment<BooleanMatrix, Expression> env);
 	}
 	
 	/**
@@ -189,7 +190,7 @@ final class FOL2BoolCache {
 		/**
 		 * Constructs a translation unit for a node which
 		 * has the given set of free variables.
-		 * @effects this.freeVariables' = vars &&
+		 * @ensures this.freeVariables' = vars &&
 		 *          no this.translation' 
 		 */
 		MultiVarRecord(Set<Variable> freeVariables) {
@@ -200,7 +201,7 @@ final class FOL2BoolCache {
 		/**
 		 * @see kodkod.engine.fol2sat.FOL2BoolCache.Record#get(kodkod.engine.fol2sat.Environment)
 		 */
-		Object get(Environment<BooleanMatrix> e) {
+		Object get(Environment<BooleanMatrix, Expression> e) {
 			if (translation==null) return null;
 			for(int i = 0; i < vars.length; i++) {
 				if (e.lookup(vars[i]).get(tuples[i])!=BooleanConstant.TRUE)
@@ -212,10 +213,14 @@ final class FOL2BoolCache {
 		/**
 		 * @see kodkod.engine.fol2sat.FOL2BoolCache.Record#set(java.lang.Object, kodkod.engine.fol2sat.Environment)
 		 */
-		void set(Object transl, Environment<BooleanMatrix> env) {
+		void set(Object transl, Environment<BooleanMatrix, Expression> env) {
 			translation = transl;
 			for(int i = 0; i < vars.length; i++) {
-				tuples[i] = env.lookup(vars[i]).iterator().next().index();
+				final BooleanMatrix varVal = env.lookup(vars[i]);
+				tuples[i] = varVal.iterator().next().index();
+				if (transl==varVal) { 
+					translation = varVal.clone();
+				}
 			}
 		}
 		
@@ -246,14 +251,14 @@ final class FOL2BoolCache {
 		/**
 		 * @see kodkod.engine.fol2sat.FOL2BoolCache.Record#get(kodkod.engine.fol2sat.Environment)
 		 */
-		Object get(Environment<BooleanMatrix> e) {
+		Object get(Environment<BooleanMatrix, Expression> e) {
 			return translation;
 		}
 		
 		/**
 		 * @see kodkod.engine.fol2sat.FOL2BoolCache.Record#set(java.lang.Object, kodkod.engine.fol2sat.Environment)
 		 */
-		void set(Object transl, Environment<BooleanMatrix> env) {
+		void set(Object transl, Environment<BooleanMatrix, Expression> env) {
 			translation = transl;
 		}
 		

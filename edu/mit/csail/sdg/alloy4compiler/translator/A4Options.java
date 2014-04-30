@@ -143,6 +143,9 @@ public final class A4Options implements Serializable {
      * <p> Default value is set to the fastest current strategy.
      */
     public int coreMinimization = 2;
+    
+    /** Unsat core granularity, default is 0 (only top-level conjuncts are considered), 3 expands all quantifiers */
+    public int coreGranularity = 0;
 
     /** This option specifies the SAT solver to use (SAT4J, MiniSatJNI, MiniSatProverJNI, ZChaffJNI...)
      * <p> Default value is SAT4J.
@@ -168,6 +171,10 @@ public final class A4Options implements Serializable {
      * <p> Default value is false.
      */
     public boolean recordKodkod = false;
+    
+    /** This option specifies whether the solver should report only solutions
+     *  that don't cause any overflows. */
+    public boolean noOverflow = false;
 
     /** This option constrols how deep we unroll loops and unroll recursive predicate/function/macros (negative means it's disallowed) */
     public int unrolls = (-1);
@@ -184,6 +191,8 @@ public final class A4Options implements Serializable {
         x.tempDirectory = tempDirectory;
         x.originalFilename = originalFilename;
         x.recordKodkod = recordKodkod;
+        x.noOverflow = noOverflow;
+        x.coreGranularity = coreGranularity;
         return x;
     }
 }

@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ public final class SingletonIdentitySet<V> extends AbstractSet<V> {
 	
 	/**
 	 * Constructs a SingletonIdentitySet that will hold the given element.
-	 * @effects this.element' = element
+	 * @ensures this.element' = element
 	 */
 	public SingletonIdentitySet(V element) {
 		this.element = element;
@@ -47,7 +47,7 @@ public final class SingletonIdentitySet<V> extends AbstractSet<V> {
 	/**
 	 * Constructs a SingletonIdentitySet that will hold the first element
 	 * returned by the given collection's iterator.
-	 * @effects this.element' = collection.iterator().next()
+	 * @ensures this.element' = collection.iterator().next()
 	 * @throws NoSuchElementException - collection.isEmpty()
 	 */
 	public SingletonIdentitySet(Collection<? extends V> collection) {

@@ -191,7 +191,7 @@ public final class Func extends Browsable {
     @Override public final Pos span() { return pos; }
 
     /** {@inheritDoc} */
-    @Override public String getDescription() { return (isPred ? "<b>pred</b> " : "<b>fun</b> ") + label; }
+    @Override public String getHTML() { return (isPred ? "<b>pred</b> " : "<b>fun</b> ") + label; }
 
     /** {@inheritDoc} */
     @Override public List<? extends Browsable> getSubnodes() {
@@ -203,4 +203,5 @@ public final class Func extends Browsable {
         ans.add(make(body.span(), body.span(), "<b>body</b> <i>" + body.type + "</i>", body));
         return ans;
     }
+
 }

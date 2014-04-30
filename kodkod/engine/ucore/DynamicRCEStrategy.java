@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -80,7 +80,7 @@ public final class DynamicRCEStrategy implements ReductionStrategy {
 	 * Constructs an ARCE strategy that will use the given translation
 	 * log to relate the cnf clauses back to the logic constraints from 
 	 * which they were generated. 
-	 * @effects this.hardnessCutOff' = 2 and this.recycleLimit' = 1.2 and this.noRecycleRatio' = .03
+	 * @ensures this.hardnessCutOff' = 2 and this.recycleLimit' = 1.2 and this.noRecycleRatio' = .03
 	 */
 	public DynamicRCEStrategy(final TranslationLog log) {
 		this(log, .03, 2.0, 1.2);
@@ -90,7 +90,7 @@ public final class DynamicRCEStrategy implements ReductionStrategy {
 	 * Constructs an ARCE strategy that will use the given translation
 	 * log to relate the cnf clauses back to the logic constraints from 
 	 * which they were generated. 
-	 * @effects this.hardnessCutOff' = hardnessCutOff and this.recycleLimit' = recycleLimit and 
+	 * @ensures this.hardnessCutOff' = hardnessCutOff and this.recycleLimit' = recycleLimit and 
 	 * this.noRecycleRatio' = noRecycleRatio
 	 */
 	public DynamicRCEStrategy(final TranslationLog log, double noRecycleRatio, double hardnessCutOff, double recycleLimit) {

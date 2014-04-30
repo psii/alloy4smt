@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ public final class Translation {
 	 * from Relations to literals, and TranslationLog.
 	 * @requires maxPrimaryLit = max(varUsage[Relation].max)
 	 * @requires bounds.relations = varUsage.IntSet
-	 * @effects this.solver' = solver && this.bounds' = bounds
+	 * @ensures this.solver' = solver && this.bounds' = bounds
 	 */
 	Translation(SATSolver solver, Bounds bounds, Map<Relation, IntSet> varUsage, int maxPrimaryLit, TranslationLog log) {	
 		this.solver = solver;

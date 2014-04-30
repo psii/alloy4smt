@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -52,11 +52,12 @@ import kodkod.instance.TupleSet;
 public final class Evaluator {
 	private final Instance instance;
 	private final Options options;
+	private boolean wasOverflow; // [AM] was overflow detected during evaluation
 	
 	/**
 	 * Constructs a new Evaluator for the given instance, using a 
 	 * default Options object.
-	 * @effects this.instance' = instance && this.options' = new Options()
+	 * @ensures this.instance' = instance && this.options' = new Options()
 	 * @throws NullPointerException - instance = null
 	 */
 	public Evaluator(Instance instance) {
@@ -65,7 +66,7 @@ public final class Evaluator {
 	
 	/**
 	 * Constructs a new Evaluator for the given instance and options
-	 * @effects this.instance' = instance && this.options' = options
+	 * @ensures this.instance' = instance && this.options' = options
 	 * @throws NullPointerException - instance = null || options = null
 	 */
 	public Evaluator(Instance instance, Options options) {
@@ -129,8 +130,13 @@ public final class Evaluator {
 	public int evaluate(IntExpression intExpr) {
 		if (intExpr == null) throw new NullPointerException("intexpression");
 		final Int sol = Translator.evaluate(intExpr, instance, options);
-//		System.out.println(sol);
+		this.wasOverflow = sol.defCond().isOverflowFlag();
 		return sol.value();
+	}
+
+	/** Returns whether overflow was detected during evaluation */ //[AM]
+	public boolean wasOverflow() { 
+	    return wasOverflow; 
 	}
 	
 	/**

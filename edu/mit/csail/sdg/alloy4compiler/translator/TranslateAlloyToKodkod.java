@@ -15,12 +15,34 @@
 
 package edu.mit.csail.sdg.alloy4compiler.translator;
 
-import java.util.HashSet;
-import java.util.List;
+import static edu.mit.csail.sdg.alloy4.Util.tail;
+import static edu.mit.csail.sdg.alloy4compiler.ast.Sig.UNIV;
+
 import java.util.ArrayList;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import kodkod.ast.BinaryExpression;
+import kodkod.ast.Decls;
+import kodkod.ast.ExprToIntCast;
+import kodkod.ast.Expression;
+import kodkod.ast.Formula;
+import kodkod.ast.IntConstant;
+import kodkod.ast.IntExpression;
+import kodkod.ast.IntToExprCast;
+import kodkod.ast.QuantifiedFormula;
+import kodkod.ast.Relation;
+import kodkod.ast.Variable;
+import kodkod.ast.operator.ExprOperator;
+import kodkod.engine.CapacityExceededException;
+import kodkod.engine.fol2sat.HigherOrderDeclException;
+import kodkod.instance.Tuple;
+import kodkod.instance.TupleFactory;
+import kodkod.instance.TupleSet;
+import kodkod.util.ints.IntVector;
 import edu.mit.csail.sdg.alloy4.A4Reporter;
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.ConstMap;
@@ -31,49 +53,33 @@ import edu.mit.csail.sdg.alloy4.ErrorSyntax;
 import edu.mit.csail.sdg.alloy4.ErrorType;
 import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4.Pos;
+import edu.mit.csail.sdg.alloy4.Util;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.CommandScope;
 import edu.mit.csail.sdg.alloy4compiler.ast.Decl;
 import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprBinary;
-import edu.mit.csail.sdg.alloy4compiler.ast.ExprHasName;
-import edu.mit.csail.sdg.alloy4compiler.ast.ExprList;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprCall;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprConstant;
+import edu.mit.csail.sdg.alloy4compiler.ast.ExprHasName;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprITE;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprLet;
+import edu.mit.csail.sdg.alloy4compiler.ast.ExprList;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprQt;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprUnary;
 import edu.mit.csail.sdg.alloy4compiler.ast.ExprVar;
-import edu.mit.csail.sdg.alloy4compiler.ast.Type;
-import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
 import edu.mit.csail.sdg.alloy4compiler.ast.Func;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
+import edu.mit.csail.sdg.alloy4compiler.ast.Type;
 import edu.mit.csail.sdg.alloy4compiler.ast.VisitReturn;
-import kodkod.ast.BinaryExpression;
-import kodkod.ast.IntExpression;
-import kodkod.ast.Decls;
-import kodkod.ast.IntConstant;
-import kodkod.ast.IntToExprCast;
-import kodkod.ast.QuantifiedFormula;
-import kodkod.ast.Variable;
-import kodkod.ast.Relation;
-import kodkod.ast.Formula;
-import kodkod.ast.Expression;
-import kodkod.ast.operator.ExprOperator;
-import kodkod.engine.CapacityExceededException;
-import kodkod.engine.fol2sat.HigherOrderDeclException;
-import kodkod.instance.Tuple;
-import kodkod.instance.TupleFactory;
-import kodkod.instance.TupleSet;
-import kodkod.util.ints.IntVector;
-import static edu.mit.csail.sdg.alloy4.Util.tail;
-import static edu.mit.csail.sdg.alloy4compiler.ast.Sig.UNIV;
+import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
 
 /** Translate an Alloy AST into Kodkod AST then attempt to solve it using Kodkod. */
 
-public class TranslateAlloyToKodkod extends VisitReturn<Object> {
+public final class TranslateAlloyToKodkod extends VisitReturn<Object> {
 
+    static int cnt = 0; 
+    
     /** This is used to detect "function recursion" (which we currently do not allow);
      * also, by knowing the current function name, we can provide a more meaningful name for skolem variables
      */
@@ -83,7 +89,7 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
     private Env<ExprVar,Object> env = new Env<ExprVar,Object>();
 
     /** If frame!=null, it stores the scope, bounds, and other settings necessary for performing a solve. */
-    protected final A4Solution frame;
+    private final A4Solution frame;
 
     /** If frame==null, it stores the mapping from each Sig/Field/Skolem/Atom to its corresponding Kodkod expression. */
     private final ConstMap<Expr,Expression> a2k;
@@ -136,31 +142,18 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
      */
     private TranslateAlloyToKodkod (int bitwidth, int unrolls, Map<Expr,Expression> a2k, Map<String,Expression> s2k) throws Err {
         this.unrolls = unrolls;
-        if (bitwidth<1)  throw new ErrorSyntax("Cannot specify a bitwidth less than 1");
+        if (bitwidth<0)  throw new ErrorSyntax("Cannot specify a bitwidth less than 0");
         if (bitwidth>30) throw new ErrorSyntax("Cannot specify a bitwidth greater than 30");
         this.rep = A4Reporter.NOP;
         this.cmd = null;
         this.frame = null;
         this.bitwidth = bitwidth;
-        this.max = (1<<(bitwidth-1)) - 1;
-        this.min = 0 - (1<<(bitwidth-1));
+        this.max = Util.max(bitwidth);
+        this.min = Util.min(bitwidth);
         this.a2k = ConstMap.make(a2k);
         this.s2k = ConstMap.make(s2k);
     }
-    
-    /** Contructor for usage from subclasses. */
-    protected TranslateAlloyToKodkod(A4Reporter rep, A4Options opt, A4Solution frame, Command cmd) {
-    	this.unrolls = opt.unrolls;
-    	this.frame = frame;
-    	this.min = frame.min();
-    	this.max = frame.max();
-    	this.a2k = null;
-    	this.s2k = null;
-    	this.cmd = cmd;
-    	this.bitwidth = frame.getBitwidth();
-    	this.rep = (rep != null) ? rep : A4Reporter.NOP;
-    }
-    
+
     /** Associate the given formula with the given expression, then return the formula as-is. */
     private Formula k2pos(Formula f, Expr e) throws Err {
         if (k2pos_enabled) if (frame!=null) frame.k2pos(f, e);
@@ -186,7 +179,7 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
     private final List<Relation> totalOrderPredicates = new ArrayList<Relation>();
 
    /** Conjoin the constraints for "field declarations" and "fact" paragraphs */
-   protected void makeFacts(Expr facts) throws Err {
+   private void makeFacts(Expr facts) throws Err {
       rep.debug("Generating facts...\n");
       // convert into a form that hopefully gives better unsat core
       facts = (Expr) (new ConvToConjunction()).visitThis(facts);
@@ -394,7 +387,7 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
             tr.makeFacts(cmd.formula);
             return tr.frame.solve(rep, cmd, new Simplifier(), false);
         } catch(UnsatisfiedLinkError ex) {
-            throw new ErrorFatal("The required JNI library cannot be found: "+ex.toString().trim());
+            throw new ErrorFatal("The required JNI library cannot be found: "+ex.toString().trim(), ex);
         } catch(CapacityExceededException ex) {
             throw rethrow(ex);
         } catch(HigherOrderDeclException ex) {
@@ -429,7 +422,7 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
             tr.makeFacts(cmd.formula);
             return tr.frame.solve(rep, cmd, new Simplifier(), true);
         } catch(UnsatisfiedLinkError ex) {
-            throw new ErrorFatal("The required JNI library cannot be found: "+ex.toString().trim());
+            throw new ErrorFatal("The required JNI library cannot be found: "+ex.toString().trim(), ex);
         } catch(CapacityExceededException ex) {
             throw rethrow(ex);
         } catch(HigherOrderDeclException ex) {
@@ -484,19 +477,38 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
      */
     private IntExpression cint(Expr x) throws Err {
         if (!x.errors.isEmpty()) throw x.errors.pick();
-        Object y=visitThis(x);
-        if (y instanceof IntExpression) return (IntExpression)y;
+        return toInt(x, visitThis(x));
+    }
+
+    private IntExpression toInt(Expr x, Object y) throws Err, ErrorFatal {
+        // simplify: if y is int[Int[sth]] then return sth
+        if (y instanceof ExprToIntCast) {
+            ExprToIntCast y2 = (ExprToIntCast) y;
+            if (y2.expression() instanceof IntToExprCast)
+                return ((IntToExprCast)y2.expression()).intExpr();
+        }
+        // simplify: if y is Int[sth], then return sth
+        if (y instanceof IntToExprCast)
+            return ((IntToExprCast) y).intExpr();
+        if (y instanceof IntExpression) 
+            return (IntExpression)y;
+        //[AM]: maybe this conversion should be removed
+        if (y instanceof Expression) return ((Expression) y).sum();
         throw new ErrorFatal(x.span(), "This should have been an integer expression.\nInstead it is "+y);
     }
 
-    /** Convenience method that evalutes x and cast the result to be a Kodkod Expression.
+    /** Convenience method that evaluаtes x and cast the result to be a Kodkod Expression.
      * @return the expression - if x evaluates to an Expression
      * @throws ErrorFatal - if x does not evaluate to an Expression
      */
     private Expression cset(Expr x) throws Err {
         if (!x.errors.isEmpty()) throw x.errors.pick();
-        Object y=visitThis(x);
+        return toSet(x, visitThis(x));
+    }
+
+    private Expression toSet(Expr x, Object y) throws Err, ErrorFatal {
         if (y instanceof Expression) return (Expression)y;
+        if (y instanceof IntExpression) return ((IntExpression) y).toExpression();
         throw new ErrorFatal(x.span(), "This should have been a set or a relation.\nInstead it is "+y);
     }
 
@@ -564,8 +576,8 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
     /** {@inheritDoc} */
     @Override public Object visit(ExprConstant x) throws Err {
         switch(x.op) {
-          case MIN: return IntConstant.constant(min);
-          case MAX: return IntConstant.constant(max);
+          case MIN: return IntConstant.constant(min); //TODO
+          case MAX: return IntConstant.constant(max); //TODO
           case NEXT: return A4Solution.KK_NEXT;
           case TRUE: return Formula.TRUE;
           case FALSE: return Formula.FALSE;
@@ -577,9 +589,10 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
             return ans;
           case NUMBER:
             int n=x.num();
-            if (n<min) throw new ErrorType(x.pos, "Current bitwidth is set to "+bitwidth+", thus this integer constant "+n+" is smaller than the minimum integer "+min);
-            if (n>max) throw new ErrorType(x.pos, "Current bitwidth is set to "+bitwidth+", thus this integer constant "+n+" is bigger than the maximum integer "+max);
-            return IntConstant.constant(n);
+            //[am] const
+//            if (n<min) throw new ErrorType(x.pos, "Current bitwidth is set to "+bitwidth+", thus this integer constant "+n+" is smaller than the minimum integer "+min);
+//            if (n>max) throw new ErrorType(x.pos, "Current bitwidth is set to "+bitwidth+", thus this integer constant "+n+" is bigger than the maximum integer "+max);
+            return IntConstant.constant(n).toExpression();
         }
         throw new ErrorFatal(x.pos, "Unsupported operator ("+x.op+") encountered during ExprConstant.accept()");
     }
@@ -645,7 +658,8 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
     /** {@inheritDoc} */
     @Override public Object visit(Sig x) throws Err {
         Expression ans = a2k(x);
-        if (ans==null) throw new ErrorFatal(x.pos, "Sig \""+x+"\" is not bound to a legal value during translation.\n");
+        if (ans==null) 
+            throw new ErrorFatal(x.pos, "Sig \""+x+"\" is not bound to a legal value during translation.\n");
         return ans;
     }
 
@@ -672,7 +686,7 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
             if (maxRecursion==0) {
                 Type t = f.returnDecl.type();
                 if (t.is_bool) return Formula.FALSE;
-                if (t.is_int) return IntConstant.constant(0);
+                if (t.is_int()) return IntConstant.constant(0);
                 int i = t.arity();
                 Expression ans = Expression.NONE;
                 while(i>1) { ans = ans.product(Expression.NONE); i--; }
@@ -727,7 +741,7 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
             }
             Formula f1 = elem.in(first.join(next.reflexiveClosure())); // every element is in the total order
             Formula f2 = next.join(first).no(); // first element has no predecessor
-            Variable e = Variable.unary("");
+            Variable e = Variable.unary("v" + Integer.toString(cnt++));
             Formula f3 = e.eq(first).or(next.join(e).one()); // each element (except the first) has one predecessor
             Formula f4 = e.eq(elem.difference(next.join(elem))).or(e.join(next).one()); // each element (except the last) has one successor
             Formula f5 = e.in(e.join(next.closure())).not(); // there are no cycles
@@ -753,7 +767,7 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
     /** {@inheritDoc} */
     @Override public Object visit(ExprBinary x) throws Err {
         Expr a=x.left, b=x.right;
-        Expression s, s2; IntExpression i; Formula f; Object obj;
+        Expression s, s2, eL, eR; IntExpression i; Formula f; Object objL, objR;
         switch(x.op) {
             case IMPLIES: f=cform(a).not().or(cform(b)); return k2pos(f,x);
             case IN:      return k2pos(isIn(cset(a),b), x);
@@ -777,18 +791,26 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
             case SHR: i=cint(a); return i.shr(cint(b));
             case SHA: i=cint(a); return i.sha(cint(b));
             case PLUS:
-                obj = visitThis(a);
-                if (obj instanceof IntExpression) { i=(IntExpression)obj; return i.plus(cint(b)); }
-                s = (Expression)obj; return s.union(cset(b));
+                return cset(a).union(cset(b));
+                //[AM]
+//                obj = visitThis(a);
+//                if (obj instanceof IntExpression) { i=(IntExpression)obj; return i.plus(cint(b)); }
+//                s = (Expression)obj; return s.union(cset(b));
+            case IPLUS:
+                return cint(a).plus(cint(b));
             case MINUS:
                 // Special exception to allow "0-8" to not throw an exception, where 7 is the maximum allowed integer (when bitwidth==4)
                 // (likewise, when bitwidth==5, then +15 is the maximum allowed integer, and we want to allow 0-16 without throwing an exception)
                 if (a instanceof ExprConstant && ((ExprConstant)a).op==ExprConstant.Op.NUMBER && ((ExprConstant)a).num()==0)
                    if (b instanceof ExprConstant && ((ExprConstant)b).op==ExprConstant.Op.NUMBER && ((ExprConstant)b).num()==max+1)
                       return IntConstant.constant(min);
-                obj=visitThis(a);
-                if (obj instanceof IntExpression) { i=(IntExpression)obj; return i.minus(cint(b));}
-                s=(Expression)obj; return s.difference(cset(b));
+                return cset(a).difference(cset(b));
+                //[AM]
+//                obj=visitThis(a);
+//                if (obj instanceof IntExpression) { i=(IntExpression)obj; return i.minus(cint(b));}
+//                s=(Expression)obj; return s.difference(cset(b));
+            case IMINUS: 
+                return cint(a).minus(cint(b));
             case INTERSECT:
                 s=cset(a); return s.intersection(cset(b));
             case ANY_ARROW_SOME: case ANY_ARROW_ONE: case ANY_ARROW_LONE:
@@ -806,15 +828,25 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
                 }
                 return s.join(s2);
             case EQUALS:
-                obj=visitThis(a);
-                if (obj instanceof IntExpression) { i=(IntExpression)obj; f=i.eq(cint(b));}
-                else { s=(Expression)obj; f=s.eq(cset(b)); }
-                return k2pos(f,x);
+                objL = visitThis(a);
+                objR = visitThis(b);
+                eL = toSet(a, objL);
+		        eR = toSet(b, objR);
+                if (eL instanceof IntToExprCast && eR instanceof IntToExprCast)
+                    f = ((IntToExprCast) eL).intExpr().eq(((IntToExprCast) eR).intExpr()); 
+                else
+                    f = eL.eq(eR);
+                return k2pos(f, x);
             case NOT_EQUALS:
-                obj=visitThis(a);
-                if (obj instanceof IntExpression) { i=(IntExpression)obj; f=i.eq(cint(b)).not();}
-                else { s=(Expression)obj; f=s.eq(cset(b)).not(); }
-                return k2pos(f,x);
+                objL = visitThis(a);
+                objR = visitThis(b);
+                eL = toSet(a, objL);
+                eR = toSet(b, objR);
+                if (eL instanceof IntToExprCast && eR instanceof IntToExprCast)
+                    f = ((IntToExprCast) eL).intExpr().eq(((IntToExprCast) eR).intExpr()).not(); 
+                else
+                    f = eL.eq(eR).not();
+                return k2pos(f, x);
             case DOMAIN:
                 s=cset(a);
                 s2=cset(b);
@@ -844,6 +876,9 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
           default:        b=cset(right); return a.in(b);
        }
     }
+    
+    //[AM]
+    private static boolean am = true;
 
     /** Helper method that translates the formula "r in (a ?->? b)" into a Kodkod formula. */
     private Formula isInBinary(Expression r, ExprBinary ab) throws Err {
@@ -853,8 +888,12 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
         // "R in A ->op B" means for each tuple a in A, there are "op" tuples in r that begins with a.
         Expression atuple=null, ar=r;
         for(int i=a.arity(); i>0; i--) {
-           Variable v=Variable.unary("");
-           if (a.arity()==1) d=v.oneOf(a); else if (d==null) d=v.oneOf(Relation.UNIV); else d=v.oneOf(Relation.UNIV).and(d);
+           Variable v=Variable.unary("v" + Integer.toString(cnt++));
+           if (!am) {
+               if (a.arity()==1) d=v.oneOf(a); else if (d==null) d=v.oneOf(Relation.UNIV); else d=v.oneOf(Relation.UNIV).and(d);
+           } else {
+               d = am(a, d, i, v);
+           }
            ar=v.join(ar);
            if (atuple==null) atuple=v; else atuple=atuple.product(v);
         }
@@ -870,8 +909,12 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
         // "R in A op-> B" means for each tuple b in B, there are "op" tuples in r that end with b.
         Expression btuple=null, rb=r;
         for(int i=b.arity(); i>0; i--) {
-           Variable v=Variable.unary("");
-           if (b.arity()==1) d2=v.oneOf(b); else if (d2==null) d2=v.oneOf(Relation.UNIV); else d2=v.oneOf(Relation.UNIV).and(d2);
+           Variable v=Variable.unary("v" + Integer.toString(cnt++));
+           if (!am) {
+               if (b.arity()==1) d2=v.oneOf(b); else if (d2==null) d2=v.oneOf(Relation.UNIV); else d2=v.oneOf(Relation.UNIV).and(d2);
+           } else {
+               d2 = am(b, d2, i, v);
+           }
            rb=rb.join(v);
            if (btuple==null) btuple=v; else btuple=v.product(btuple);
         }
@@ -891,6 +934,21 @@ public class TranslateAlloyToKodkod extends VisitReturn<Object> {
             ans=rr.difference(rr.join(A4Solution.KK_NEXT)).in(A4Solution.KK_ZERO).and(ans);
         }
         return ans;
+    }
+
+    private Decls am(final Expression a, Decls d, int i, Variable v) {
+        kodkod.ast.Decl ddd;
+        if (a.arity() == 1) {
+            assert i == 1; 
+            ddd = v.oneOf(a);
+        } else {
+            ddd = v.oneOf(a.project(IntConstant.constant(i - 1)));
+        }
+        if (d == null)
+            d = ddd;
+        else
+            d = ddd.and(d);
+        return d;
     }
 
     /*===========================*/

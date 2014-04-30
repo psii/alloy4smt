@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -109,7 +109,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	 * @requires interpreter.relations = AnnotatedNode.relations(annotated)
 	 * @requires annotated.source[annotated.sourceSensitiveRoots()] = Nodes.roots(annotated.source[annotated.node])
 	 * @return BooleanAccumulator that is the meaning of the given annotated formula with respect to the given interpreter
-	 * @effects log.records' contains the translation events that occurred while generating the returned value
+	 * @ensures log.records' contains the translation events that occurred while generating the returned value
 	 * @throws HigherOrderDeclException - annotated.node contains a higher order declaration
 	 * @throws UnboundLeafException - annotated.node refers to an undeclared variable 
 	 **/
@@ -140,7 +140,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	 * @throws HigherOrderDeclException - annotated.node contains a higher order declaration
 	 * @throws UnboundLeafException - annotated.node refers to a variable that neither declared nor bound in env
 	 **/
-	static final BooleanMatrix approximate(AnnotatedNode<Expression> annotated, LeafInterpreter interpreter, Environment<BooleanMatrix> env) {
+	static final BooleanMatrix approximate(AnnotatedNode<Expression> annotated, LeafInterpreter interpreter, Environment<BooleanMatrix, Expression> env) {
 		final FOL2BoolTranslator approximator = new FOL2BoolTranslator(new FOL2BoolCache(annotated), interpreter, env) {
 			public final BooleanMatrix visit(BinaryExpression binExpr) {
 				final BooleanMatrix ret = lookup(binExpr); 
@@ -163,7 +163,9 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 				BooleanMatrix ret = lookup(castExpr);
 				if (ret!=null) return ret;
 				switch(castExpr.op()) {
-				case INTCAST	: return cache(castExpr, Expression.INTS.accept(this));
+				case INTCAST	: 
+				    ret = Expression.INTS.accept(this);
+				    break;
 				case BITSETCAST	: 
 					final BooleanFactory factory = super.interpreter.factory();
 					ret = factory.matrix(Dimensions.square(super.interpreter.universe().size(), 1));
@@ -180,46 +182,55 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 					if (ints.contains(-1<<msb)) {
 						ret.set(super.interpreter.interpret(-1<<msb), BooleanConstant.TRUE);
 					}
-					return cache(castExpr, ret);
-				default : throw new IllegalArgumentException("Unknown operator: " + castExpr.op());
+					break;
+				default : 
+				    throw new IllegalArgumentException("Unknown operator: " + castExpr.op());
 				}
+				return cache(castExpr, ret);
 
 			}	
 		};
 		return annotated.node().accept(approximator);
 	}
-
 	
 	/*---------------------------------------------------------*/
+	
 	private final LeafInterpreter interpreter;
 	/* When visiting the body of a quantified formula or a comprehension, this
-	 * environment contains the current values of the enclosing quantified variable(s) */
-	private Environment<BooleanMatrix> env;
-
+	 * environment contains the current values of the enclosing quantified variable(s), 
+	 * as well as overflow circuits accumulated during execution */
+	private Environment<BooleanMatrix, Expression> env;
+	
 	private final FOL2BoolCache cache;
+	
+	/* Holds variables discovered while visiting an expression to be cast to Int. 
+     * (because, for the new "overflow" semantics of quantifiers, we want to know the   
+     * variables that contribute to every Int */
+    //[AM]
+    private NestedSet<Variable> vars = NestedSet.empty();
 
 	/**
 	 * Constructs a new translator that will use the given translation cache
 	 * and interpreter to perform the translation.
-	 * @effects this.node' = manager.node
+	 * @ensures this.node' = manager.node
 	 */   
 	private FOL2BoolTranslator(FOL2BoolCache cache,  LeafInterpreter interpreter) {
+	    this.cache = cache;
 		this.interpreter = interpreter;
 		this.env = Environment.empty();
-		this.cache = cache;
 	}
 
 	/**
 	 * Constructs a new translator that will use the given translation cache,
 	 * interpreter and environment to perform the translation.
-	 * @effects this.node' = manager.node
+	 * @ensures this.node' = manager.node
 	 */   
-	private FOL2BoolTranslator(FOL2BoolCache cache,  LeafInterpreter interpreter, Environment<BooleanMatrix> env) {
+	private FOL2BoolTranslator(FOL2BoolCache cache,  LeafInterpreter interpreter, Environment<BooleanMatrix, Expression> env) {
 		this.interpreter = interpreter;
 		this.env = env;
 		this.cache = cache;
 	}
-
+	
 	/**
 	 * Retrieves the cached translation for the given node, if any.
 	 * Otherwise returns null.
@@ -234,7 +245,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	/**
 	 * The translation is cached, if necessary, and returned.
 	 * @return translation
-	 * @effects the translation may be cached
+	 * @ensures the translation may be cached
 	 */
 	final <T> T cache(Node node, T translation) {
 		return cache.cache(node, translation, env);
@@ -243,7 +254,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	/**
 	 * The translation is cached, if necessary, and returned.
 	 * @return translation
-	 * @effects the translation may be cached
+	 * @ensures the translation may be cached
 	 */
 	BooleanValue cache(Formula formula, BooleanValue translation) {
 		return cache.cache(formula, translation, env);
@@ -284,14 +295,17 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 
 	/**
 	 * Calls this.env.lookup(variable) and returns the current binding for the
-	 * given variable. If no binding is found, an UnboundLeafException is thrown.
+	 * given variable and adds it to the current level of nested variables (<code>cars</code>). 
+	 * If no binding is found, an UnboundLeafException is thrown.
 	 * @return this.env.lookup(variable)
 	 * @throws UnboundLeafException - no this.env.lookup(variable)
 	 */
 	public final BooleanMatrix visit(Variable variable) {
 		final BooleanMatrix ret = env.lookup(variable);
-		if (ret != null) return ret;
-		else throw new UnboundLeafException("Unbound variable", variable);
+		if (ret == null)
+		    throw new UnboundLeafException("Unbound variable", variable);
+		vars.add(variable);
+		return ret;
 	}
 
 	/**
@@ -406,13 +420,14 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	 * @param declConstraints the constraints implied by the declarations; should be Boolean.TRUE intially
 	 * @param partialIndex partial index into the provided matrix; should be 0 initially
 	 * @param matrix boolean matrix that will retain the final results; should be an empty matrix of dimensions universe.size^decls.length initially
-	 * @effects the given matrix contains the translation of the comprehension "{ decls | formula }"
+	 * @ensures the given matrix contains the translation of the comprehension "{ decls | formula }"
 	 */
 	private final void comprehension(Decls decls, Formula formula, int currentDecl, 
 			BooleanValue declConstraints, int partialIndex, BooleanMatrix matrix) {
 		final BooleanFactory factory = interpreter.factory();
 
 		if (currentDecl==decls.size()) {
+		    //TODO: what about this and overflow???
 			matrix.set(partialIndex, factory.and(declConstraints, formula.accept(this)));
 			return;
 		}
@@ -421,7 +436,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 		final BooleanMatrix declTransl = visit(decl);
 		final int position = (int)StrictMath.pow(interpreter.universe().size(), decls.size()-currentDecl-1);
 		final BooleanMatrix groundValue = factory.matrix(declTransl.dimensions());
-		env = env.extend(decl.variable(), groundValue);
+		env = env.extend(decl.variable(), decl.expression(), groundValue);
 		for(IndexedEntry<BooleanValue> entry : declTransl) {
 			groundValue.set(entry.index(), BooleanConstant.TRUE);
 			comprehension(decls, formula, currentDecl+1, factory.and(entry.value(), declConstraints), 
@@ -493,79 +508,103 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	public final BooleanValue visit(ConstantFormula constant) {
 		return cache(constant, BooleanConstant.constant(constant.booleanValue()));
 	}
-
+	
 	/**
 	 * Translates the given universally quantified formula as follows 
 	 * (where A_0...A_|A| stand for boolean variables that represent the 
 	 * tuples of the expression A, etc.):
+	 * 
 	 * let quantFormula = "all a: A, b: B, ..., x: X | F(a, b, ..., x)" |
 	 *     (A_0 && B_0 && ... && X_0 => translate(F(A_0, B_0, ..., X_0))) && ... && 
-	 *     (A_|A| && B_|B| && ... && X_|X| => translate(F(A_|A|, B_|B|, ..., X_|X|))
+	 *     (A_|A| && B_|B| && ... && X_|X| => translate(F(A_|A|, B_|B|, ..., X_|X|)))
+	 * 
+	 * If the noOverflow option is specified, then the translation looks like:
+	 * 
+	 * let quantFormula = "all a: A, b: B, ..., x: X | F(a, b, ..., x)" |
+     *     (A_0 && B_0 && ... && X_0 => (!of(F(A_0, B_0, ..., X_0)) => translate(F(A_0, B_0, ..., X_0)))) && ... && 
+     *     (A_|A| && B_|B| && ... && X_|X| => (!of(F(A_|A|, B_|B|, ..., X_|X|)) => translate(F(A_|A|, B_|B|, ..., X_|X|))))
+	 * 
+	 * where of(F(A_|a|, B_|b|, ..., X_|x|)) is the portion of the overflow circuit generated by the translation of 
+	 * F(A_|a|, B_|b|, ..., X_|x|) contributed by arithmetic operations over only the integer variables of this quantifier 
+	 * 
 	 * @param decls formula declarations
 	 * @param formula the formula body
 	 * @param currentDecl currently processed declaration; should be 0 initially
-	 * @param declConstraints the constraints implied by the declarations; should be Boolean.FALSE intially
+	 * @param declConstraints the constraints implied by the declarations; should be Boolean.FALSE initially
 	 * @param acc the accumulator that contains the top level conjunction; should be an empty AND accumulator initially
-	 * @effects the given accumulator contains the translation of the formula "all decls | formula"
+	 * @ensures the given accumulator contains the translation of the formula "all decls | formula"
 	 */
 	private void all(Decls decls, Formula formula, int currentDecl, BooleanValue declConstraints, BooleanAccumulator acc) {
 		if (acc.isShortCircuited()) return;
 		final BooleanFactory factory = interpreter.factory();
 
 		if (decls.size()==currentDecl) {
-			acc.add(factory.or(declConstraints, formula.accept(this)));
+		    BooleanValue formulaCircuit = formula.accept(this);
+            BooleanValue finalCircuit = factory.or(declConstraints, formulaCircuit);
+            acc.add(finalCircuit);
 			return;
 		}
 
 		final Decl decl = decls.get(currentDecl);
 		final BooleanMatrix declTransl = visit(decl);
 		final BooleanMatrix groundValue = factory.matrix(declTransl.dimensions());
-		env = env.extend(decl.variable(), groundValue);
+		env = env.extend(decl.variable(), decl.expression(), groundValue, Quantifier.ALL);
 		for(IndexedEntry<BooleanValue> entry : declTransl) {
-			groundValue.set(entry.index(), BooleanConstant.TRUE);
+		    groundValue.set(entry.index(), BooleanConstant.TRUE);
 			all(decls, formula, currentDecl+1, factory.or(factory.not(entry.value()), declConstraints), acc);
-			groundValue.set(entry.index(), BooleanConstant.FALSE);	
+			groundValue.set(entry.index(), BooleanConstant.FALSE);
 		}
-		env = env.parent();
-		
+		env = env.parent();	
 	}
 
-	/**
+    /**
 	 * Translates the given existentially quantified formula as follows 
 	 * (where A_0...A_|A| stand for boolean variables that represent the 
 	 * tuples of the expression A, etc.):
+	 * 
 	 * let quantFormula = "some a: A, b: B, ..., x: X | F(a, b, ..., x)" |
 	 *     (A_0 && B_0 && ... && X_0 && translate(F(A_0, B_0, ..., X_0))) || ... || 
 	 *     (A_|A| && B_|B| && ... && X_|X| && translate(F(A_|A|, B_|B|, ..., X_|X|))
+	 * 
+	 * If the noOverflow option is specified, then the translation looks like:
+     * 
+     * let quantFormula = "some a: A, b: B, ..., x: X | F(a, b, ..., x)" |
+     *     (A_0 && B_0 && ... && X_0 && !of(F(A_0, B_0, ..., X_0)) && translate(F(A_0, B_0, ..., X_0))) || ... || 
+     *     (A_|A| && B_|B| && ... && X_|X| && !of(F(A_|A|, B_|B|, ..., X_|X|)) && translate(F(A_|A|, B_|B|, ..., X_|X|))
+     *     
+	 * where of(F(A_|a|, B_|b|, ..., X_|x|)) is the portion of the overflow circuit generated by the translation of 
+     * F(A_|a|, B_|b|, ..., X_|x|) contributed by arithmetic operations over only the integer variables of this quantifier
+     * 
 	 * @param decls formula declarations
 	 * @param formula the formula body
 	 * @param currentDecl currently processed declaration; should be 0 initially
 	 * @param declConstraints the constraints implied by the declarations; should be Boolean.TRUE intially
 	 * @param acc the accumulator that contains the top level conjunction; should be an empty OR accumulator initially
-	 * @effects the given accumulator contains the translation of the formula "some decls | formula"
+	 * @ensures the given accumulator contains the translation of the formula "some decls | formula"
 	 */
 	private void some(Decls decls, Formula formula, int currentDecl, BooleanValue declConstraints, BooleanAccumulator acc) {
 		if (acc.isShortCircuited()) return;
 		final BooleanFactory factory = interpreter.factory();
 
 		if (decls.size()==currentDecl) {
-			acc.add(factory.and(declConstraints, formula.accept(this)));
-			return;
+			BooleanValue formulaCircuit = formula.accept(this);
+            BooleanValue finalCircuit = factory.and(declConstraints, formulaCircuit);
+            acc.add(finalCircuit);
+            return;
 		}
 
 		final Decl decl = decls.get(currentDecl);
 		final BooleanMatrix declTransl = visit(decl);
 		final BooleanMatrix groundValue = factory.matrix(declTransl.dimensions());
-		env = env.extend(decl.variable(), groundValue);
+		env = env.extend(decl.variable(), decl.expression(), groundValue, Quantifier.SOME);
 		for(IndexedEntry<BooleanValue> entry : declTransl) {
 			groundValue.set(entry.index(), BooleanConstant.TRUE);
 			some(decls, formula, currentDecl+1, factory.and(entry.value(), declConstraints), acc);
 			groundValue.set(entry.index(), BooleanConstant.FALSE);	
 		}
 		env = env.parent();
-
 	}
-
+	
 	/** 
 	 * Calls lookup(quantFormula) and returns the cached value, if any.  
 	 * If a translation has not been cached, translates the formula,
@@ -578,7 +617,6 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 		if (ret!=null) return ret;
 
 		final Quantifier quantifier = quantFormula.quantifier();
-
 		switch(quantifier) {
 		case ALL		: 
 			final BooleanAccumulator and = BooleanAccumulator.treeGate(Operator.AND);
@@ -593,7 +631,6 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 		default :
 			throw new IllegalArgumentException("Unknown quantifier: " + quantifier);
 		}
-
 		return cache(quantFormula,ret);
 	}
 	
@@ -665,8 +702,12 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	 */
 	public final BooleanValue visit(NotFormula not) {
 		BooleanValue ret = lookup(not);
-		return ret==null ? 
-				cache(not, interpreter.factory().not(not.formula().accept(this))) : ret;
+		if (ret != null)
+		    return ret;
+		env.negate();
+		ret = cache(not, interpreter.factory().not(not.formula().accept(this)));
+		env.negate();
+		return ret;
 	}
 
 	/**
@@ -686,8 +727,8 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 		final ExprCompOperator op = compFormula.op();
 
 		switch(op) {
-		case SUBSET	: ret = left.subset(right); break;
-		case EQUALS	: ret = left.eq(right); break;
+		case SUBSET	: ret = left.subset(right, env); break;
+		case EQUALS	: ret = left.eq(right, env); break;
 		default : 
 			throw new IllegalArgumentException("Unknown operator: " + compFormula.op());
 		}
@@ -710,10 +751,10 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 		final Multiplicity mult = multFormula.multiplicity();
 
 		switch(mult) {
-		case NO 	: ret = child.none(); break;
-		case SOME	: ret = child.some(); break;
-		case ONE 	: ret = child.one();  break;
-		case LONE 	: ret = child.lone(); break;
+		case NO 	: ret = child.none(env); break;
+		case SOME	: ret = child.some(env); break;
+		case ONE 	: ret = child.one(env);  break;
+		case LONE 	: ret = child.lone(env); break;
 		default : 
 			throw new IllegalArgumentException("Unknown multiplicity: " + mult);
 		}
@@ -757,6 +798,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 				int atomIndex = interpreter.interpret(i);
 				ret.set(atomIndex, factory.or(ret.get(atomIndex), child.eq(factory.integer(i))));
 			}
+			ret.setDefCond(child.defCond());
 			break;
 		case BITSETCAST : 
 			final List<BooleanValue> twosComplement = child.twosComplementBits();
@@ -784,7 +826,8 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	 * @return this.interpreter.factory.integer(intConst.value, this.encoding)
 	 */
 	public final Int visit(IntConstant intConst) {
-		return interpreter.factory().integer(intConst.value());
+		Int ret = interpreter.factory().integer(intConst.value());
+		return ret;
 	}
 
 	/**
@@ -802,7 +845,6 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 		final Int thenExpr = intExpr.thenExpr().accept(this);
 		final Int elseExpr = intExpr.elseExpr().accept(this);
 		ret = thenExpr.choice(condition, elseExpr);
-
 		return cache(intExpr, ret);
 	}
 
@@ -840,15 +882,19 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 	public final Int visit(ExprToIntCast intExpr) {
 		Int ret = lookup(intExpr);
 		if (ret!=null) return ret;
-		switch(intExpr.op()) {
+		vars = vars.createNested();
+		BooleanMatrix expr = intExpr.expression().accept(this);
+        switch(intExpr.op()) {
 		case CARDINALITY : 
-			ret = intExpr.expression().accept(this).cardinality(); break;
+			ret = expr.cardinality(); break;
 		case SUM         :
 			final IntSet ints = interpreter.ints();
-			ret = sum(intExpr.expression().accept(this), ints.iterator(), 0, ints.size()-1); break;
+			ret = sum(expr, ints.iterator(), 0, ints.size()-1); break;
 		default: 
 			throw new IllegalArgumentException("unknown operator: " + intExpr.op());
 		}
+        for (Variable v : vars) ret.defCond().addVar(v); 
+        vars = vars.parent(); 
 		return cache(intExpr, ret);
 	}
 	
@@ -944,14 +990,16 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 			List<Int> values) {
 		final BooleanFactory factory = interpreter.factory();
 		if (decls.size()==currentDecl) {
-			values.add( expr.accept(this).choice(declConstraints, factory.integer(0)) );
+			Int intExpr = expr.accept(this);
+            Int newInt = intExpr.choice(declConstraints, factory.integer(0));
+            values.add(newInt);
 			return;
 		}
 
 		final Decl decl = decls.get(currentDecl);
 		final BooleanMatrix declTransl = visit(decl);
 		final BooleanMatrix groundValue = factory.matrix(declTransl.dimensions());
-		env = env.extend(decl.variable(), groundValue);
+		env = env.extend(decl.variable(), decl.expression(), groundValue);
 		for(IndexedEntry<BooleanValue> entry : declTransl) {
 			groundValue.set(entry.index(), BooleanConstant.TRUE);
 			sum(decls, expr, currentDecl+1, factory.and(entry.value(), declConstraints), values);
@@ -981,13 +1029,23 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 				values.set(max/2, values.get(max));
 			}
 		}
-		return cache(intExpr, values.isEmpty() ? interpreter.factory().integer(0) : values.get(0));
+		if (values.isEmpty()) {
+		    return cache(intExpr, interpreter.factory().integer(0));
+		} else {
+		    Int sumValue = values.get(0);
+	        return cache(intExpr, sumValue);
+		}
 	}
 
 	/** 
 	 * Calls lookup(intComp) and returns the cached value, if any.  
 	 * If a translation has not been cached, translates the formula,
 	 * calls cache(...) on it and returns it.
+	 * 
+	 * This is the only place where <code>Int</code>s are turned into
+	 * formulas, so that's where the overflow circuits of individual 
+	 * <code>Int</code>s are built into the translated formula.  
+	 * 
 	 * @return let t = lookup(intComp) | some t => t, 
 	 * 	cache(intComp, intComp.left.accept(this) intComp.op intComp.right.accept(this))
 	 */
@@ -997,11 +1055,12 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix, Boolea
 		final Int left = intComp.left().accept(this);
 		final Int right = intComp.right().accept(this);
 		switch(intComp.op()) {
-		case EQ  : ret = left.eq(right); break;
-		case LT  : ret = left.lt(right); break;
-		case LTE : ret = left.lte(right); break;
-		case GT  : ret = left.gt(right); break;
-		case GTE : ret = left.gte(right); break;
+		case EQ  : ret = left.eq(right, env); break;
+		case NEQ : ret = left.neq(right, env); break;
+		case LT  : ret = left.lt(right, env); break;
+		case LTE : ret = left.lte(right, env); break;
+		case GT  : ret = left.gt(right, env); break;
+		case GTE : ret = left.gte(right, env); break;
 		default: 
 			throw new IllegalArgumentException("Unknown operator: " + intComp.op());
 		}

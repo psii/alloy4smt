@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,7 @@ public final class BooleanAccumulator extends BooleanValue implements Iterable<B
 	 * Constructs a new accumulator with the given
 	 * operator.
 	 * @requires op != null
-	 * @effects this.op' = op && this.label' = label
+	 * @ensures this.op' = op && this.label' = label
 	 */
 	private BooleanAccumulator(Operator.Nary op) {
 		this.op = op;
@@ -98,7 +98,7 @@ public final class BooleanAccumulator extends BooleanValue implements Iterable<B
 	 * been added or it is equal to this.op.identity, nothing changes.  Otherwise, v 
 	 * is added to this.input.  The method returns this.op.shortCircuit if this.inputs
 	 * contains it after the addition, otherwise it returns the gate itself.  
-	 * @effects v = this.op.shortCircuit || v.negation in this.components => this.components' = this.op.shortCircuit,
+	 * @ensures v = this.op.shortCircuit || v.negation in this.components => this.components' = this.op.shortCircuit,
 	 *          v !in BooleanConstant => this.components' = this.components + v, 
 	 *          this.components' = this.components
 	 * @return this.components' = op.shortCircuit => op.shortCircuit, this

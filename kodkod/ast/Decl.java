@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ public final class Decl extends Decls {
      * Constructs a new declaration from the specified variable and
      * expression, with the specified order.
      * 
-     * @effects this.variable' = variable && this.expression' = expression && this.multiplicity' = mult
+     * @ensures this.variable' = variable && this.expression' = expression && this.multiplicity' = mult
      * @throws NullPointerException - variable = null || expression = null || mult = null
      * @throws IllegalArgumentException - variable.arity != expression.arity 
      */

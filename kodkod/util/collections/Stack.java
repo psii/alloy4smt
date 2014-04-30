@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ public abstract class Stack<T> implements Iterable<T> {
 	
 	/**
 	 * Pushes an item onto the top of this stack and returns it. 
-	 * @effects this.size' = this.size + 1 && this.elems'[0] = item &&
+	 * @ensures this.size' = this.size + 1 && this.elems'[0] = item &&
 	 *          all i: [0..this.size) | this.elems'[i+1] = this.elems[i]
 	 * @return item
 	 */
@@ -58,7 +58,7 @@ public abstract class Stack<T> implements Iterable<T> {
 	
 	/**
 	 * Removes the object at the top of this stack and returns that object as the value of this function.
-	 * @effects this.size' = this.size - 1 && 
+	 * @ensures this.size' = this.size - 1 && 
 	 *          all i: [1..this.size) | this.elems'[i-1] = this.elems[i]
 	 * @return this.elems[0]
 	 * @throws EmptyStackException - no this.elems

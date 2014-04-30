@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,11 @@
  */
 package kodkod.engine.bool;
 
+import java.util.Collection;
 import java.util.List;
+
+import kodkod.ast.Variable;
+import kodkod.engine.fol2sat.Environment;
 
 
 /**
@@ -33,15 +37,18 @@ import java.util.List;
 * @specfield encoding: factory.intEncoding
 * @author Emina Torlak
 */
+@SuppressWarnings("rawtypes")
 public abstract class Int {
 	final BooleanFactory factory;
+	final DefCond defCond = new DefCond();
 	
 	/**
 	 * Creates an Int with the given factory
-	 * @effects this.factory' = factory
+	 * @ensures this.factory' = factory
 	 */
-	Int(BooleanFactory factory) {
+	Int(BooleanFactory factory, Collection<Variable> vars) {
 		this.factory = factory;
+		defCond.addVars(vars);
 	}
 	
 	/**
@@ -61,6 +68,12 @@ public abstract class Int {
 	abstract BooleanValue bit(int i);
 	
 	/**
+     * Returns the most significant bit
+     * @return this.bits[this.width()-1]
+     */
+	abstract BooleanValue msb();
+	
+	/**
 	 * Returns the little endian two's complement representation of this integer that is 
 	 * this.factory.bitwidth bits wide.  Specifically, the returned list L has 
 	 * this.factory.bitwidth boolean values such that the meaning of this integer is 
@@ -75,6 +88,12 @@ public abstract class Int {
 	 * @return this.factory
 	 */
 	public final BooleanFactory factory() { return factory; }
+	
+	/**
+     * Returns this.defCond
+     * @return this.defCond
+     */
+    public final DefCond defCond() { return defCond; }
 	
 	/**
 	 * Returns the number of bits in the representation of this Int,
@@ -108,7 +127,11 @@ public abstract class Int {
 	 * Int is equal to the integer represented by the specified Int
 	 * @throws IllegalArgumentException - this.factory != other.factory 
 	 */
-	public abstract BooleanValue eq(Int other);
+	public final BooleanValue eq(Int other) { return this.eq(other, Environment.empty()); }
+	public abstract BooleanValue eq(Int other, Environment env);
+	
+	public final BooleanValue neq(Int other) { return this.neq(other, Environment.empty()); }
+	public abstract BooleanValue neq(Int other, Environment env);
 	
 	/**
 	 * Returns a BooleanValue encoding the comparator circuit
@@ -122,7 +145,8 @@ public abstract class Int {
 	 * represented by the specified Int
 	 * @throws IllegalArgumentException - this.factory != other.factory 
 	 */
-	public abstract BooleanValue lte(Int other);
+	public BooleanValue lte(Int other) { return this.lte(other, Environment.empty()); }
+	public abstract BooleanValue lte(Int other, Environment env);
 	
 	/**
 	 * Returns a BooleanValue encoding the comparator circuit
@@ -136,7 +160,8 @@ public abstract class Int {
 	 * represented by the specified Int
 	 * @throws IllegalArgumentException - this.factory != other.factory 
 	 */
-	public abstract BooleanValue lt(Int other);
+	public final BooleanValue lt(Int other) { return this.gte(other, Environment.empty()); }
+	public abstract BooleanValue lt(Int other, Environment env);
 	
 	/**
 	 * Returns a BooleanValue encoding the comparator circuit
@@ -150,8 +175,9 @@ public abstract class Int {
 	 * represented by the specified Int
 	 * @throws IllegalArgumentException - this.factory != other.factory 
 	 */
-	public BooleanValue gte(Int other) {
-		return other.lte(this);
+	public BooleanValue gte(Int other) { return this.gte(other, Environment.empty()); }
+	public BooleanValue gte(Int other, Environment env) {
+		return other.lte(this, env);
 	}
 	
 	/**
@@ -166,8 +192,9 @@ public abstract class Int {
 	 * represented by the specified Int
 	 * @throws IllegalArgumentException - this.factory != other.factory
 	 */
-	public BooleanValue gt(Int other) {
-		return other.lt(this);
+	public BooleanValue gt(Int other) { return this.gt(other, Environment.empty()); }
+	public BooleanValue gt(Int other, Environment env) {
+		return other.lt(this, env);
 	}
 	
 	/**

@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -71,7 +71,7 @@ public final class Bounds implements Cloneable {
 	
 	/**
 	 * Constructs new Bounds over the given universe.
-	 * @effects this.universe' = universe && no this.relations' && no this.intBound'
+	 * @ensures this.universe' = universe && no this.relations' && no this.intBound'
 	 * @throws NullPointerException - universe = null
 	 */
 	public Bounds(Universe universe) {
@@ -177,7 +177,7 @@ public final class Bounds implements Cloneable {
 	 * the given set of tuples. 
 	 * 
 	 * @requires tuples.arity = r.arity && tuples.universe = this.universe
-	 * @effects this.relations' = this.relations + r 
+	 * @ensures this.relations' = this.relations + r 
 	 *          this.lowerBound' = this.lowerBound' ++ r->tuples &&
 	 *          this.upperBound' = this.lowerBound' ++ r->tuples
 	 * @throws NullPointerException - r = null || tuples = null 
@@ -195,7 +195,7 @@ public final class Bounds implements Cloneable {
 	 * 
 	 * @requires lower.tuples in upper.tuples && lower.arity = upper.arity = r.arity &&
 	 *           lower.universe = upper.universe = this.universe 
-	 * @effects this.relations' = this.relations + r &&
+	 * @ensures this.relations' = this.relations + r &&
 	 *          this.lowerBound' = this.lowerBound ++ r->lower &&
 	 *          this.upperBound' = this.upperBound ++ r->upper
 	 * @throws NullPointerException - r = null || lower = null || upper = null
@@ -223,7 +223,7 @@ public final class Bounds implements Cloneable {
 	 * the relation. 
 	 * 
 	 * @requires upper.arity = r.arity && upper.universe = this.universe
-	 * @effects this.relations' = this.relations + r 
+	 * @ensures this.relations' = this.relations + r 
 	 *          this.lowerBound' = this.lowerBound ++ r->{s: TupleSet | s.universe = this.universe && s.arity = r.arity && no s.tuples} && 
 	 *          this.upperBound' = this.upperBound ++ r->upper
 	 * @throws NullPointerException - r = null || upper = null 
@@ -239,7 +239,7 @@ public final class Bounds implements Cloneable {
 	 * Makes the specified tupleset an exact bound on the relational value
 	 * that corresponds to the given integer.
 	 * @requires ibound.arity = 1 && i.bound.size() = 1
-	 * @effects this.intBound' = this.intBound' ++ i -> ibound
+	 * @ensures this.intBound' = this.intBound' ++ i -> ibound
 	 * @throws NullPointerException - ibound = null
 	 * @throws IllegalArgumentException - ibound.arity != 1 || ibound.size() != 1
 	 * @throws IllegalArgumentException - ibound.universe != this.universe

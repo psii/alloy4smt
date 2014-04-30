@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@ package kodkod.ast;
 import static kodkod.ast.operator.IntCastOperator.BITSETCAST;
 import static kodkod.ast.operator.IntCastOperator.INTCAST;
 import static kodkod.ast.operator.IntCompOperator.EQ;
+import static kodkod.ast.operator.IntCompOperator.NEQ;
 import static kodkod.ast.operator.IntCompOperator.GT;
 import static kodkod.ast.operator.IntCompOperator.GTE;
 import static kodkod.ast.operator.IntCompOperator.LT;
@@ -78,6 +79,10 @@ public abstract class IntExpression extends Node {
 		return this.compare(EQ, intExpr);
 	}
 	
+	public final Formula neq(IntExpression intExpr) {
+        return this.compare(NEQ, intExpr);
+    }
+    
 	/**
 	 * Returns a formula stating that the value of this int expression is less than the 
 	 * value of the given int expression  The effect

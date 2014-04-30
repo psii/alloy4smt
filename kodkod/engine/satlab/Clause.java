@@ -128,7 +128,7 @@ public abstract class Clause {
 			hash = Ints.superFastHashIncremental(iter.next(), hash);
 		}
 		for(Iterator<Clause> iter = antecedents(); iter.hasNext(); ) {
-			hash = Ints.superFastHash(iter.next().hashCode(), hash);
+			hash = Ints.superFastHash(new int[] { iter.next().hashCode(), hash });
 		}
 		return Ints.superFastHashAvalanche(hash);
 	}

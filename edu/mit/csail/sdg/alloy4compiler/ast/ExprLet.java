@@ -58,7 +58,7 @@ public final class ExprLet extends Expr {
     /** {@inheritDoc} */
     @Override public void toString(StringBuilder out, int indent) {
         if (indent<0) {
-            out.append("(let ").append(var.label).append("=... | ");
+            out.append("(let ").append(var.label).append("= ").append(expr.toString()).append(" | ");
             sub.toString(out,-1);
             out.append(')');
         } else {
@@ -96,9 +96,9 @@ public final class ExprLet extends Expr {
         if (sub.mult != 0)
             errs = errs.make(new ErrorSyntax(sub.span(), "Multiplicity expression not allowed here."));
         if (errs.size()==0 && var.type!=expr.type)
-            if (var.type.is_int!=expr.type.is_int
-             || var.type.is_bool!=expr.type.is_bool
-             || var.type.arity()!=expr.type.arity())
+            if (/*[AM] var.type.is_int()!=expr.type.is_int()|| */
+                var.type.is_bool != expr.type.is_bool ||
+                var.type.arity() != expr.type.arity())
                 errs = errs.make(new ErrorType(var.span(), "This variable has type "+var.type+" but is bound to a value of type "+expr.type));
         return new ExprLet(pos, var, expr, sub, errs);
     }
@@ -125,10 +125,10 @@ public final class ExprLet extends Expr {
     }
 
     /** {@inheritDoc} */
-    @Override final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
+    @Override public final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
 
     /** {@inheritDoc} */
-    @Override public String getDescription() { return "<b>let</b> <i>" + type + "</i>"; }
+    @Override public String getHTML() { return "<b>let</b> <i>" + type + "</i>"; }
 
     /** {@inheritDoc} */
     @Override public List<? extends Browsable> getSubnodes() {

@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,10 @@
  */
 package kodkod.engine;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -45,6 +49,7 @@ import kodkod.instance.Instance;
 import kodkod.instance.TupleSet;
 import kodkod.util.ints.IntIterator;
 import kodkod.util.ints.IntSet;
+import kodkod.util.nodes.PrettyPrinter;
 
 
 /** 
@@ -60,7 +65,7 @@ public final class Solver {
 
 	/**
 	 * Constructs a new Solver with the default options.
-	 * @effects this.options' = new Options()
+	 * @ensures this.options' = new Options()
 	 */
 	public Solver() {
 		this.options = new Options();
@@ -68,7 +73,7 @@ public final class Solver {
 
 	/**
 	 * Constructs a new Solver with the given options.
-	 * @effects this.options' = options
+	 * @ensures this.options' = options
 	 * @throws NullPointerException - options = null
 	 */
 	public Solver(Options options) {
@@ -224,13 +229,28 @@ public final class Solver {
 	 */
 	public Iterator<Solution> solveAll(final Formula formula, final Bounds bounds) 
 		throws HigherOrderDeclException, UnboundLeafException, AbortedException {
+	    
+	    if (Options.isDebug()) flushFormula(formula, bounds); //[AM] 	    
 		
 		if (!options.solver().incremental())
 			throw new IllegalArgumentException("cannot enumerate solutions without an incremental solver.");
 		
 		return new SolutionIterator(formula, bounds, options);
-		
 	}
+
+	//[AM]
+    private void flushFormula(Formula formula, Bounds bounds)  {
+        try {
+            File f = new File(System.getProperty("java.io.tmpdir"), "kk.txt");
+            OutputStream os = new BufferedOutputStream(new FileOutputStream(f));
+            os.write(PrettyPrinter.print(formula, 2).getBytes());
+            os.write("\n================\n".getBytes());
+            os.write(bounds.toString().getBytes());
+            os.flush();
+            os.close();
+        } catch (Exception e) {
+        }
+    }
 
 	/**
 	 * {@inheritDoc}
@@ -313,7 +333,7 @@ public final class Solver {
 	 * "Pads" the argument instance with the mappings that occur in bounds.lowerBound
 	 * but not in the instance. 
 	 * @requires instance.relations in bounds.relations
-	 * @effects instance.relations' = bounds.relations' &&
+	 * @ensures instance.relations' = bounds.relations' &&
 	 *          instance.tuples' = bounds.lowerBound ++ instance.tuples
 	 * @return instance
 	 */
@@ -381,7 +401,7 @@ public final class Solver {
 		 * Solves translation.cnf and adds the negation of the
 		 * found model to the set of clauses.
 		 * @requires this.translation != null
-		 * @effects this.translation.cnf is modified to eliminate
+		 * @ensures this.translation.cnf is modified to eliminate
 		 * the  current solution from the set of possible solutions
 		 * @return current solution
 		 */
@@ -420,7 +440,7 @@ public final class Solver {
 		 * this.formula and this.bounds are modified to eliminate the current
 		 * trivial solution from the set of possible solutions.
 		 * @requires this.translation = null
-		 * @effects this.formula and this.bounds are modified to eliminate the current
+		 * @ensures this.formula and this.bounds are modified to eliminate the current
 		 * trivial solution from the set of possible solutions.
 		 * @return current solution
 		 */

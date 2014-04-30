@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +63,7 @@ public final class Universe implements Iterable<Object> {
 	 * Constructs a new Universe consisting of the given atoms, in the order that they are returned 
 	 * by the specified Collection's Iterator.
 	 * 
-	 * @effects this.size' = atoms.size && this.atoms' = atoms.iterator
+	 * @ensures this.size' = atoms.size && this.atoms' = atoms.iterator
 	 * @throws NullPointerException - atoms = null 
 	 * @throws IllegalArgumentException - atoms contains duplicates
 	 * @throws IllegalArgumentException - atoms is empty
@@ -87,7 +87,7 @@ public final class Universe implements Iterable<Object> {
 	 * Constructs a new Universe consisting of the given atoms, in the order that they appear 
 	 * in the specified array
 	 * 
-	 * @effects this.size' = atoms.length && this.atoms' = atoms
+	 * @ensures this.size' = atoms.length && this.atoms' = atoms
 	 * @throws NullPointerException - atoms = null 
 	 * @throws IllegalArgumentException - atoms contains duplicates
 	 * @throws IllegalArgumentException - atoms is empty
@@ -107,7 +107,7 @@ public final class Universe implements Iterable<Object> {
 	/**
 //	 * Returns a universe that stores the given atoms explicitly, in the specified order.
 //	 * The returned universe provides constant time index and atom lookup.
-//	 * @effects { u: Universe | u.size = atoms.length && u.atoms = atoms }
+//	 * @ensures { u: Universe | u.size = atoms.length && u.atoms = atoms }
 //	 * @throws IllegalArgumentException - atoms contains duplicates
 //	 * @throws IllegalArgumentException - atoms is empty  
 //	 */
@@ -117,7 +117,7 @@ public final class Universe implements Iterable<Object> {
 //	 * Returns a universe that stores the given atoms explicitly, in the order in which they 
 //	 * are returned by the collection's iterator.  The returned universe provides constant 
 //	 * time index and atom lookup.
-//	 * @effects { u: Universe | u.size = atoms.size() && u.atoms[int] = atoms }
+//	 * @ensures { u: Universe | u.size = atoms.size() && u.atoms[int] = atoms }
 //	 * @throws IllegalArgumentException - atoms contains duplicates
 //	 * @throws IllegalArgumentException - atoms is empty  
 //	 */

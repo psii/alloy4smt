@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@ final class BinaryGate extends MultiGate {
 	/**
 	 * Constructs a new binary gate with the given operator, label, and inputs.
 	 * @requires components.h = components.l && l.label < h.label
-	 * @effects this.op' = op && this.inputs' = l + h && this.label' = label
+	 * @ensures this.op' = op && this.inputs' = l + h && this.label' = label
 	 */
 	BinaryGate(Operator.Nary op, int label, int hashcode, BooleanFormula l, BooleanFormula h) {
 		super(op, label, hashcode);
@@ -79,7 +79,7 @@ final class BinaryGate extends MultiGate {
 	 * [[this]] = op(f_0, ..., f_k').
 	 * The default implementation simply adds this to the set.
 	 * @requires k > 0
-	 * @effects 1 <= k' <= k && some f_0,..., f_k' : flat.elts' | 
+	 * @ensures 1 <= k' <= k && some f_0,..., f_k' : flat.elts' | 
 	 * [[this]] = op([[f_0]], ..., [[f_k']])
 	 */
 	@Override

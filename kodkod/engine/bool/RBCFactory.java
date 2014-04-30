@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -60,8 +60,8 @@ final class RBCFactory {
 	 * Constructs a CircuitFactory using the given max comparison parameter, initialized
 	 * to contain the given number of variables. 
 	 * @requires cmpMax > 0 && numVars >= 0
-	 * @effects #this.values' = numVars && this.values in BooleanVariable
-	 * @effects this.cmpMax' = cmpMax
+	 * @ensures #this.values' = numVars && this.values in BooleanVariable
+	 * @ensures this.cmpMax' = cmpMax
 	 */
 	@SuppressWarnings("unchecked") RBCFactory(int numVars, int cmpMax) {
 		assert cmpMax > 0 && numVars >= 0;
@@ -87,7 +87,7 @@ final class RBCFactory {
 	/**
 	 * Sets this.cmpMax to the given value.
 	 * @requires cmpMax > 0
-	 * @effects this.cmpMax' = cmpMax
+	 * @ensures this.cmpMax' = cmpMax
 	 */
 	void setCmpMax(int cmpMax) {
 		assert cmpMax > 0;
@@ -102,7 +102,7 @@ final class RBCFactory {
 	
 	/**
 	 * Removes all MultiGates and ITEGates from this.factory.
-	 * @effects this.values' = this.values & BooleanVariable 
+	 * @ensures this.values' = this.values & BooleanVariable 
 	 */
 	void clear() {
 		label = vars.length+1;
@@ -151,7 +151,7 @@ final class RBCFactory {
 	 * Returns a boolean value whose meaning is (if [[i]] then [[t]] else [[e]]).
 	 * @requires i + t + e in (this.values + this.values.negation + BooleanConstant)
 	 * @return v: BooleanValue | [[v]] = if [[i]] then [[t]] else [[e]] 
-	 * @effects v in BooleanFormula - NotGate => this.values' = this.values + v, this.values' = this.values
+	 * @ensures v in BooleanFormula - NotGate => this.values' = this.values + v, this.values' = this.values
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	BooleanValue assemble(BooleanValue i, BooleanValue t, BooleanValue e) {
@@ -197,7 +197,7 @@ final class RBCFactory {
 	 * Returns a boolean value whose meaning is ([[v0]] op [[v1]]).
 	 * @requires v0 + v1 in (this.values + this.values.negation + BooleanConstant)
 	 * @return  v: BooleanValue | [[v]] = [[v0]] op [[v1]] 
-	 * @effects v in BooleanFormula - NotGate => this.values' = this.values + v, this.values' = this.values
+	 * @ensures v in BooleanFormula - NotGate => this.values' = this.values + v, this.values' = this.values
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	BooleanValue assemble(Operator.Nary op, BooleanValue v0, BooleanValue v1) {
@@ -219,7 +219,7 @@ final class RBCFactory {
 	 * Returns a boolean value with the same meaning as the given accumulator.
 	 * @requires acc.components in (this.values + this.values.negation + BooleanConstant)
 	 * @return v: BooleanValue | [[v]] = [[acc]] 
-	 * @effects v in BooleanFormula - NotGate => this.values' = this.values + v, this.values' = this.values
+	 * @ensures v in BooleanFormula - NotGate => this.values' = this.values + v, this.values' = this.values
 	 * @throws NullPointerException - any of the arguments are null
 	 */
 	BooleanValue assemble(BooleanAccumulator acc) {
@@ -261,7 +261,7 @@ final class RBCFactory {
 	 * f0 op f1 cannot be reduced to a constant or a simple circuit 
 	 * by applying absorption, idempotence, etc. laws to f0 and f1.
 	 * @return f : BooleanFormula | [[f]] = [[f0]] op [[f1]]
-	 * @effects f !in this.values => this.values' = this.values + f,
+	 * @ensures f !in this.values => this.values' = this.values + f,
 	 * 	        this.values' = this.values
 	 */
 	private BooleanFormula cache(Operator.Nary op, BooleanFormula f0, BooleanFormula f1) {

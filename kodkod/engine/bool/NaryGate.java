@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@ final class NaryGate extends MultiGate {
 	/**
 	 * Constructs a new n-ary gate with the given label, from the given mutable multi gate.
 	 * @requires g != null && #g.inputs > 2
-	 * @effects this.op' = g.op && this.inputs' = g.inputs && this.label' = label
+	 * @ensures this.op' = g.op && this.inputs' = g.inputs && this.label' = label
 	 */
 	NaryGate(BooleanAccumulator g, int label, int hashcode) {
 		super(g.op, label, hashcode);
@@ -110,7 +110,7 @@ final class NaryGate extends MultiGate {
 	 * [[this]] = op(f_0, ..., f_k').
 	 * The default implementation simply adds this to the set.
 	 * @requires k > 0
-	 * @effects 1 <= k' <= k && some f_0,..., f_k' : flat.elts' | 
+	 * @ensures 1 <= k' <= k && some f_0,..., f_k' : flat.elts' | 
 	 * [[this]] = op([[f_0]], ..., [[f_k']])
 	 */
 	@Override

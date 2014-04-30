@@ -21,7 +21,9 @@ pred clearMarks[hs, hs' : HeapState] {
   hs'.right = hs.right
 }
 
-// simulate the recursion of the mark() function using transitive closure
+/**
+ * simulate the recursion of the mark() function using transitive closure
+ */
 fun reachable[hs: HeapState, n: Node] : set Node {
   n + n.^(hs.left + hs.right)
 }
@@ -32,7 +34,9 @@ pred mark[hs: HeapState, from : Node, hs': HeapState] {
   hs'.right = hs.right
 }
 
-// complete hack to simulate behavior of code to set freeList
+/**
+ * complete hack to simulate behavior of code to set freeList
+ */
 pred setFreeList[hs, hs': HeapState] {
   // especially hackish
   hs'.freeList.*(hs'.left) in (Node - hs.marked)

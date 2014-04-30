@@ -15,21 +15,22 @@
 
 package edu.mit.csail.sdg.alloy4compiler.ast;
 
+import static edu.mit.csail.sdg.alloy4compiler.ast.Type.EMPTY;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import edu.mit.csail.sdg.alloy4.Pos;
+
 import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4.ErrorSyntax;
 import edu.mit.csail.sdg.alloy4.ErrorType;
 import edu.mit.csail.sdg.alloy4.ErrorWarning;
 import edu.mit.csail.sdg.alloy4.JoinableList;
+import edu.mit.csail.sdg.alloy4.Pos;
 import edu.mit.csail.sdg.alloy4.Util;
-import edu.mit.csail.sdg.alloy4compiler.ast.Type.ProductType;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
-import static edu.mit.csail.sdg.alloy4compiler.ast.Sig.SIGINT;
-import static edu.mit.csail.sdg.alloy4compiler.ast.Type.EMPTY;
+import edu.mit.csail.sdg.alloy4compiler.ast.Type.ProductType;
 
 /** Immutable; represents an expression of the form (x OP y).
  *
@@ -164,8 +165,10 @@ public final class ExprBinary extends Expr {
       /** :&gt;           */  RANGE(":>",false),
       /** &amp;           */  INTERSECT("&",false),
       /** ++              */  PLUSPLUS("++",false),
-      /** +               */  PLUS("+",false),
-      /** -               */  MINUS("-",false),
+      /** set union       */  PLUS("+",false),
+      /** int +           */  IPLUS("@+",false),
+      /** set diff        */  MINUS("-",false),
+      /** int -           */  IMINUS("@-",false),
       /** multiply        */  MUL("*",false),
       /** divide          */  DIV("/",false),
       /** remainder       */  REM("%",false),
@@ -232,17 +235,23 @@ public final class ExprBinary extends Expr {
               right = right.typecheck_as_formula();
               break;
            }
+           case IPLUS: case IMINUS: {
+               left = left.typecheck_as_int();
+               right = right.typecheck_as_int();
+               break;
+           }
            case PLUS: case MINUS: case EQUALS: case NOT_EQUALS: {
-              Type a=left.type, b=right.type;
-              if (a.hasCommonArity(b) || (a.is_int && b.is_int)) break;
-              if (Type.SIGINT2INT) {
-                 if (a.is_int && b.intersects(SIGINT.type)) { right=right.cast2int(); break; }
-                 if (b.is_int && a.intersects(SIGINT.type)) { left=left.cast2int(); break; }
-              }
-              if (Type.INT2SIGINT) {
-                 if (a.is_int && b.hasArity(1)) { left=left.cast2sigint(); break; }
-                 if (b.is_int && a.hasArity(1)) { right=right.cast2sigint(); break; }
-              }
+               //[AM]: these are always relational operators now, so no casts
+//              Type a=left.type, b=right.type;
+//              if (a.hasCommonArity(b) || (a.is_int && b.is_int)) break;
+//              if (Type.SIGINT2INT) {
+//                 if (a.is_int && b.intersects(SIGINT.type)) { right=right.cast2int(); break; }
+//                 if (b.is_int && a.intersects(SIGINT.type)) { left=left.cast2int(); break; }
+//              }
+//              if (Type.INT2SIGINT) {
+//                 if (a.is_int && b.hasArity(1)) { left=left.cast2sigint(); break; }
+//                 if (b.is_int && a.hasArity(1)) { right=right.cast2sigint(); break; }
+//              }
               break;
            }
            default: {
@@ -259,22 +268,27 @@ public final class ExprBinary extends Expr {
               type = Type.FORMULA;
               break;
            case MUL: case DIV: case REM: case SHL: case SHR: case SHA:
-              type = Type.INT;
+              type = Type.smallIntType();
               break;
            case PLUSPLUS:
               type = left.type.unionWithCommonArity(right.type);
               if (type==EMPTY) e=error(pos, "++ can be used only between two expressions of the same arity.", left, right);
               break;
-           case PLUS: case MINUS: case EQUALS: case NOT_EQUALS:
+           case PLUS: case MINUS: case EQUALS: case NOT_EQUALS: 
               if (this==EQUALS || this==NOT_EQUALS) {
-                 if (left.type.hasCommonArity(right.type) || (left.type.is_int && right.type.is_int)) {type=Type.FORMULA; break;}
+                 if (left.type.hasCommonArity(right.type) || (left.type.is_int() && right.type.is_int())) {
+                     type=Type.FORMULA; 
+                     break;
+                 }
               } else {
                  type = (this==PLUS ? left.type.unionWithCommonArity(right.type) : left.type.pickCommonArity(right.type));
-                 if (left.type.is_int && right.type.is_int) type=Type.makeInt(type);
                  if (type!=EMPTY) break;
               }
               e=error(pos, this+" can be used only between 2 expressions of the same arity, or between 2 integer expressions.", left, right);
               break;
+           case IPLUS: case IMINUS:
+               type = Type.smallIntType();
+               break;
            case IN: case NOT_IN:
               type=(left.type.hasCommonArity(right.type)) ? Type.FORMULA : EMPTY;
               if (type==EMPTY) e=error(pos,this+" can be used only between 2 expressions of the same arity.", left, right);
@@ -324,7 +338,7 @@ public final class ExprBinary extends Expr {
       switch(op) {
         case MUL: case DIV: case REM: case LT: case LTE: case GT: case GTE: case SHL: case SHR: case SHA:
         case NOT_LTE: case NOT_GTE: case NOT_LT: case NOT_GT: {
-           a=(b=Type.INT);
+           a=(b=Type.smallIntType());
            break;
         }
         case AND: case OR: case IFF: case IMPLIES: {
@@ -334,9 +348,11 @@ public final class ExprBinary extends Expr {
         case EQUALS: case NOT_EQUALS: {
            p=a.intersect(b);
            if (p.hasTuple()) {a=p; b=p;} else {a=a.pickCommonArity(b); b=b.pickCommonArity(a);}
-           if (left.type.is_int && right.type.is_int) {
-              a=Type.makeInt(a); b=Type.makeInt(b);
-           } else if (warns==null) {
+           //[AM]
+//           if (left.type.is_int() && right.type.is_int()) {
+//              a=Type.makeInt(a); b=Type.makeInt(b);
+//           } else 
+           if (warns==null) {
               break;
            } else if (left.type.hasTuple() && right.type.hasTuple() && !(left.type.intersects(right.type))) {
               w=warn("== is redundant, because the left and right expressions are always disjoint.");
@@ -367,10 +383,16 @@ public final class ExprBinary extends Expr {
            if (warns!=null && type.hasNoTuple()) w=warn("& is irrelevant because the two subexpressions are always disjoint.");
            break;
         }
+        case IPLUS: case IMINUS: {
+            a = Type.smallIntType(); 
+            b = Type.smallIntType();
+            break;
+        }
         case PLUSPLUS: case PLUS: {
            a=a.intersect(p);
            b=b.intersect(p);
-           if (op==Op.PLUS && p.is_int) { a=Type.makeInt(a); b=Type.makeInt(b); }
+           //[AM]
+//           if (op==Op.PLUS && p.is_int()) { a=Type.makeInt(a); b=Type.makeInt(b); }
            if (warns==null) break;
            if (a==EMPTY && b==EMPTY)
               w=warn(this+" is irrelevant since both subexpressions are redundant.", p);
@@ -383,9 +405,11 @@ public final class ExprBinary extends Expr {
         case MINUS: {
            a=p;
            b=p.intersect(b);
-           if (p.is_int) {
-              a=Type.makeInt(a); b=Type.makeInt(b);
-           } else if (warns!=null && (type.hasNoTuple() || b.hasNoTuple())) {
+           //[AM]
+//           if (p.is_int()) {
+//              a=Type.makeInt(a); b=Type.makeInt(b);
+//           } else 
+           if (warns!=null && (type.hasNoTuple() || b.hasNoTuple())) {
               w=warn("- is irrelevant since the right expression is redundant.", p);
            }
            break;
@@ -487,10 +511,10 @@ public final class ExprBinary extends Expr {
    }
 
    /** {@inheritDoc} */
-   @Override final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
+   @Override public final<T> T accept(VisitReturn<T> visitor) throws Err { return visitor.visit(this); }
 
    /** {@inheritDoc} */
-   @Override public String getDescription() { return op.toHTML() + " <i>" + type + "</i>"; }
+   @Override public String getHTML() { return op.toHTML() + " <i>" + type + "</i>"; }
 
    /** {@inheritDoc} */
    @Override public List<? extends Browsable> getSubnodes() { return Util.asList(left, right); }

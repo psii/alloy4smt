@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -80,7 +80,7 @@ public abstract class AbstractCollector<T> implements
 	/**
 	 * Constructs a depth first collector which will cache the results
 	 * of visiting the given nodes and re-use them on subsequent visits.
-	 * @effects this.cached' = cached && no this.cache
+	 * @ensures this.cached' = cached && no this.cache
 	 */
 	protected AbstractCollector(Set<Node> cached) { 
 		this.cached = cached;
@@ -91,7 +91,7 @@ public abstract class AbstractCollector<T> implements
 	 * Constructs a depth-first collectior which will cache
 	 * the results of visiting the given nodes in the given map, 
 	 * and re-use them on subsequent visits.
-	 * @effects this.cached' = cached && this.cache' = cache
+	 * @ensures this.cached' = cached && this.cache' = cache
 	 */
 	protected AbstractCollector(Set<Node> cached, Map<Node, Set<T>> cache) { 
 		this.cached = cached;
@@ -109,7 +109,7 @@ public abstract class AbstractCollector<T> implements
 	/**
 	 * Caches the given value for the specified node, if
 	 * this is a caching visitor, and returns it.
-	 * @effects n in this.cached => this.cache' = this.cache ++ n->reduce(val), this.cache' = this.cache
+	 * @ensures n in this.cached => this.cache' = this.cache ++ n->reduce(val), this.cache' = this.cache
 	 * @return val
 	 */
 	protected Set<T> cache(Node n, Set<T> val) {

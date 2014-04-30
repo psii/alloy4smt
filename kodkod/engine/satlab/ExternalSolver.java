@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -163,7 +163,7 @@ final class ExternalSolver implements SATSolver {
 	}
 	
 	/**
-	 * @effects |lit| <= this.vars && lit != 0 => this.solution'.set(|lit|, lit>0)
+	 * @ensures |lit| <= this.vars && lit != 0 => this.solution'.set(|lit|, lit>0)
 	 * @throws RuntimeException - lit=0 || |lit|>this.vars
 	 */
 	private final void updateSolution(int lit) {

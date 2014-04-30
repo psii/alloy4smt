@@ -1,5 +1,5 @@
 /* 
- * Kodkod -- Copyright (c) 2005-2007, Emina Torlak
+ * Kodkod -- Copyright (c) 2005-2011, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 import kodkod.ast.ConstantFormula;
+import kodkod.ast.Expression;
 import kodkod.ast.Formula;
 import kodkod.ast.Node;
 import kodkod.ast.Variable;
@@ -73,11 +74,11 @@ final class FileLogger extends TranslationLogger {
 	private final Bounds bounds;
 	/**
 	 * Constructs a new file logger from the given annotated formula.
-	 * @effects this.formula' = annotated.node
-	 * @effects this.originalFormula' = annotated.source[annotated.node]
-	 * @effects this.bounds' = bounds
-	 * @effects this.log().roots() = Nodes.conjuncts(annotated)
-	 * @effects no this.records' 
+	 * @ensures this.formula' = annotated.node
+	 * @ensures this.originalFormula' = annotated.source[annotated.node]
+	 * @ensures this.bounds' = bounds
+	 * @ensures this.log().roots() = Nodes.conjuncts(annotated)
+	 * @ensures no this.records' 
 	 */
 	FileLogger(final AnnotatedNode<Formula> annotated, Bounds bounds) {
 		this.annotated = annotated;
@@ -93,7 +94,6 @@ final class FileLogger extends TranslationLogger {
 	
 		this.logMap = new FixedMap<Formula, Variable[]>(freeVarMap.keySet());	
 		
-		int index = 0;
 		for(Map.Entry<Formula, Variable[]> e : logMap.entrySet()) {
 			Set<Variable> vars = freeVarMap.get(e.getKey());
 			int size = vars.size();
@@ -102,7 +102,6 @@ final class FileLogger extends TranslationLogger {
 			} else {
 				e.setValue(Containers.identitySort(vars.toArray(new Variable[size])));
 			}
-			index++;
 		}
 		this.bounds = bounds.unmodifiableView();
 	}
@@ -147,12 +146,12 @@ final class FileLogger extends TranslationLogger {
 	 * given transformed formula to the given boolean value 
 	 * in the specified environment.
 	 * @requires some this.transforms.f
-	 * @effects this.records' = this.records + this.transforms.f -> translation -> freeVariables(f)<:env
+	 * @ensures this.records' = this.records + this.transforms.f -> translation -> freeVariables(f)<:env
 	 * @throws IllegalArgumentException - no this.transforms.f
 	 * @throws IllegalStateException - this log has been closed
 	 */
 	@Override
-	void log(Formula f, BooleanValue v, Environment<BooleanMatrix> env) {
+	void log(Formula f, BooleanValue v, Environment<BooleanMatrix, Expression> env) {
 		if (out==null) throw new IllegalStateException();
 	
 		final int index = logMap.indexOf(f);
