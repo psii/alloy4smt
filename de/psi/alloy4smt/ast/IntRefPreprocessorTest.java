@@ -325,7 +325,7 @@ public class IntRefPreprocessorTest {
     	preprocessModule(
     			"open util/intref\n" +
     			"one sig A { v: Int }\n" +
-    			"fact { A.v + 2 = 4 }\n" +
+    			"fact { A.v.plus[2] = 4 }\n" +
     			"fact { A.v > 0 }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
@@ -350,7 +350,7 @@ public class IntRefPreprocessorTest {
     			"open util/intref\n" +
     			"one sig A { v: Int }\n" +
     			"one sig Y { y: Y }\n" +
-    			"fact { A.v + 2 = 4 }\n" +
+    			"fact { A.v.plus[2] = 4 }\n" +
     			"fact { Y.y = Y }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
@@ -375,7 +375,7 @@ public class IntRefPreprocessorTest {
     			"one sig C { m: Int }\n" +
     			"one sig D { n: Int }\n" +
     			"fact { int(A.v) + int(B.u) = 4 }\n" +
-    			"fact { C.m + D.n = 4 }\n" +
+    			"fact { C.m.plus[D.n] = 4 }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
     	assertEquals("AND[" +
@@ -413,7 +413,7 @@ public class IntRefPreprocessorTest {
     	preprocessModule(
     			"open util/intref\n" +
     			"sig A { v: Int }\n" +
-    			"fact { all a: A | a.v + 2 = 4 }\n" +
+    			"fact { all a: A | a.v.plus[2] = 4 }\n" +
     			"pred show {}\n" +
     			"run show for 3 A\n");
     	assertEquals("AND[(all a | int[a . (this/A <: v)] + 2 = 4)]", module.getAllReachableFacts().toString());
@@ -583,7 +583,7 @@ public class IntRefPreprocessorTest {
     			"open util/intref\n" +
     			"one sig A { v: Int, w: B ->one Int }\n" +
     			"sig B {}\n" +
-    			"fact { A.v + 2 = 4 }\n" +
+    			"fact { A.v.plus[2] = 4 }\n" +
     			"fact { A.v > 0 }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
@@ -624,7 +624,7 @@ public class IntRefPreprocessorTest {
     	preprocessModule(
     			"open util/intref\n" +
     			"sig A { v: Int }\n" +
-    			"fact { all a: A | a.v + 2 = 4 }\n" +
+    			"fact { all a: A | a.v.plus[2] = 4 }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
 
