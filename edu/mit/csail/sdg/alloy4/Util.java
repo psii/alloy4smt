@@ -239,7 +239,7 @@ public final class Util {
       try {
          buf = new byte[max];
          fis = fromJar ? Util.class.getClassLoader().getResourceAsStream(filename) : new FileInputStream(filename);
-         if (fis==null) throw new FileNotFoundException("File \""+filename+"\" cannot be found");
+         if (fis==null) fis = new FileInputStream(filename); //throw new FileNotFoundException("File \""+filename+"\" cannot be found");
          while(true) {
             if (now >= max) {
                max = now + 4096;
