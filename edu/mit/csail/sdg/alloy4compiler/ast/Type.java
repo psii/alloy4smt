@@ -236,9 +236,6 @@ public final class Type implements Iterable<Type.ProductType> {
     /** Constant value with is_int==false, is_bool==true, and entries.size()==0. */
     public static final Type FORMULA = new Type(true, null, 0);
 
-    /** Constant value with is_int==true, is_bool==true, and entries.size()==0. */
-    public static final Type INTANDFORMULA = new Type(true, null, 0);
-
     /** True if primitive integer value is a possible value in this type. */
 //    private final boolean is_int;
     private boolean is_small_int;

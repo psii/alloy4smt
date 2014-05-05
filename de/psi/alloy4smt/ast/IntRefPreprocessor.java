@@ -184,8 +184,8 @@ public class IntRefPreprocessor {
     	TempList<CmdBundle> tmpCommands = new TempList<CmdBundle>();
     	for (int i = 0; i < computer.commands.size(); ++i) {
     		final IntexprSigBuilder isbuilder = new IntexprSigBuilder(computer.commands.get(i), intref);
-    		final FactRewriter rewriter = FactRewriter.rewrite(computer.commands.get(i).formula, isbuilder);
-        	final Command command = isbuilder.getModifiedCommand().change(rewriter.getFacts());
+    		final FactRewriter.Result rewriteres = FactRewriter.rewrite(computer.commands.get(i).formula, isbuilder);
+        	final Command command = isbuilder.getModifiedCommand().change(rewriteres.facts);
     		final TempList<IntrefSigRecord> l = new TempList<IntrefSigRecord>();
     		l.addAll(computer.intrefRecords.get(i));
     		l.addAll(isbuilder.getIntexprRecords());
@@ -193,7 +193,7 @@ public class IntRefPreprocessor {
     		esigs.addAll(sigs);
     		esigs.addAll(isbuilder.getIntExprSigs());
     		
-    		tmpCommands.add(new CmdBundle(command, rewriter.getHysatExprs(), l.makeConst(), esigs.makeConst(), intref));
+    		tmpCommands.add(new CmdBundle(command, rewriteres.hysatexprs, l.makeConst(), esigs.makeConst(), intref));
     	}
     	
     	commands = tmpCommands.makeConst();
@@ -704,10 +704,18 @@ public class IntRefPreprocessor {
     }
     
     private static class FactRewriter extends VisitReturn<Expr> {
+
+        public static class Result {
+            public final Expr facts;
+            public final ConstList<String> hysatexprs;
+
+            public Result(Expr facts, ConstList<String> hysatexprs) {
+                this.facts = facts;
+                this.hysatexprs = hysatexprs;
+            }
+        }
     	
     	private IntexprSigBuilder intexprBuilder;
-
-    	private Expr rewritten;
     	private TempList<String> hysatexprs;
     	
     	private FactRewriter(IntexprSigBuilder builder) {
@@ -715,24 +723,17 @@ public class IntRefPreprocessor {
     		intexprBuilder = builder;
 		}
     	
-    	public static FactRewriter rewrite(Expr expr, IntexprSigBuilder builder) throws Err {
+    	public static Result rewrite(Expr expr, IntexprSigBuilder builder) throws Err {
     		FactRewriter rewriter = new FactRewriter(builder);
-    		rewriter.rewritten = rewriter.visitThis(expr);
-    		return rewriter;
-    	}
-    	
-    	public Expr getFacts() {
-    		return rewritten;
-    	}
-    	
-    	public ConstList<String> getHysatExprs() {
-    		return hysatexprs.makeConst();
+    		Expr rewritten = rewriter.visitThis(expr);
+    		return new Result(rewritten, rewriter.hysatexprs.makeConst());
     	}
     	
 		@Override
 		public Expr visit(ExprBinary x) throws Err {
 			Expr result = null;
-			
+
+            // TODO: change this to check for our custom SMTInt datatype
 			if (x.left.type().is_int() && x.right.type().is_int()) {
 				final IntExprHandler ieh = new IntExprHandler(intexprBuilder);
 				final TempList<String> hexpr = ieh.visitThis(x);

@@ -374,7 +374,7 @@ public class IntRefPreprocessorTest {
     			"one sig B { u: Int }\n" +
     			"one sig C { m: Int }\n" +
     			"one sig D { n: Int }\n" +
-    			"fact { int(A.v) + int(B.u) = 4 }\n" +
+    			"fact { A.v.plus[B.u] = 4 }\n" +
     			"fact { C.m.plus[D.n] = 4 }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
@@ -416,7 +416,7 @@ public class IntRefPreprocessorTest {
     			"fact { all a: A | a.v.plus[2] = 4 }\n" +
     			"pred show {}\n" +
     			"run show for 3 A\n");
-    	assertEquals("AND[(all a | int[a . (this/A <: v)] + 2 = 4)]", module.getAllReachableFacts().toString());
+    	assertEquals("AND[(all a | a.(this/A <: v).plus[2] = 4)]", module.getAllReachableFacts().toString());
     	assertEquals("Run show for 3 A, exactly 3 A_v_IntRef, exactly 3 IntExpr0",
     			ppresult.commands.get(0).command.toString());
     	assertEquals("AND[" +
@@ -443,7 +443,7 @@ public class IntRefPreprocessorTest {
     			"open util/intref\n" +
     			"sig A { v: Int }\n" +
     			"sig B { w: Int }\n" +
-    			"fact { all a: A { no b: B | int(a.v) + int(b.w) > 4  } }\n" +
+    			"fact { all a: A { no b: B | a.v.plus[b.w] > 4  } }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
     	assertEquals("AND[(all a | (no b | int[a . (this/A <: v)] + " +
@@ -487,7 +487,7 @@ public class IntRefPreprocessorTest {
     			"open util/intref\n" +
     			"sig A { v: B ->one Int }\n" +
     			"sig B { w: Int }\n" +
-    			"fact { all a: A { no b: B | int(a.v[b]) + int(b.w) > 4  } }\n" +
+    			"fact { all a: A { no b: B | a.v[b].plus[b.w] > 4  } }\n" +
     			"pred show {}\n" +
     			"run show for 3\n");
     	assertEquals("AND[(all a | (no b | AND[" +
