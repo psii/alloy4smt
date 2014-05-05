@@ -214,17 +214,11 @@ public class IntRefPreprocessor {
 
     private static class Computer {
     	private ConstList<Command> oldcommands;
-    	private Sig currentSig;
-    	private Sig.Field currentField;
-    	private Sig.Field lastfield = null;
-    	private int fieldcnt = 0;
-    	private Map<Command, Integer> factors;
     	private Map<Command, List<CommandScope>> newscopes;
     	private Map<Command, TempList<IntrefSigRecord>> tmpIntrefRecords;
     	private Map<PrimSig, PrimSig> old2newsigs;
     	private Map<Field, Field> old2newfields;
-    	private List<PrimSig> newintrefs;
-    	
+
     	public TempList<Sig> sigs;
     	public Sig.PrimSig intref;
     	public TempList<Command> commands;
@@ -237,9 +231,7 @@ public class IntRefPreprocessor {
     		old2newfields = new HashMap<Field, Field>();
     		oldcommands = module.getAllCommands();
     		commands = new TempList<Command>();
-    		factors = new HashMap<Command, Integer>();
     		newscopes = new HashMap<Command, List<CommandScope>>();
-    		newintrefs = new Vector<PrimSig>();
     		tmpIntrefRecords = new HashMap<Command, TempList<IntrefSigRecord>>();
     		intrefRecords = new TempList<ConstList<IntrefSigRecord>>();
     		
@@ -247,13 +239,15 @@ public class IntRefPreprocessor {
     			newscopes.put(c, new Vector<CommandScope>());
     			tmpIntrefRecords.put(c, new TempList<IntrefSigRecord>());
     		}
-    		
+
+            // Initialize old2newsigs map.
+            // TODO: What about Subsetsigs?
     		for (Sig s: module.getAllReachableSigs()) {
     			if (s == intref) {
     				old2newsigs.put(intref, intref);
     				for (Field f : s.getFields())
     					old2newfields.put(f, f);
-    			} else if (!s.builtin && s instanceof PrimSig) {
+    			} else if (isSmtInt(s)) {
     				Attr[] attrs = new Attr[1];
     				PrimSig newsig = new PrimSig(s.label, s.attributes.toArray(attrs));
     				old2newsigs.put((PrimSig) s, newsig);
@@ -279,69 +273,36 @@ public class IntRefPreprocessor {
     				scopes.add(new CommandScope(old2newsigs.get(scope.sig), scope.isExact, scope.endingScope));
     			}
     			scopes.addAll(newscopes.get(c));
-    			commands.add(c.change(scopes.makeConst()).change(EXPR_REWRITER.visitThis(c.formula)));
+                ExprRewriter rewriter = new ExprRewriter(intref, old2newsigs, old2newfields);
+    			commands.add(c.change(scopes.makeConst()).change(rewriter.visitThis(c.formula)));
     			intrefRecords.add(tmpIntrefRecords.get(c).makeConst());
     		}
     	}
-    	
-    	public void addFactor(Sig factor) {
-    		for (Command c: oldcommands) {
-    			factors.put(c, factors.get(c) * getScope(c, factor));
-    		}
-    	}
-    	
-    	private void resetFactors() {
-    		for (Command c: oldcommands) {
-    			factors.put(c, 1);
-    		}
-    	}
 
-    	public Sig makeSig() throws Err {
-    		if (lastfield != currentField) {
-    			fieldcnt = 0;
-    			lastfield = currentField;
-    		} else {
-    			fieldcnt++;
-    			throw new ErrorFatal(currentField.pos, "unsupported decl");
-    		}
-    		String label = currentSig.label + "_" + currentField.label + "_IntRef";
-    		PrimSig sig = new Sig.PrimSig(label, intref);
-			newintrefs.add(sig);
-			
-			return sig;
-    	}
-    	
-    	private void integrateNewIntRefSigs() throws ErrorSyntax {
-    		for (PrimSig sig: newintrefs) {
-	    		for (Command c: oldcommands) {
-	    			final int scope = factors.get(c);
-	    			newscopes.get(c).add(new CommandScope(sig, true, scope));
-	    			tmpIntrefRecords.get(c).add(new IntrefSigRecord(sig, null, null, scope));
-	    		}
-	    		sigs.add(sig);
-    		}
-    		newintrefs.clear();
-    	}
-    	
-    	private final ExprRewriter EXPR_REWRITER = new ExprRewriter();
-    	
+        private boolean isSmtInt(Sig s) {
+            return !s.builtin && s instanceof PrimSig;
+            //return !s.builtin && s.label.equals("Sint");
+        }
+
         private Sig convertSig(Sig sig) throws Err {
         	final Sig newSig = old2newsigs.get(sig);        	
-        	
-        	currentSig = sig;
-        	
+
         	for (Sig.Field field: sig.getFields()) {
-            	resetFactors();
-            	addFactor(sig);
-            	
-        		currentField = field;
-        		final Expr newExpr = EXPR_REWRITER.visitThis(field.decl().expr);
+                final ExprRewriter rewriter = new ExprRewriter(intref, sig, field, old2newsigs, old2newfields);
+        		final Expr newExpr = rewriter.visitThis(field.decl().expr);
         		final Field[] newField = newSig.addTrickyField(
         				field.pos, field.isPrivate, null, null, field.isMeta, 
         				new String[] { field.label }, newExpr);
         		old2newfields.put(field, newField[0]);
-        		
-        		integrateNewIntRefSigs();
+
+                for (PrimSig primSig: rewriter.newintrefs) {
+                    for (Command c: oldcommands) {
+                        final int scope = rewriter.getFactor(c);
+                        newscopes.get(c).add(new CommandScope(primSig, true, scope));
+                        tmpIntrefRecords.get(c).add(new IntrefSigRecord(primSig, null, null, scope));
+                    }
+                    sigs.add(primSig);
+                }
         	}
         	
         	return newSig;
@@ -351,11 +312,68 @@ public class IntRefPreprocessor {
         	final Sig newSig = old2newsigs.get(sig);
         	
         	for (Expr fact : sig.getFacts()) {
-        		newSig.addFact(EXPR_REWRITER.visitThis(fact));
+        		newSig.addFact(new ExprRewriter(intref, old2newsigs, old2newfields).visitThis(fact));
         	}
         }
 
-        private class ExprRewriter extends VisitReturn<Expr> {
+        private static class ExprRewriter extends VisitReturn<Expr> {
+
+            private final PrimSig intref;
+            private final Sig currentSig;
+            private final Field currentField;
+            private final Map<PrimSig, PrimSig> old2newsigs;
+            private final Map<Field, Field> old2newfields;
+
+            private Field lastfield = null;
+
+            public List<PrimSig> newintrefs;
+            public List<Sig> factors;
+
+            ExprRewriter(PrimSig intref, Map<PrimSig, PrimSig> old2newsigs, Map<Field, Field> old2newfields) {
+                this.intref = intref;
+                this.currentSig = null;
+                this.currentField = null;
+                this.old2newsigs = old2newsigs;
+                this.old2newfields = old2newfields;
+                this.newintrefs = null;
+                this.factors = new Vector<Sig>();
+            }
+
+            ExprRewriter(PrimSig intref, Sig currentSig, Field currentField, Map<PrimSig, PrimSig> old2newsigs, Map<Field, Field> old2newfields) {
+                this.intref = intref;
+                this.currentSig = currentSig;
+                this.currentField = currentField;
+                this.old2newsigs = old2newsigs;
+                this.old2newfields = old2newfields;
+                this.newintrefs = new Vector<PrimSig>();
+                this.factors = new Vector<Sig>();
+                addFactor(currentSig);
+            }
+
+            private Sig makeSig() throws Err {
+                if (lastfield != currentField) {
+                    lastfield = currentField;
+                } else {
+                    throw new ErrorFatal(currentField.pos, "unsupported decl");
+                }
+                String label = currentSig.label + "_" + currentField.label + "_IntRef";
+                PrimSig sig = new Sig.PrimSig(label, intref);
+                newintrefs.add(sig);
+
+                return sig;
+            }
+
+            private void addFactor(Sig x) {
+                this.factors.add(x);
+            }
+
+            public int getFactor(Command c) {
+                int result = 1;
+                for (Sig s : factors) {
+                    result *= getScope(c, s);
+                }
+                return result;
+            }
 
 			@Override
 			public Expr visit(ExprBinary x) throws Err {
