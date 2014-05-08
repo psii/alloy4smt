@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
-import org.junit.rules.TemporaryFolder;
-
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
 import kodkod.engine.fol2sat.HigherOrderDeclException;
@@ -20,7 +18,7 @@ import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.satlab.SATSolver;
 import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
-import de.psi.alloy4smt.ast.IntRefPreprocessor.IntrefSigRecord;
+import de.psi.alloy4smt.ast.PreparedCommand.IntrefSigRecord;
 import de.psi.alloy4smt.hysat.HysatSolver;
 import edu.mit.csail.sdg.alloy4.A4Reporter;
 import edu.mit.csail.sdg.alloy4.ConstList;
@@ -76,7 +74,7 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 		execute(null, pp.commands.get(0), solver);		
 	}
 	
-	public static void execute(A4Reporter rep, IntRefPreprocessor.CmdBundle bundle,
+	public static void execute(A4Reporter rep, PreparedCommand bundle,
 			                         final HysatSolver solver) throws Err {
 		rep = rep == null ? A4Reporter.NOP : rep;
 		final A4Options opt = makeA4Options();

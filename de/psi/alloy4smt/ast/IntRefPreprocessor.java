@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
-import kodkod.instance.TupleFactory;
-import kodkod.instance.TupleSet;
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.ConstList.TempList;
 import edu.mit.csail.sdg.alloy4.Err;
@@ -42,22 +40,9 @@ import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 
 public class IntRefPreprocessor {
     public final Sig.PrimSig intref;
-    public final ConstList<CmdBundle> commands;
+    public final ConstList<PreparedCommand> commands;
     public final ConstList<Sig> sigs;
-    
-    private static int getScope(Command command, Sig sig) {
-		CommandScope scope = command.getScope(sig);
-		int result;
-		if (scope != null) {
-			result = scope.endingScope;
-		} else if (sig.isOne != null || sig.isLone != null) {
-			result = 1;
-		} else {
-			result = command.overall < 0 ? 1 : command.overall;
-		}
-		return result;
-    }
-    
+
     public static String atomize(Sig sig, int id) {
     	String label = sig.label;
     	if (label.startsWith("this/")) {
@@ -65,135 +50,25 @@ public class IntRefPreprocessor {
     	}
     	return label + "$" + id;
     }
-    	
-    public static class IntrefSigRecord {
-    	public final PrimSig sig;
-    	public final Sig.Field mapfield;
-    	public final ConstList<Sig> dependencies;
-    	public final int instances;
-    	
-    	public IntrefSigRecord(PrimSig intexpr, Sig.Field mapfield, ConstList<Sig> dependencies, int instances) {
-    		this.sig = intexpr;
-    		this.mapfield = mapfield;
-    		this.dependencies = dependencies;
-    		this.instances = instances;
-    	}
-    	
-    	public List<String> getAtoms() {
-    		List<String> result = new Vector<String>();
-    		for (int i = 0; i < instances; ++i) {
-    			result.add(atomize(sig, i));
-    		}
-    		return result;
-    	}
-    	
-    	private ConstList<Pair<Sig, Integer>> getDependencyScopes(Command command) {
-    		TempList<Pair<Sig, Integer>> result = new TempList<Pair<Sig, Integer>>();
-    		for (Sig sig : dependencies) {
-    			result.add(new Pair<Sig, Integer>(sig, getScope(command, sig)));
-    		}
-    		return result.makeConst();
-    	}
-    	
-    	public TupleSet getMapBounds(Command command, TupleFactory factory) {
-    		TupleSet result = null;
-    		
-    		if (mapfield != null) {
-    			final ConstList<Pair<Sig, Integer>> depscopes = getDependencyScopes(command);
-    			final int depsize = depscopes.size();
-    			int[] sigids = new int[depsize + 1];
-    			result = factory.noneOf(depsize + 1);
-    			addMapBoundsTuples(factory, result, depscopes, 0, sigids);
-    		}
-    		
-    		return result;
-    	}
-    	
-    	private void addMapBoundsTuples(TupleFactory factory, TupleSet result,
-    			                        ConstList<Pair<Sig, Integer>> depscopes, int depthlvl,
-    			                        int[] sigids) {
-    		if (depthlvl < depscopes.size()) {
-    			final int scope = depscopes.get(depthlvl).b;
-    			for (int i = 0; i < scope; ++i) {
-    				sigids[depthlvl + 1] = i;
-    				addMapBoundsTuples(factory, result, depscopes, depthlvl + 1, sigids);
-    			}
-    		} else {
-    			List<String> tuple = new Vector<String>();
-    			tuple.add(atomize(sig, sigids[0]++));
-    			for (int d = depscopes.size() - 1; d >= 0; --d) {
-    				tuple.add(atomize(depscopes.get(d).a, sigids[d+1]));
-    			}
-    			result.add(factory.tuple(tuple));
-    		}
-    	}
-    }
-    
-	public static class CmdBundle {
-		public final Command command;
-		public final ConstList<String> hysatExprs;
-		public final ConstList<IntrefSigRecord> intrefRecords;
-		public final ConstList<Sig> sigs;
-		public final Sig.PrimSig intref;
-		
-		public CmdBundle(Command command, ConstList<String> hysatExprs, ConstList<IntrefSigRecord> intrefRecords,
-				ConstList<Sig> sigs, Sig.PrimSig intref) {
-			this.command = command;
-			this.hysatExprs = hysatExprs;
-			this.intrefRecords = intrefRecords;
-			this.sigs = sigs;
-			this.intref = intref;
-		}
-		
-		public CmdBundle(Command command, ConstList<Sig> sigs) {
-			this.command = command;
-			this.hysatExprs = null;
-			this.intrefRecords = null;
-			this.sigs = sigs;
-			this.intref = null;
-		}
-		
-		public ConstList<String> getIntrefAtoms() {
-			TempList<String> result = new TempList<String>();
-			for (IntrefSigRecord record : intrefRecords) {
-				result.addAll(record.getAtoms());
-			}
-			return result.makeConst();
-		}
 
-		public TupleSet getIntRefEqualsTupleSet(TupleFactory factory) {
-			final List<String> atoms = getIntrefAtoms();
-			final int numatoms = atoms.size();
-			TupleSet result = factory.noneOf(2);
-			
-			for (int i = 0; i < numatoms; ++i) {
-				for (int j = i + 1; j < numatoms; ++j) {
-					result.add(factory.tuple(atoms.get(i), atoms.get(j)));
-				}
-			}
-			
-			return result;
-		}
-	}
 
-        
     private IntRefPreprocessor(Computer computer) throws Err {
     	intref = computer.intref;
     	sigs = computer.sigs.makeConst();
     	
-    	TempList<CmdBundle> tmpCommands = new TempList<CmdBundle>();
+    	TempList<PreparedCommand> tmpCommands = new TempList<PreparedCommand>();
     	for (int i = 0; i < computer.commands.size(); ++i) {
     		final IntexprSigBuilder isbuilder = new IntexprSigBuilder(computer.commands.get(i), intref);
     		final FactRewriter.Result rewriteres = FactRewriter.rewrite(computer.commands.get(i).formula, isbuilder);
-        	final Command command = isbuilder.getModifiedCommand().change(rewriteres.facts);
-    		final TempList<IntrefSigRecord> l = new TempList<IntrefSigRecord>();
+        	final Command command = isbuilder.getModifiedCommand().change(rewriteres.newformula);
+    		final TempList<PreparedCommand.IntrefSigRecord> l = new TempList<PreparedCommand.IntrefSigRecord>();
     		l.addAll(computer.intrefRecords.get(i));
     		l.addAll(isbuilder.getIntexprRecords());
     		final TempList<Sig> esigs = new TempList<Sig>();
     		esigs.addAll(sigs);
     		esigs.addAll(isbuilder.getIntExprSigs());
     		
-    		tmpCommands.add(new CmdBundle(command, rewriteres.hysatexprs, l.makeConst(), esigs.makeConst(), intref));
+    		tmpCommands.add(new PreparedCommand(command, rewriteres.hysatexprs, l.makeConst(), esigs.makeConst(), intref));
     	}
     	
     	commands = tmpCommands.makeConst();
@@ -203,9 +78,9 @@ public class IntRefPreprocessor {
     	intref = null;
     	sigs = module.getAllReachableSigs();
     	
-    	TempList<CmdBundle> tmpCommands = new TempList<CmdBundle>();
+    	TempList<PreparedCommand> tmpCommands = new TempList<PreparedCommand>();
     	for (Command c : module.getAllCommands()) {
-    		tmpCommands.add(new CmdBundle(c, sigs));
+    		tmpCommands.add(new PreparedCommand(c, sigs));
     	}
     	
     	commands = tmpCommands.makeConst();
@@ -215,14 +90,14 @@ public class IntRefPreprocessor {
     private static class Computer {
     	private ConstList<Command> oldcommands;
     	private Map<Command, List<CommandScope>> newscopes;
-    	private Map<Command, TempList<IntrefSigRecord>> tmpIntrefRecords;
+    	private Map<Command, TempList<PreparedCommand.IntrefSigRecord>> tmpIntrefRecords;
     	private Map<PrimSig, PrimSig> old2newsigs;
     	private Map<Field, Field> old2newfields;
 
     	public TempList<Sig> sigs;
     	public Sig.PrimSig intref;
     	public TempList<Command> commands;
-    	public TempList<ConstList<IntrefSigRecord>> intrefRecords;
+    	public TempList<ConstList<PreparedCommand.IntrefSigRecord>> intrefRecords;
     	
     	public Computer(CompModule module, Sig.PrimSig intref) throws Err {
     		this.intref = intref;
@@ -232,15 +107,16 @@ public class IntRefPreprocessor {
     		oldcommands = module.getAllCommands();
     		commands = new TempList<Command>();
     		newscopes = new HashMap<Command, List<CommandScope>>();
-    		tmpIntrefRecords = new HashMap<Command, TempList<IntrefSigRecord>>();
-    		intrefRecords = new TempList<ConstList<IntrefSigRecord>>();
+    		tmpIntrefRecords = new HashMap<Command, TempList<PreparedCommand.IntrefSigRecord>>();
+    		intrefRecords = new TempList<ConstList<PreparedCommand.IntrefSigRecord>>();
     		
     		for (Command c: oldcommands) {
     			newscopes.put(c, new Vector<CommandScope>());
-    			tmpIntrefRecords.put(c, new TempList<IntrefSigRecord>());
+    			tmpIntrefRecords.put(c, new TempList<PreparedCommand.IntrefSigRecord>());
     		}
 
-            // Initialize old2newsigs map.
+            // Initialize old2newsigs map. All Sigs except builtin and intref are cloned.
+            // old2newsigs is a map which gets used for the later step convertSig
             // TODO: What about Subsetsigs?
     		for (Sig s: module.getAllReachableSigs()) {
     			if (s == intref) {
@@ -253,7 +129,9 @@ public class IntRefPreprocessor {
     				old2newsigs.put((PrimSig) s, newsig);
     			}
     		}
-    		    		
+
+            // Converts all Sigs. The mapping between old and new sigs is already in place.
+            // Now the new Sigs have to be populated with data/fields.
     		for (Sig s: module.getAllReachableSigs()) {
     			if (s.builtin || s == intref) {
     				sigs.add(s);
@@ -261,12 +139,15 @@ public class IntRefPreprocessor {
     				sigs.add(convertSig(s));
     			}
     		}
-    		
+
+            // Rewrite step of the facts. Each Sig and its fields have a new instance. Now the facts have
+            // to get updated and added to the new Sigs.
     		for (Sig s: module.getAllReachableSigs()) {
     			if (!s.builtin)
     				convertSigFacts(s);
     		}
-    		
+
+            // Rewrite of the formula generated by each command.
     		for (Command c: oldcommands) {
     			TempList<CommandScope> scopes = new TempList<CommandScope>();
     			for (CommandScope scope : c.scope) {
@@ -299,7 +180,7 @@ public class IntRefPreprocessor {
                     for (Command c: oldcommands) {
                         final int scope = rewriter.getFactor(c);
                         newscopes.get(c).add(new CommandScope(primSig, true, scope));
-                        tmpIntrefRecords.get(c).add(new IntrefSigRecord(primSig, null, null, scope));
+                        tmpIntrefRecords.get(c).add(new PreparedCommand.IntrefSigRecord(primSig, null, null, scope));
                     }
                     sigs.add(primSig);
                 }
@@ -370,7 +251,7 @@ public class IntRefPreprocessor {
             public int getFactor(Command c) {
                 int result = 1;
                 for (Sig s : factors) {
-                    result *= getScope(c, s);
+                    result *= Helpers.getScope(c, s);
                 }
                 return result;
             }
@@ -459,7 +340,7 @@ public class IntRefPreprocessor {
     		public int id = 0;
     		public PrimSig intref;
     		public Sig.Field aqclass;
-    		public List<IntrefSigRecord> records = new Vector<IntrefSigRecord>();
+    		public List<PreparedCommand.IntrefSigRecord> records = new Vector<PreparedCommand.IntrefSigRecord>();
     		public Command command;
     	}
     	
@@ -476,7 +357,7 @@ public class IntRefPreprocessor {
     		freeVars = new LinkedHashMap<ExprVar, Expr>(other.freeVars);
     	}
     	
-    	public Pair<IntrefSigRecord, Expr> make(Expr intrefExpr) throws Err {
+    	public Pair<PreparedCommand.IntrefSigRecord, Expr> make(Expr intrefExpr) throws Err {
     		final PrimSig intexprsig = new PrimSig("IntExpr" + ctx.id++, ctx.intref);
     		final Set<ExprVar> usedFreeVars = FreeVarFinder.find(intrefExpr);
     		final Expr right = ExprBinary.Op.JOIN.make(null, null, intrefExpr, ctx.aqclass);
@@ -500,7 +381,7 @@ public class IntRefPreprocessor {
     			for (List<PrimSig> ss : type.fold()) {
     				int ssinst = 1;
     				for (PrimSig sig : ss) {
-    					ssinst *= getScope(ctx.command, sig);
+    					ssinst *= Helpers.getScope(ctx.command, sig);
     					dependencies.add(0, sig);
     				}
     				instances *= ssinst;
@@ -516,12 +397,12 @@ public class IntRefPreprocessor {
     			left = ExprBinary.Op.JOIN.make(null, null, intexprsig, ctx.aqclass);
     		}
     		
-    		IntrefSigRecord result = new IntrefSigRecord(intexprsig, mapfield, ConstList.make(dependencies), instances);
+    		PreparedCommand.IntrefSigRecord result = new PreparedCommand.IntrefSigRecord(intexprsig, mapfield, ConstList.make(dependencies), instances);
     		
     		ctx.command = ctx.command.change(intexprsig, true, instances);
     		ctx.records.add(result);
     		
-    		return new Pair<IntrefSigRecord, Expr>(result, ExprBinary.Op.EQUALS.make(null, null, left, right));
+    		return new Pair<PreparedCommand.IntrefSigRecord, Expr>(result, ExprBinary.Op.EQUALS.make(null, null, left, right));
     	}
     	
     	public IntexprSigBuilder addFreeVariables(ConstList<Decl> decls) {
@@ -540,13 +421,13 @@ public class IntRefPreprocessor {
     		return ctx.command;
     	}
     	
-    	public List<IntrefSigRecord> getIntexprRecords() {
+    	public List<PreparedCommand.IntrefSigRecord> getIntexprRecords() {
     		return ctx.records;
     	}
     	
     	public List<PrimSig> getIntExprSigs() {
     		List<PrimSig> result = new Vector<PrimSig>();
-    		for (IntrefSigRecord record : ctx.records) {
+    		for (PreparedCommand.IntrefSigRecord record : ctx.records) {
     			result.add(record.sig);
     		}
     		return result;
@@ -615,7 +496,7 @@ public class IntRefPreprocessor {
 		@Override
 		public TempList<String> visit(ExprBinary x) throws Err {
 			if (cast2intSeen && x.op == ExprBinary.Op.JOIN) {
-				Pair<IntrefSigRecord, Expr> result = builder.make(x);
+				Pair<PreparedCommand.IntrefSigRecord, Expr> result = builder.make(x);
 				facts.add(result.b);
 				return new TempList<String>(result.a.getAtoms());
 			} else {
@@ -706,11 +587,11 @@ public class IntRefPreprocessor {
     private static class FactRewriter extends VisitReturn<Expr> {
 
         public static class Result {
-            public final Expr facts;
+            public final Expr newformula;
             public final ConstList<String> hysatexprs;
 
-            public Result(Expr facts, ConstList<String> hysatexprs) {
-                this.facts = facts;
+            public Result(Expr newformula, ConstList<String> hysatexprs) {
+                this.newformula = newformula;
                 this.hysatexprs = hysatexprs;
             }
         }

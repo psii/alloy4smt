@@ -18,7 +18,7 @@ import kodkod.instance.Universe;
 import org.junit.Before;
 import org.junit.Test;
 
-import de.psi.alloy4smt.ast.IntRefPreprocessor.IntrefSigRecord;
+import de.psi.alloy4smt.ast.PreparedCommand.IntrefSigRecord;
 
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Err;
