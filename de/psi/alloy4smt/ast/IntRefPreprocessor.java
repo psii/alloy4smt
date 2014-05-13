@@ -80,7 +80,7 @@ public class IntRefPreprocessor {
     	
     	TempList<PreparedCommand> tmpCommands = new TempList<PreparedCommand>();
     	for (Command c : module.getAllCommands()) {
-    		tmpCommands.add(new PreparedCommand(c, sigs));
+    		tmpCommands.add(new PreparedCommand(c, sigs, null));
     	}
     	
     	commands = tmpCommands.makeConst();

@@ -3,6 +3,8 @@ module util/smtint
 abstract sig SintRef { aqclass: SintRef }
 abstract sig Sint {}
 
+fun const[n: Int] : Sint { /*PLACEHOLDER*/ Sint }
+
 /*
  * A collection of utility functions for using Sintegers in Alloy.
  * Note that integer overflows are silently truncated to the current bitwidth

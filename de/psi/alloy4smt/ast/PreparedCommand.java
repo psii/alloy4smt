@@ -1,5 +1,6 @@
 package de.psi.alloy4smt.ast;
 
+import de.psi.alloy4smt.smt.SExpr;
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
@@ -16,6 +17,7 @@ import java.util.Vector;
 public class PreparedCommand {
     public final Command command;
     public final ConstList<String> hysatExprs;
+    public final ConstList<SExpr> smtExprs;
     public final ConstList<IntrefSigRecord> intrefRecords;
     public final ConstList<Sig> sigs;
     public final Sig.PrimSig intref;
@@ -27,14 +29,16 @@ public class PreparedCommand {
         this.intrefRecords = intrefRecords;
         this.sigs = sigs;
         this.intref = intref;
+        this.smtExprs = null;
     }
 
-    public PreparedCommand(Command command, ConstList<Sig> sigs) {
+    public PreparedCommand(Command command, ConstList<Sig> sigs, ConstList<SExpr> smtExprs) {
         this.command = command;
         this.hysatExprs = null;
         this.intrefRecords = null;
         this.sigs = sigs;
         this.intref = null;
+        this.smtExprs = smtExprs;
     }
 
     public ConstList<String> getIntrefAtoms() {

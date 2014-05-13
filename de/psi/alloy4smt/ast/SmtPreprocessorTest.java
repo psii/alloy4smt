@@ -179,4 +179,31 @@ public class SmtPreprocessorTest {
                         "run show for 4");
         assertEquals(module.getAllReachableFacts().toString(), commands.get(0).command.formula.toString());
     }
+
+    @Test
+    public void rewriteFactsAndExtractIntExprs() throws Err {
+        parseModule(
+                        "one sig A { v: Sint }\n" +
+                        "fact { A.v.plus[const[2]] = const[4] }\n" +
+                        "fact { A.v.gt[const[0]] }\n" +
+                        "pred show {}\n" +
+                        "run show for 3\n");
+        assertEquals(
+                "AND[" +
+                        "smtint/plus[this/A . (this/A <: v), smtint/const[Int[2]]] = smtint/const[Int[4]], " +
+                        "smtint/gt[this/A . (this/A <: v), smtint/const[Int[0]]]" +
+                        "]",
+                module.getAllReachableFacts().toString());
+        assertEquals("[smtint/SintRef, univ, Int, seq/Int, String, none, this/A, this/A_v_SintRef, smtint/Sint, " +
+                "SintExpr0, SintExpr1, SintExpr2, SintExpr3]", commands.get(0).sigs.toString());
+
+        assertEquals("[(= SintExpr1$0 (+ SintExpr0$0 2)), (= SintExpr2$0 4), (> SintExpr3$0 0)]",
+                commands.get(0).smtExprs.toString());
+        assertEquals(
+                "AND[" +
+                        "SintExpr0 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass), " +
+                        "SintExpr3 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass), " +
+                        "SintExpr1 . (smtint/SintRef <: aqclass) = SintExpr2 . (smtint/SintRef <: aqclass)" +
+                "]",
+                commands.get(0).command.formula.toString());    }
 }

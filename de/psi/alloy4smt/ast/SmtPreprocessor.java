@@ -1,34 +1,52 @@
 package de.psi.alloy4smt.ast;
 
 
+import de.psi.alloy4smt.smt.SExpr;
 import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Err;
+import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4compiler.ast.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Vector;
 
 public class SmtPreprocessor {
     public static PreparedCommand build(Command c, ConstList<Sig> allReachableSigs) throws Err {
         ConversionContext ctx = new ConversionContext(c, allReachableSigs);
         for (Sig s : allReachableSigs) ctx.mapSig(s);
-        return new PreparedCommand(c.change(ctx.getScopes()), ctx.getAllSigs());
+        Expr newformula = FormulaRewriter.rewrite(ctx, c.formula);
+        return new PreparedCommand(c.change(ctx.getScopes()).change(ctx.getAdditionalFacts().and(newformula)),
+                ctx.getAllSigs(), ctx.getSExprs());
     }
+
+//    private static class SintRefAssign {
+//        public final Sig sig;
+//        public final Iterable<Sig> dependencies;
+//        public final SExpr sexpr;
+//    }
 
     private static class ConversionContext {
         public final Sig sigSint;
         private final int defaultScope;
         private final Sig.PrimSig sigSintref;
+        public final Sig.Field aqclass;
         private final Map<Sig, Sig> newsigmap = new HashMap<Sig, Sig>();
         private final Map<Sig.Field, Sig.Field> newfieldmap = new HashMap<Sig.Field, Sig.Field>();
         private final Map<Sig, CommandScope> scopemap = new HashMap<Sig, CommandScope>();
         private final ConstList.TempList<Sig> allsigs = new ConstList.TempList<Sig>();
         private final ConstList.TempList<CommandScope> scopes = new ConstList.TempList<CommandScope>();
+        private final ConstList.TempList<SExpr> sexprs = new ConstList.TempList<SExpr>();
+        private final ConstList.TempList<String> smtvars = new ConstList.TempList<String>();
+        private final ConstList.TempList<Expr> newfacts = new ConstList.TempList<Expr>();
+
+        private int exprcnt = 0;
 
         public ConversionContext(Command command, ConstList<Sig> sigs) throws Err {
             sigSint = Helpers.getSigByName(sigs, "smtint/Sint");
             sigSintref = (Sig.PrimSig) Helpers.getSigByName(sigs, "smtint/SintRef");
-            if (sigSint == null || sigSintref == null)
+            aqclass = Helpers.getFieldByName(sigSintref.getFields(), "aqclass");
+            if (sigSint == null || sigSintref == null || aqclass == null)
                 throw new AssertionError();
             addSigMapping(sigSintref, sigSintref);
             for (Sig.Field f : sigSintref.getFields())
@@ -54,6 +72,14 @@ public class SmtPreprocessor {
 
         public ConstList<CommandScope> getScopes() {
             return scopes.makeConst();
+        }
+
+        public ConstList<SExpr> getSExprs() {
+            return sexprs.makeConst();
+        }
+
+        public Expr getAdditionalFacts() {
+            return ExprList.make(null, null, ExprList.Op.AND, newfacts.makeConst());
         }
 
         private void addSigMapping(Sig oldsig, Sig newsig) {
@@ -108,6 +134,42 @@ public class SmtPreprocessor {
             scopes.add(new CommandScope(ref, true, refscope));
         }
 
+        public void addGlobalFact(SExpr sexpr) {
+            sexprs.add(sexpr);
+        }
+
+        public Expr makeRefSig(SExpr sexpr) throws Err {
+            StringBuilder sb = new StringBuilder();
+            sb.append("SintExpr");
+            sb.append(exprcnt++);
+            Sig ref = new Sig.PrimSig(sb.toString(), sigSintref);
+            addRefSig(ref, new Vector<Sig>());
+            SExpr symb = SExpr.sym(sb.toString() + "$0");
+            addGlobalFact(SExpr.eq(symb, sexpr));
+            return ref;
+        }
+
+        public SExpr makeAlias(Expr expr) throws Err {
+            if (!isSintRefExpr(expr)) throw new AssertionError();
+            StringBuilder sb = new StringBuilder();
+            sb.append("SintExpr");
+            sb.append(exprcnt);
+            exprcnt++;
+            smtvars.add(sb.toString());
+            Sig ref = new Sig.PrimSig(sb.toString(), sigSintref);
+            addRefSig(ref, new Vector<Sig>());
+            SExpr var = SExpr.sym(sb.toString() + "$0");
+            newfacts.add(ref.join(aqclass).equal(expr.join(aqclass)));
+            return var;
+        }
+
+        public boolean isSintRefExpr(Expr expr) {
+            return expr.type().isSubtypeOf(sigSintref.type());
+        }
+
+        public boolean isSintExpr(Expr expr) {
+            return expr.type().equals(sigSint.type());
+        }
     }
 
 
@@ -201,59 +263,167 @@ public class SmtPreprocessor {
 
     private static class FormulaRewriter extends VisitReturn<Expr> {
 
-        @Override
-        public Expr visit(ExprBinary x) throws Err {
-            return null;
+        public static Expr rewrite(ConversionContext ctx, Expr formula) throws Err {
+            FormulaRewriter rewriter = new FormulaRewriter(ctx);
+            // We don't use `apply` here, because FormulaRewriter is also used by
+            // SintExprRewriter to rewrite subexpressions.
+            return rewriter.visitThis(formula);
         }
 
-        @Override
-        public Expr visit(ExprList x) throws Err {
-            return null;
+        private final ConversionContext ctx;
+
+        private FormulaRewriter(ConversionContext ctx) {
+            this.ctx = ctx;
+        }
+       
+        private Expr apply(Expr expr) throws Err {
+            if (ctx.isSintExpr(expr)) {
+                return SintExprRewriter.rewrite(ctx, expr);
+            } else {
+                return visitThis(expr);
+            }
         }
 
-        @Override
-        public Expr visit(ExprCall x) throws Err {
-            return null;
+        @Override public Expr visit(ExprBinary x) throws Err {
+            return x.op.make(x.pos, x.closingBracket, apply(x.left), apply(x.right));
+        }
+        @Override public Expr visit(ExprUnary x) throws Err {
+            return x.op.make(x.pos, apply(x.sub));
+        }
+        @Override public Expr visit(ExprITE x) throws Err {
+            return ExprITE.make(x.pos, apply(x.cond), apply(x.left), apply(x.right));
+        }
+        @Override public Expr visit(ExprList x) throws Err {
+            ConstList.TempList<Expr> args = new ConstList.TempList<Expr>();
+            for (Expr e: x.args) {
+                args.add(apply(e));
+            }
+            return ExprList.make(x.pos, x.closingBracket, x.op, args.makeConst());
+        }
+        @Override public Expr visit(ExprConstant x) throws Err {
+            return x;
+        }
+        @Override public Expr visit(ExprVar x) throws Err {
+            return x;
+        }
+        @Override public Expr visit(ExprLet x) throws Err {
+            return ExprLet.make(x.pos, x.var, apply(x.expr), apply(x.sub));
+        }
+        @Override public Expr visit(Sig x) throws Err {
+            return ctx.mapSig(x);
+        }
+        @Override public Expr visit(Sig.Field x) throws Err {
+            return ctx.mapField(x);
         }
 
-        @Override
-        public Expr visit(ExprConstant x) throws Err {
-            return null;
-        }
-
-        @Override
-        public Expr visit(ExprITE x) throws Err {
-            return null;
-        }
-
-        @Override
-        public Expr visit(ExprLet x) throws Err {
-            return null;
+        @Override public Expr visit(ExprCall x) throws Err {
+            if (x.fun.label.equals("smtint/gt")) {
+                return SintExprRewriter.rewriteFun(ctx, x, ">");
+            } else {
+                ConstList.TempList<Expr> args = new ConstList.TempList<Expr>();
+                for (Expr e : x.args) {
+                    args.add(visitThis(e));
+                }
+                return ExprCall.make(x.pos, x.closingBracket, x.fun, args.makeConst(), x.extraWeight);
+            }
         }
 
         @Override
         public Expr visit(ExprQt x) throws Err {
-            return null;
+            // TODO: handle quantification correctly w.r.t. Sintexprs
+            return x.op.make(x.pos, x.closingBracket, x.decls, apply(x.sub));
+        }
+
+    }
+
+
+    private static class SintExprRewriter extends VisitReturn<SExpr> {
+
+        public static Expr rewrite(ConversionContext ctx, Expr expr) throws Err {
+            SintExprRewriter rewriter = new SintExprRewriter(ctx);
+            SExpr result = rewriter.visitThis(expr);
+            return ctx.makeRefSig(result).join(ctx.aqclass);
+        }
+
+        public static Expr rewriteFun(ConversionContext ctx, ExprCall x, String smtOp) throws Err {
+            SintExprRewriter rewriter = new SintExprRewriter(ctx);
+            Vector<SExpr> sargs = new Vector<SExpr>();
+            for (Expr arg : x.args) {
+                sargs.add(rewriter.visitThis(arg));
+            }
+            SExpr result = SExpr.call(smtOp, sargs.toArray(new SExpr[]{}));
+            ctx.addGlobalFact(result);
+            return ExprConstant.TRUE;
+        }
+
+        private final ConversionContext ctx;
+
+        private SintExprRewriter(ConversionContext ctx) {
+            this.ctx = ctx;
+        }
+
+        private SExpr unexpected() {
+            throw new AssertionError("unexpected node");
         }
 
         @Override
-        public Expr visit(ExprUnary x) throws Err {
-            return null;
+        public SExpr visit(ExprCall x) throws Err {
+            if (x.fun.label.equals("smtint/gt")) {
+                return SExpr.call(">", visitThis(x.args.get(0)), visitThis(x.args.get(1)));
+            } else if (x.fun.label.equals("smtint/plus")) {
+                return SExpr.call("+", visitThis(x.args.get(0)), visitThis(x.args.get(1)));
+            } else if (x.fun.label.equals("smtint/const")) {
+                Expr arg = x.args.get(0);
+                int c;
+                if (arg instanceof ExprConstant)
+                    c = ((ExprConstant) arg).num();
+                else if (arg instanceof ExprUnary) {
+                    ExprUnary cast = (ExprUnary) arg;
+                    if (cast.op != ExprUnary.Op.CAST2SIGINT) throw new AssertionError();
+                    c = ((ExprConstant) cast.sub).num();
+                } else {
+                    throw new AssertionError();
+                }
+                return SExpr.num(c);
+            } else {
+                throw new AssertionError("User defined Sint functions not yet supported");
+            }
         }
 
-        @Override
-        public Expr visit(ExprVar x) throws Err {
-            return null;
+        private SExpr makeAlias(Expr x) throws Err {
+            return ctx.makeAlias(FormulaRewriter.rewrite(ctx, x));
         }
 
-        @Override
-        public Expr visit(Sig x) throws Err {
-            return null;
+        @Override public SExpr visit(ExprBinary x) throws Err {
+            return makeAlias(x);
         }
-
-        @Override
-        public Expr visit(Sig.Field x) throws Err {
-            return null;
+        @Override public SExpr visit(ExprList x) throws Err {
+            return unexpected();
+        }
+        @Override public SExpr visit(ExprConstant x) throws Err {
+            return unexpected();
+        }
+        @Override public SExpr visit(ExprITE x) throws Err {
+            return unexpected();
+        }
+        @Override public SExpr visit(ExprLet x) throws Err {
+            return unexpected();
+        }
+        @Override public SExpr visit(ExprQt x) throws Err {
+            return unexpected();
+        }
+        @Override public SExpr visit(ExprUnary x) throws Err {
+            return unexpected();
+        }
+        @Override public SExpr visit(ExprVar x) throws Err {
+            return unexpected();
+        }
+        @Override public SExpr visit(Sig x) throws Err {
+            return unexpected();
+        }
+        @Override public SExpr visit(Sig.Field x) throws Err {
+            return unexpected();
         }
     }
+
 }
