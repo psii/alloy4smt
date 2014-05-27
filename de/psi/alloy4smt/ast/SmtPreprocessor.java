@@ -7,9 +7,7 @@ import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4compiler.ast.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Vector;
+import java.util.*;
 
 public class SmtPreprocessor {
     public static PreparedCommand build(Command c, ConstList<Sig> allReachableSigs) throws Err {
@@ -149,18 +147,38 @@ public class SmtPreprocessor {
             return ref;
         }
 
-        public SExpr makeAlias(Expr expr) throws Err {
+        public Pair<SExpr, Expr> makeAlias(Expr expr) throws Err {
             if (!isSintRefExpr(expr)) throw new AssertionError();
+            final Set<ExprVar> usedquantifiers = FreeVarFinder.find(expr);
+
             StringBuilder sb = new StringBuilder();
             sb.append("SintExpr");
             sb.append(exprcnt);
             exprcnt++;
             smtvars.add(sb.toString());
             Sig ref = new Sig.PrimSig(sb.toString(), sigSintref);
+
+            Expr left;
+            if (usedquantifiers.isEmpty()) {
+                left = ref;
+            } else {
+                Type type = null;
+                for (ExprVar var : usedquantifiers) {
+                    if (type == null)
+                        type = var.type();
+                    else
+                        type = var.type().product(type);
+                }
+                
+                final Sig.Field mapfield = ref.addField("map", type.toExpr());
+                left = mapfield;
+                for (ExprVar var : usedquantifiers) {
+                    left = left.join(var);
+                }
+            }
             addRefSig(ref, new Vector<Sig>());
             SExpr var = SExpr.sym(sb.toString() + "$0");
-            newfacts.add(ref.join(aqclass).equal(expr.join(aqclass)));
-            return var;
+            return new Pair<SExpr, Expr>(var, left.join(aqclass).equal(expr.join(aqclass)));
         }
 
         public boolean isSintRefExpr(Expr expr) {
@@ -169,6 +187,26 @@ public class SmtPreprocessor {
 
         public boolean isSintExpr(Expr expr) {
             return expr.type().equals(sigSint.type());
+        }
+    }
+
+
+    private static class FreeVarFinder extends VisitQuery<Object> {
+        private Set<ExprVar> freeVars = new LinkedHashSet<ExprVar>();
+
+        @Override
+        public Object visit(ExprVar x) throws Err {
+            freeVars.add(x);
+            return super.visit(x);
+        }
+
+        private FreeVarFinder() {
+        }
+
+        public static Set<ExprVar> find(Expr x) throws Err {
+            FreeVarFinder finder = new FreeVarFinder();
+            finder.visitThis(x);
+            return finder.freeVars;
         }
     }
 
@@ -261,27 +299,35 @@ public class SmtPreprocessor {
     }
 
 
-    private static class FormulaRewriter extends VisitReturn<Expr> {
 
-        public static Expr rewrite(ConversionContext ctx, Expr formula) throws Err {
-            FormulaRewriter rewriter = new FormulaRewriter(ctx);
-            // We don't use `apply` here, because FormulaRewriter is also used by
+    private static class ExprRewriter extends VisitReturn<Expr> {
+
+        public static Pair<Expr, Expr> rewrite(ConversionContext ctx, Expr expr) throws Err {
+            ExprRewriter rewriter = new ExprRewriter(ctx);
+            // We don't use `applyFormula` here, because FormulaRewriter is also used by
             // SintExprRewriter to rewrite subexpressions.
-            return rewriter.visitThis(formula);
+            return new Pair<Expr, Expr>(rewriter.visitThis(expr), rewriter.result.getExpr());
         }
 
         private final ConversionContext ctx;
+        private final AndExprBuilder result = new AndExprBuilder();
 
-        private FormulaRewriter(ConversionContext ctx) {
+        private ExprRewriter(ConversionContext ctx) {
             this.ctx = ctx;
         }
-       
+
         private Expr apply(Expr expr) throws Err {
             if (ctx.isSintExpr(expr)) {
-                return SintExprRewriter.rewrite(ctx, expr);
+                Pair<Expr, Expr> rewrite = SintExprRewriter.rewrite(ctx, expr);
+                result.add(rewrite.b);
+                return rewrite.a;
             } else {
                 return visitThis(expr);
             }
+        }
+
+        private Expr unexpected() {
+            throw new AssertionError("unexpected node");
         }
 
         @Override public Expr visit(ExprBinary x) throws Err {
@@ -317,8 +363,124 @@ public class SmtPreprocessor {
         }
 
         @Override public Expr visit(ExprCall x) throws Err {
+            ConstList.TempList<Expr> args = new ConstList.TempList<Expr>();
+            for (Expr e : x.args) {
+                args.add(visitThis(e));
+            }
+            return ExprCall.make(x.pos, x.closingBracket, x.fun, args.makeConst(), x.extraWeight);
+        }
+
+        @Override
+        public Expr visit(ExprQt x) throws Err {
+            return unexpected();
+        }
+
+    }
+
+
+    private static class AndExprBuilder {
+        private final ConstList.TempList<Expr> result = new ConstList.TempList<Expr>();
+
+        public void add(Expr expr) {
+            if (expr.equals(ExprConstant.TRUE))
+                return;
+            result.add(expr);
+        }
+
+        public Expr getExpr() {
+            if (result.size() == 0)
+                return ExprConstant.TRUE;
+            if (result.size() == 1)
+                return result.get(0);
+
+            Expr last = result.get(result.size() - 1);
+            return ExprList.make(last.pos, last.closingBracket, ExprList.Op.AND, result.makeConst());
+        }
+
+    }
+
+
+    private static class FormulaRewriter extends VisitReturn<Expr> {
+
+        public static Expr rewrite(ConversionContext ctx, Expr formula) throws Err {
+            if (!formula.type().is_bool) throw new AssertionError();
+            FormulaRewriter rewriter = new FormulaRewriter(ctx);
+            // We don't use `applyFormula` here, because FormulaRewriter is also used by
+            // SintExprRewriter to rewrite subexpressions.
+            return rewriter.visitThis(formula);
+        }
+
+        private final ConversionContext ctx;
+
+        private FormulaRewriter(ConversionContext ctx) {
+            this.ctx = ctx;
+        }
+
+        private Expr unexpected() {
+            throw new AssertionError("unexpected node");
+        }
+       
+        private Expr applyFormula(Expr expr) throws Err {
+            if (!expr.type().is_bool) throw new AssertionError();
+            return visitThis(expr);
+        }
+
+        @Override public Expr visit(ExprBinary x) throws Err {
+            Pair<Expr, Expr> left = ExprRewriter.rewrite(ctx, x.left);
+            Pair<Expr, Expr> right = ExprRewriter.rewrite(ctx, x.right);
+            Expr newx = x.op.make(x.pos, x.closingBracket, left.a, right.a);
+            AndExprBuilder result = new AndExprBuilder();
+            result.add(left.b);
+            result.add(right.b);
+            result.add(newx);
+            return result.getExpr();
+        }
+        @Override public Expr visit(ExprUnary x) throws Err {
+            if (x.sub.type().is_bool)
+                return x.op.make(x.pos, applyFormula(x.sub));
+            else {
+                Pair<Expr, Expr> rewritten = ExprRewriter.rewrite(ctx, x.sub);
+                AndExprBuilder result = new AndExprBuilder();
+                result.add(rewritten.b);
+                result.add(x.op.make(x.pos, rewritten.a));
+                return result.getExpr();
+            }
+        }
+        @Override public Expr visit(ExprITE x) throws Err {
+            return ExprITE.make(x.pos, applyFormula(x.cond), applyFormula(x.left), applyFormula(x.right));
+        }
+        @Override public Expr visit(ExprList x) throws Err {
+            ConstList.TempList<Expr> args = new ConstList.TempList<Expr>();
+            for (Expr e: x.args) {
+                args.add(applyFormula(e));
+            }
+            return ExprList.make(x.pos, x.closingBracket, x.op, args.makeConst());
+        }
+        @Override public Expr visit(ExprConstant x) throws Err {
+            return x;
+        }
+        @Override public Expr visit(ExprVar x) throws Err {
+            return x;
+        }
+        @Override public Expr visit(ExprLet x) throws Err {
+            Pair<Expr, Expr> rewritten = ExprRewriter.rewrite(ctx, x.expr);
+            AndExprBuilder result = new AndExprBuilder();
+            result.add(rewritten.b);
+            result.add(ExprLet.make(x.pos, x.var, rewritten.a, applyFormula(x.sub)));
+            return result.getExpr();
+        }
+        @Override public Expr visit(Sig x) throws Err {
+            return unexpected();
+        }
+        @Override public Expr visit(Sig.Field x) throws Err {
+            return unexpected();
+        }
+
+        @Override public Expr visit(ExprCall x) throws Err {
             if (x.fun.label.equals("smtint/gt")) {
                 return SintExprRewriter.rewriteFun(ctx, x, ">");
+            } else if (x.fun.label.equals("smtint/eq")) {
+                return SintExprRewriter.rewriteFun(ctx, x, "=");
             } else {
                 ConstList.TempList<Expr> args = new ConstList.TempList<Expr>();
                 for (Expr e : x.args) {
@@ -330,8 +492,21 @@ public class SmtPreprocessor {
 
         @Override
         public Expr visit(ExprQt x) throws Err {
-            // TODO: handle quantification correctly w.r.t. Sintexprs
-            return x.op.make(x.pos, x.closingBracket, x.decls, apply(x.sub));
+            AndExprBuilder result = new AndExprBuilder();
+            ConstList.TempList<Decl> decls = new ConstList.TempList<Decl>();
+            for (Decl d : x.decls) {
+                Pair<Expr, Expr> rewritten = ExprRewriter.rewrite(ctx, d.expr);
+                Expr expr = rewritten.a;
+                result.add(rewritten.b);
+                ConstList.TempList<ExprHasName> names = new ConstList.TempList<ExprHasName>();
+                for (ExprHasName ehn : d.names) {
+                    ExprVar var = ExprVar.make(ehn.pos, ehn.label, expr.type());
+                    names.add(var);
+                }
+                decls.add(new Decl(d.isPrivate, d.disjoint, d.disjoint2, names.makeConst(), expr));
+            }
+            result.add(x.op.make(x.pos, x.closingBracket, decls.makeConst(), rewrite(ctx, x.sub)));
+            return result.getExpr();
         }
 
     }
@@ -339,10 +514,10 @@ public class SmtPreprocessor {
 
     private static class SintExprRewriter extends VisitReturn<SExpr> {
 
-        public static Expr rewrite(ConversionContext ctx, Expr expr) throws Err {
+        public static Pair<Expr, Expr> rewrite(ConversionContext ctx, Expr expr) throws Err {
             SintExprRewriter rewriter = new SintExprRewriter(ctx);
             SExpr result = rewriter.visitThis(expr);
-            return ctx.makeRefSig(result).join(ctx.aqclass);
+            return new Pair<Expr, Expr>(ctx.makeRefSig(result).join(ctx.aqclass), rewriter.getResult());
         }
 
         public static Expr rewriteFun(ConversionContext ctx, ExprCall x, String smtOp) throws Err {
@@ -353,13 +528,18 @@ public class SmtPreprocessor {
             }
             SExpr result = SExpr.call(smtOp, sargs.toArray(new SExpr[]{}));
             ctx.addGlobalFact(result);
-            return ExprConstant.TRUE;
+            return rewriter.getResult();
         }
 
         private final ConversionContext ctx;
+        private final AndExprBuilder result = new AndExprBuilder();
 
         private SintExprRewriter(ConversionContext ctx) {
             this.ctx = ctx;
+        }
+
+        private Expr getResult() {
+            return result.getExpr();
         }
 
         private SExpr unexpected() {
@@ -391,7 +571,11 @@ public class SmtPreprocessor {
         }
 
         private SExpr makeAlias(Expr x) throws Err {
-            return ctx.makeAlias(FormulaRewriter.rewrite(ctx, x));
+            Pair<Expr, Expr> rewritten = ExprRewriter.rewrite(ctx, x);
+            Pair<SExpr, Expr> alias = ctx.makeAlias(rewritten.a);
+            result.add(rewritten.b);
+            result.add(alias.b);
+            return alias.a;
         }
 
         @Override public SExpr visit(ExprBinary x) throws Err {

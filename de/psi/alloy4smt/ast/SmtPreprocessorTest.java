@@ -205,5 +205,40 @@ public class SmtPreprocessorTest {
                         "SintExpr3 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass), " +
                         "SintExpr1 . (smtint/SintRef <: aqclass) = SintExpr2 . (smtint/SintRef <: aqclass)" +
                 "]",
-                commands.get(0).command.formula.toString());    }
+                commands.get(0).command.formula.toString());
+
+        assertEquals("Run show for 3 but exactly 1 A_v_SintRef, exactly 1 SintExpr0, exactly 1 SintExpr1, exactly 1 SintExpr2, exactly 1 SintExpr3",
+                commands.get(0).command.toString());
+    }
+
+    @Test
+    public void rewriteFactsAndExtractIntExprsInQuantifiedFormula() throws Err {
+        parseModule(
+                        "sig A { v: Sint }\n" +
+                        "fact { all a: A | a.v.plus[const[2]].eq[const[4]] }\n" +
+                        "pred show {}\n" +
+                        "run show for 3 A\n");
+        assertEquals("AND[(all a | smtint/eq[smtint/plus[a . (this/A <: v), smtint/const[Int[2]]], smtint/const[Int[4]]])]",
+                module.getAllReachableFacts().toString());
+        assertEquals("AND[" +
+                "(all a | (SintExpr0 <: map) . a . (smtint/SintRef <: aqclass) = " +
+                "a . (this/A <: v) . (smtint/SintRef <: aqclass))" +
+                "]", commands.get(0).command.formula.toString());
+        assertEquals("Run show for 3 A, exactly 3 A_v_SintRef, exactly 3 SintExpr0",
+                commands.get(0).command.toString());
+/*
+        assertIntexprBound(0, "[" +
+                "[IntExpr0$0, A$0], " +
+                "[IntExpr0$1, A$1], " +
+                "[IntExpr0$2, A$2]" +
+                "]");
+
+        List<String> expectedHysatExprs = new Vector<String>();
+        expectedHysatExprs.add("((IntExpr0$0 + 2) = 4)");
+        expectedHysatExprs.add("((IntExpr0$1 + 2) = 4)");
+        expectedHysatExprs.add("((IntExpr0$2 + 2) = 4)");
+        assertEquals(expectedHysatExprs, ppresult.commands.get(0).hysatExprs);
+*/
+
+    }
 }
