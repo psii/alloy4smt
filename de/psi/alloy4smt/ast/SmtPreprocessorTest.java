@@ -194,21 +194,20 @@ public class SmtPreprocessorTest {
                         "smtint/gt[this/A . (this/A <: v), smtint/const[Int[0]]]" +
                         "]",
                 module.getAllReachableFacts().toString());
-        assertEquals("[smtint/SintRef, univ, Int, seq/Int, String, none, this/A, this/A_v_SintRef, smtint/Sint, " +
-                "SintExpr0, SintExpr1, SintExpr2, SintExpr3]", commands.get(0).sigs.toString());
 
         assertEquals("[(= SintExpr1$0 (+ SintExpr0$0 2)), (= SintExpr2$0 4), (> SintExpr3$0 0)]",
                 commands.get(0).smtExprs.toString());
+        assertEquals("[smtint/SintRef, univ, Int, seq/Int, String, none, this/A, this/A_v_SintRef, smtint/Sint, " +
+                "SintExpr0, SintExpr1, SintExpr2, SintExpr3]", commands.get(0).sigs.toString());
+        assertEquals("Run show for 3 but exactly 1 A_v_SintRef, exactly 1 SintExpr0, exactly 1 SintExpr1, exactly 1 SintExpr2, exactly 1 SintExpr3",
+                commands.get(0).command.toString());
         assertEquals(
                 "AND[" +
                         "SintExpr0 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass), " +
-                        "SintExpr3 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass), " +
-                        "SintExpr1 . (smtint/SintRef <: aqclass) = SintExpr2 . (smtint/SintRef <: aqclass)" +
+                        "SintExpr1 . (smtint/SintRef <: aqclass) = SintExpr2 . (smtint/SintRef <: aqclass), " +
+                        "SintExpr3 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass)" +
                 "]",
                 commands.get(0).command.formula.toString());
-
-        assertEquals("Run show for 3 but exactly 1 A_v_SintRef, exactly 1 SintExpr0, exactly 1 SintExpr1, exactly 1 SintExpr2, exactly 1 SintExpr3",
-                commands.get(0).command.toString());
     }
 
     @Test
@@ -224,7 +223,7 @@ public class SmtPreprocessorTest {
                 "(all a | (SintExpr0 <: map) . a . (smtint/SintRef <: aqclass) = " +
                 "a . (this/A <: v) . (smtint/SintRef <: aqclass))" +
                 "]", commands.get(0).command.formula.toString());
-        assertEquals("Run show for 3 A, exactly 3 A_v_SintRef, exactly 3 SintExpr0",
+        assertEquals("Run show for exactly 3 A_v_SintRef, 3 A, exactly 3 SintExpr0",
                 commands.get(0).command.toString());
 /*
         assertIntexprBound(0, "[" +
