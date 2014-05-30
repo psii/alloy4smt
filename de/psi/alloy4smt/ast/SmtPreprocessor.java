@@ -111,18 +111,22 @@ public class SmtPreprocessor {
             return field;
         }
 
-        public void addRefSig(Sig ref, Iterable<Sig> dependencies) throws Err {
+        public void addRefSig(Sig ref, Iterable<? extends Iterable<Sig>> dependencies) throws Err {
             allsigs.add(ref);
             int refscope = 1;
-            for (Sig depsig : dependencies) {
-                CommandScope scope = scopemap.get(depsig);
-                if (scope != null) {
-                    refscope *= scope.endingScope;
-                } else if (depsig.isOne != null || depsig.isLone != null) {
-                    refscope *= 1;
-                } else {
-                    refscope *= defaultScope;
+            for (Iterable<Sig> union : dependencies) {
+                int unionscope = 0;
+                for (Sig depsig : union) {
+                    CommandScope scope = scopemap.get(depsig);
+                    if (scope != null) {
+                        unionscope += scope.endingScope;
+                    } else if (depsig.isOne != null || depsig.isLone != null) {
+                        unionscope++;
+                    } else {
+                        unionscope += defaultScope;
+                    }
                 }
+                refscope *= unionscope;
             }
             scopes.add(new CommandScope(ref, true, refscope));
         }
@@ -136,7 +140,7 @@ public class SmtPreprocessor {
             sb.append("SintExpr");
             sb.append(exprcnt++);
             Sig ref = new Sig.PrimSig(sb.toString(), sigSintref);
-            addRefSig(ref, new Vector<Sig>());
+            addRefSig(ref, new Vector<Iterable<Sig>>());
             SExpr symb = SExpr.sym(sb.toString() + "$0");
             addGlobalFact(SExpr.eq(symb, sexpr));
             return ref;
@@ -145,7 +149,7 @@ public class SmtPreprocessor {
         public Pair<SExpr, Expr> makeAlias(Expr expr) throws Err {
             if (!isSintRefExpr(expr)) throw new AssertionError();
             final Set<ExprVar> usedquantifiers = FreeVarFinder.find(expr);
-            final List<Sig> dependencies = new Vector<Sig>();
+            final List<List<Sig>> dependencies = new Vector<List<Sig>>();
 
             StringBuilder sb = new StringBuilder();
             sb.append("SintExpr");
@@ -211,15 +215,15 @@ public class SmtPreprocessor {
         private final ConversionContext ctx;
         private final Sig sig;
         private final Sig.Field field;
-        private final ConstList.TempList<Sig> visitedsigs = new ConstList.TempList<Sig>();
+        private final ConstList.TempList<ConstList<Sig>> visitedsigs = new ConstList.TempList<ConstList<Sig>>();
         private Sig.PrimSig ref = null;
 
         public static class Result {
             public final Sig ref;
             public final Expr field;
-            public final ConstList<Sig> refdeps;
+            public final ConstList<ConstList<Sig>> refdeps;
 
-            public Result(Sig ref, Expr field, ConstList<Sig> refdeps) {
+            public Result(Sig ref, Expr field, ConstList<ConstList<Sig>> refdeps) {
                 this.ref = ref;
                 this.field = field;
                 this.refdeps = refdeps;
@@ -236,7 +240,7 @@ public class SmtPreprocessor {
             this.ctx = ctx;
             this.sig = sig;
             this.field = field;
-            visitedsigs.add(sig);
+            visitedsigs.add(new ConstList.TempList<Sig>(sig).makeConst());
         }
 
         private Expr unexpected() {
@@ -270,6 +274,7 @@ public class SmtPreprocessor {
         }
 
         @Override public Expr visit(ExprBinary x) throws Err {
+            // FIXME: Handle cases like A+B -> Sint (compared to A->B->Sint)
             return x.op.make(x.pos, x.closingBracket, visitThis(x.left), visitThis(x.right));
         }
 
@@ -282,7 +287,7 @@ public class SmtPreprocessor {
                 ref = new Sig.PrimSig(label, ctx.sigSintref);
                 s = ref;
             } else {
-                visitedsigs.add(x);
+                visitedsigs.add(new ConstList.TempList<Sig>(x).makeConst());
                 s = ctx.mapSig(x);
             }
             return s;
