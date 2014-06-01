@@ -111,12 +111,15 @@ public class SmtPreprocessor {
             return field;
         }
 
-        public void addRefSig(Sig ref, Iterable<? extends Iterable<Sig>> dependencies) throws Err {
+        public void addRefSig(Sig ref, Iterable<Type> dependencies) throws Err {
             allsigs.add(ref);
             int refscope = 1;
-            for (Iterable<Sig> union : dependencies) {
+            for (Type type : dependencies) {
+                if (!type.hasArity(1)) throw new AssertionError();
                 int unionscope = 0;
-                for (Sig depsig : union) {
+                for (List<Sig.PrimSig> l : type.fold()) {
+                    if (l.size() != 1) throw new AssertionError();
+                    Sig.PrimSig depsig = l.get(0);
                     CommandScope scope = scopemap.get(depsig);
                     if (scope != null) {
                         unionscope += scope.endingScope;
@@ -140,7 +143,7 @@ public class SmtPreprocessor {
             sb.append("SintExpr");
             sb.append(exprcnt++);
             Sig ref = new Sig.PrimSig(sb.toString(), sigSintref);
-            addRefSig(ref, new Vector<Iterable<Sig>>());
+            addRefSig(ref, new Vector<Type>());
             SExpr symb = SExpr.sym(sb.toString() + "$0");
             addGlobalFact(SExpr.eq(symb, sexpr));
             return ref;
@@ -149,7 +152,7 @@ public class SmtPreprocessor {
         public Pair<SExpr, Expr> makeAlias(Expr expr) throws Err {
             if (!isSintRefExpr(expr)) throw new AssertionError();
             final Set<ExprVar> usedquantifiers = FreeVarFinder.find(expr);
-            final List<List<Sig>> dependencies = new Vector<List<Sig>>();
+            final List<Type> dependencies = new Vector<Type>();
 
             StringBuilder sb = new StringBuilder();
             sb.append("SintExpr");
@@ -164,6 +167,9 @@ public class SmtPreprocessor {
             } else {
                 Type type = null;
                 for (ExprVar var : usedquantifiers) {
+                    if (!var.type().hasArity(1))
+                        throw new AssertionError("Quantified variables with arity > 1 are not supported");
+                    dependencies.add(var.type());
                     if (type == null)
                         type = var.type();
                     else
@@ -215,15 +221,15 @@ public class SmtPreprocessor {
         private final ConversionContext ctx;
         private final Sig sig;
         private final Sig.Field field;
-        private final ConstList.TempList<ConstList<Sig>> visitedsigs = new ConstList.TempList<ConstList<Sig>>();
+        private final ConstList.TempList<Type> visitedsigs = new ConstList.TempList<Type>();
         private Sig.PrimSig ref = null;
 
         public static class Result {
             public final Sig ref;
             public final Expr field;
-            public final ConstList<ConstList<Sig>> refdeps;
+            public final ConstList<Type> refdeps;
 
-            public Result(Sig ref, Expr field, ConstList<ConstList<Sig>> refdeps) {
+            public Result(Sig ref, Expr field, ConstList<Type> refdeps) {
                 this.ref = ref;
                 this.field = field;
                 this.refdeps = refdeps;
@@ -240,7 +246,7 @@ public class SmtPreprocessor {
             this.ctx = ctx;
             this.sig = sig;
             this.field = field;
-            visitedsigs.add(new ConstList.TempList<Sig>(sig).makeConst());
+            visitedsigs.add(sig.type());
         }
 
         private Expr unexpected() {
@@ -275,6 +281,7 @@ public class SmtPreprocessor {
 
         @Override public Expr visit(ExprBinary x) throws Err {
             // FIXME: Handle cases like A+B -> Sint (compared to A->B->Sint)
+            if (!x.op.isArrow) throw new AssertionError();
             return x.op.make(x.pos, x.closingBracket, visitThis(x.left), visitThis(x.right));
         }
 
@@ -287,7 +294,7 @@ public class SmtPreprocessor {
                 ref = new Sig.PrimSig(label, ctx.sigSintref);
                 s = ref;
             } else {
-                visitedsigs.add(new ConstList.TempList<Sig>(x).makeConst());
+                visitedsigs.add(x.type());
                 s = ctx.mapSig(x);
             }
             return s;
