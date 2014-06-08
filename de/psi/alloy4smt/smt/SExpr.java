@@ -6,6 +6,8 @@ import java.util.Vector;
 
 public abstract class SExpr {
 
+    public static final SExpr TRUE = SExpr.sym("#t");
+
     public static SExpr num(int i) {
         return new Symbol(String.valueOf(i));
     }
@@ -19,6 +21,16 @@ public abstract class SExpr {
         l.add(sym(funcName));
         l.addAll(Arrays.asList(args));
         return new SList(l);
+    }
+
+    public static SExpr and(SExpr... args) {
+        if (args.length > 1) {
+            return call("and", args);
+        } else if (args.length == 1) {
+            return args[0];
+        } else {
+            return TRUE;
+        }
     }
 
     public static SExpr add(SExpr... args) {

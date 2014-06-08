@@ -225,6 +225,8 @@ public class SmtPreprocessorTest {
                 "]", commands.get(0).command.formula.toString());
         assertEquals("Run show for exactly 3 A_v_SintRef, 3 A, exactly 3 SintExpr0",
                 commands.get(0).command.toString());
+        assertEquals("[(= (+ SintExpr0$0 2) 4), (= (+ SintExpr0$1 2) 4), (= (+ SintExpr0$2 2) 4)]",
+                commands.get(0).smtExprs.toString());
 /*
         assertIntexprBound(0, "[" +
                 "[IntExpr0$0, A$0], " +

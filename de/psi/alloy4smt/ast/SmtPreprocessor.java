@@ -111,7 +111,7 @@ public class SmtPreprocessor {
             return field;
         }
 
-        public void addRefSig(Sig ref, Iterable<Type> dependencies) throws Err {
+        public int addRefSig(Sig ref, Iterable<Type> dependencies) throws Err {
             allsigs.add(ref);
             int refscope = 1;
             for (Type type : dependencies) {
@@ -132,6 +132,7 @@ public class SmtPreprocessor {
                 refscope *= unionscope;
             }
             scopes.add(new CommandScope(ref, true, refscope));
+            return refscope;
         }
 
         public void addGlobalFact(SExpr sexpr) {
@@ -149,7 +150,16 @@ public class SmtPreprocessor {
             return ref;
         }
 
-        public Pair<SExpr, Expr> makeAlias(Expr expr) throws Err {
+        /**
+         * Creates an alias for an arbitrary complex SintRef expression w.r.t.
+         * free variables.
+         * @param expr Alloy Expression which must be of type SintRef
+         * @return A pair (smtvar, subst) where smtvar contains a reference to the
+         *         SMT variable as a SExpr. subst is the substitution for expr which
+         *         references the newly generated SintExpr signature relation.
+         * @throws Err
+         */
+        public Pair<ConstList<SExpr>, Expr> makeAlias(Expr expr) throws Err {
             if (!isSintRefExpr(expr)) throw new AssertionError();
             final Set<ExprVar> usedquantifiers = FreeVarFinder.find(expr);
             final List<Type> dependencies = new Vector<Type>();
@@ -182,9 +192,11 @@ public class SmtPreprocessor {
                     left = left.join(var);
                 }
             }
-            addRefSig(ref, dependencies);
-            SExpr var = SExpr.sym(sb.toString() + "$0");
-            return new Pair<SExpr, Expr>(var, left.join(aqclass).equal(expr.join(aqclass)));
+            int scope = addRefSig(ref, dependencies);
+            ConstList.TempList<SExpr> vars = new ConstList.TempList<SExpr>();
+            for (int i = 0; i < scope; ++i)
+                vars.add(SExpr.sym(sb.toString() + "$" + i));
+            return new Pair<ConstList<SExpr>, Expr>(vars.makeConst(), left.join(aqclass).equal(expr.join(aqclass)));
         }
 
         public boolean isSintRefExpr(Expr expr) {
@@ -522,23 +534,33 @@ public class SmtPreprocessor {
     }
 
 
-    private static class SintExprRewriter extends VisitReturn<SExpr> {
+    private static class SintExprRewriter extends VisitReturn<ConstList<SExpr>> {
 
         public static Pair<Expr, AndExpr> rewrite(ConversionContext ctx, Expr expr) throws Err {
             SintExprRewriter rewriter = new SintExprRewriter(ctx);
-            SExpr result = rewriter.visitThis(expr);
+            SExpr result = SExpr.and(rewriter.visitThis(expr).toArray(new SExpr[]{}));
             return new Pair<Expr, AndExpr>(ctx.makeRefSig(result).join(ctx.aqclass), rewriter.result);
         }
 
         public static Expr rewriteFun(ConversionContext ctx, ExprCall x, String smtOp) throws Err {
             SintExprRewriter rewriter = new SintExprRewriter(ctx);
-            Vector<SExpr> sargs = new Vector<SExpr>();
+            ConstList.TempList<ConstList<SExpr>> sexprs = new ConstList.TempList<ConstList<SExpr>>();
             for (Expr arg : x.args) {
-                sargs.add(rewriter.visitThis(arg));
+                sexprs.add(rewriter.visitThis(arg));
             }
-            SExpr result = SExpr.call(smtOp, sargs.toArray(new SExpr[]{}));
-            ctx.addGlobalFact(result);
+            rewriteFunRec(ctx, smtOp, sexprs.makeConst(), new SExpr[sexprs.size()], 0);
             return rewriter.result.getExpr();
+        }
+
+        private static void rewriteFunRec(ConversionContext ctx, String smtOp, ConstList<ConstList<SExpr>> sexprs, SExpr[] args, int depth) {
+            if (depth == sexprs.size()) {
+                ctx.addGlobalFact(SExpr.call(smtOp, args));
+            } else {
+                for (SExpr arg : sexprs.get(depth)) {
+                    args[depth] = arg;
+                    rewriteFunRec(ctx, smtOp, sexprs, args, depth + 1);
+                }
+            }
         }
 
         private final ConversionContext ctx;
@@ -548,16 +570,25 @@ public class SmtPreprocessor {
             this.ctx = ctx;
         }
 
-        private SExpr unexpected() {
+        private ConstList<SExpr> unexpected() {
             throw new AssertionError("unexpected node");
         }
 
         @Override
-        public SExpr visit(ExprCall x) throws Err {
+        public ConstList<SExpr> visit(ExprCall x) throws Err {
+            ConstList.TempList<SExpr> result = new ConstList.TempList<SExpr>();
             if (x.fun.label.equals("smtint/gt")) {
-                return SExpr.call(">", visitThis(x.args.get(0)), visitThis(x.args.get(1)));
+                for (SExpr left : visitThis(x.args.get(0))) {
+                    for (SExpr right : visitThis(x.args.get(1))) {
+                        result.add(SExpr.call(">", left, right));
+                    }
+                }
             } else if (x.fun.label.equals("smtint/plus")) {
-                return SExpr.call("+", visitThis(x.args.get(0)), visitThis(x.args.get(1)));
+                for (SExpr left : visitThis(x.args.get(0))) {
+                    for (SExpr right : visitThis(x.args.get(1))) {
+                        result.add(SExpr.call("+", left, right));
+                    }
+                }
             } else if (x.fun.label.equals("smtint/const")) {
                 Expr arg = x.args.get(0);
                 int c;
@@ -570,47 +601,48 @@ public class SmtPreprocessor {
                 } else {
                     throw new AssertionError();
                 }
-                return SExpr.num(c);
+                result.add(SExpr.num(c));
             } else {
                 throw new AssertionError("User defined Sint functions not yet supported");
             }
+            return result.makeConst();
         }
 
-        @Override public SExpr visit(ExprBinary x) throws Err {
+        @Override public ConstList<SExpr> visit(ExprBinary x) throws Err {
             // Relational expression in alloy which results in a Sint, e.g. a . (this/A <: v)
             Pair<Expr, AndExpr> left = ExprRewriter.rewrite(ctx, x.left);
             Pair<Expr, AndExpr> right = ExprRewriter.rewrite(ctx, x.right);
-            Pair<SExpr, Expr> alias = ctx.makeAlias(x.op.make(x.pos, x.closingBracket, left.a, right.a));
+            Pair<ConstList<SExpr>, Expr> alias = ctx.makeAlias(x.op.make(x.pos, x.closingBracket, left.a, right.a));
             result.add(left.b);
             result.add(right.b);
             result.add(alias.b);
             return alias.a;
         }
-        @Override public SExpr visit(ExprList x) throws Err {
+        @Override public ConstList<SExpr> visit(ExprList x) throws Err {
             return unexpected();
         }
-        @Override public SExpr visit(ExprConstant x) throws Err {
+        @Override public ConstList<SExpr> visit(ExprConstant x) throws Err {
             return unexpected();
         }
-        @Override public SExpr visit(ExprITE x) throws Err {
+        @Override public ConstList<SExpr> visit(ExprITE x) throws Err {
             return unexpected();
         }
-        @Override public SExpr visit(ExprLet x) throws Err {
+        @Override public ConstList<SExpr> visit(ExprLet x) throws Err {
             return unexpected();
         }
-        @Override public SExpr visit(ExprQt x) throws Err {
+        @Override public ConstList<SExpr> visit(ExprQt x) throws Err {
             return unexpected();
         }
-        @Override public SExpr visit(ExprUnary x) throws Err {
+        @Override public ConstList<SExpr> visit(ExprUnary x) throws Err {
             return unexpected();
         }
-        @Override public SExpr visit(ExprVar x) throws Err {
+        @Override public ConstList<SExpr> visit(ExprVar x) throws Err {
             return unexpected();
         }
-        @Override public SExpr visit(Sig x) throws Err {
+        @Override public ConstList<SExpr> visit(Sig x) throws Err {
             return unexpected();
         }
-        @Override public SExpr visit(Sig.Field x) throws Err {
+        @Override public ConstList<SExpr> visit(Sig.Field x) throws Err {
             return unexpected();
         }
     }
