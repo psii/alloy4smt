@@ -63,6 +63,10 @@ public class PreparedCommand {
         return result;
     }
 
+    public TupleSet getEqualsTupleSet(TupleFactory factory) {
+        return null;
+    }
+
     public static class IntrefSigRecord {
     	public final Sig.PrimSig sig;
     	public final Sig.Field mapfield;

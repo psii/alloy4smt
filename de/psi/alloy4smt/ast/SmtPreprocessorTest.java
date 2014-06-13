@@ -5,6 +5,7 @@ import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
+import kodkod.instance.Universe;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -191,6 +192,11 @@ public class SmtPreprocessorTest {
         assertEquals(module.getAllReachableFacts().toString(), commands.get(0).command.formula.toString());
     }
 
+    private void assertEqualsTupleSet(String tuplesetstr) {
+        final Universe universe = new Universe(commands.get(0).getIntrefAtoms());
+        assertEquals(tuplesetstr, commands.get(0).getEqualsTupleSet(universe.factory()));
+    }
+
     @Test
     public void rewriteFactsAndExtractIntExprs() throws Err {
         parseModule(
@@ -220,6 +226,9 @@ public class SmtPreprocessorTest {
                         smtintFacts +
                 "]",
                 commands.get(0).command.formula.toString());
+        assertEquals("[A_v_SintRef$0, SintExpr0$0, SintExpr1$0, SintExpr2$0, SintExpr3$0]",
+                commands.get(0).getIntrefAtoms());
+        assertEqualsTupleSet("[]");
     }
 
     @Test
@@ -232,7 +241,7 @@ public class SmtPreprocessorTest {
         assertEquals("AND[" +
                         "(all a | smtint/eq[smtint/plus[a . (this/A <: v), smtint/const[Int[2]]], smtint/const[Int[4]]]), " +
                         smtintFacts +
-                     "]",
+                        "]",
                 module.getAllReachableFacts().toString());
         assertEquals("AND[" +
                 "(all a | (SintExpr0 <: map) . a . (smtint/SintRef <: aqclass) = " +
