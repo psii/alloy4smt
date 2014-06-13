@@ -20,6 +20,17 @@ import static org.junit.Assert.assertNull;
 public class SmtPreprocessorTest {
 
     public static final String docPrelude = "open util/smtint\n";
+    public static final String smtintFacts =
+            "(all a,b | AND[" +
+              "OR[" +
+                "b in a . (smtint/SintRef <: equals), " +
+                "a in b . (smtint/SintRef <: equals)" +
+              "] <=> a . (smtint/SintRef <: aqclass) = b . (smtint/SintRef <: aqclass), " +
+              "b in a . (smtint/SintRef <: equals) => OR[" +
+                "b . (smtint/SintRef <: aqclass) = a, " +
+                "b . (smtint/SintRef <: aqclass) in a . (smtint/SintRef <: equals)" +
+              "]" +
+            "])";
 
     private CompModule module;
     private List<PreparedCommand> commands;
@@ -191,7 +202,7 @@ public class SmtPreprocessorTest {
         assertEquals(
                 "AND[" +
                         "smtint/plus[this/A . (this/A <: v), smtint/const[Int[2]]] = smtint/const[Int[4]], " +
-                        "smtint/gt[this/A . (this/A <: v), smtint/const[Int[0]]]" +
+                        "smtint/gt[this/A . (this/A <: v), smtint/const[Int[0]]], " + smtintFacts +
                         "]",
                 module.getAllReachableFacts().toString());
 
@@ -205,7 +216,8 @@ public class SmtPreprocessorTest {
                 "AND[" +
                         "SintExpr0 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass), " +
                         "SintExpr1 . (smtint/SintRef <: aqclass) = SintExpr2 . (smtint/SintRef <: aqclass), " +
-                        "SintExpr3 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass)" +
+                        "SintExpr3 . (smtint/SintRef <: aqclass) = this/A . (this/A <: v) . (smtint/SintRef <: aqclass), " +
+                        smtintFacts +
                 "]",
                 commands.get(0).command.formula.toString());
     }
@@ -217,11 +229,14 @@ public class SmtPreprocessorTest {
                         "fact { all a: A | a.v.plus[const[2]].eq[const[4]] }\n" +
                         "pred show {}\n" +
                         "run show for 3 A\n");
-        assertEquals("AND[(all a | smtint/eq[smtint/plus[a . (this/A <: v), smtint/const[Int[2]]], smtint/const[Int[4]]])]",
+        assertEquals("AND[" +
+                        "(all a | smtint/eq[smtint/plus[a . (this/A <: v), smtint/const[Int[2]]], smtint/const[Int[4]]]), " +
+                        smtintFacts +
+                     "]",
                 module.getAllReachableFacts().toString());
         assertEquals("AND[" +
                 "(all a | (SintExpr0 <: map) . a . (smtint/SintRef <: aqclass) = " +
-                "a . (this/A <: v) . (smtint/SintRef <: aqclass))" +
+                "a . (this/A <: v) . (smtint/SintRef <: aqclass)), " + smtintFacts +
                 "]", commands.get(0).command.formula.toString());
         assertEquals("Run show for exactly 3 A_v_SintRef, 3 A, exactly 3 SintExpr0",
                 commands.get(0).command.toString());

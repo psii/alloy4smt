@@ -74,26 +74,27 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 		execute(null, pp.commands.get(0), solver);		
 	}
 	
-	public static void execute(A4Reporter rep, PreparedCommand bundle,
+	public static void execute(A4Reporter rep, PreparedCommand preparedCommand,
 			                         final HysatSolver solver) throws Err {
 		rep = rep == null ? A4Reporter.NOP : rep;
 		final A4Options opt = makeA4Options();
-		final Iterable<Sig> sigs = bundle.sigs;
-		final Command cmd = bundle.command;
-		final ConstList<String> hyexprs = bundle.hysatExprs;
-		final ConstList<String> intrefatoms = hyexprs != null ? bundle.getIntrefAtoms() : null;
+		final Iterable<Sig> sigs = preparedCommand.sigs;
+		final Command cmd = preparedCommand.command;
+		final ConstList<String> hyexprs = preparedCommand.hysatExprs;
+		final ConstList<String> intrefatoms = hyexprs != null ? preparedCommand.getIntrefAtoms() : null;
 		final Pair<A4Solution, ScopeComputer> pair = ScopeComputer.compute(rep, opt, sigs, cmd);
-		
-		BoundsComputer.compute(rep, pair.a, pair.b, sigs);
+        final A4Solution sol = pair.a;
+
+        BoundsComputer.compute(rep, sol, pair.b, sigs);
 		
 		Expr formula = cmd.formula;
 		Relation equalsrel = null;
 		TupleSet equalsupper = null;
 		if (hyexprs != null) {
-			Sig.Field equalsfield = bundle.intref.addField("equals", bundle.intref.setOf());
-			equalsupper = bundle.getIntRefEqualsTupleSet(pair.a.getFactory());
-			equalsrel = pair.a.addRel("IntRef/equals", null, equalsupper);
-			pair.a.addField(equalsfield, equalsrel);
+			Sig.Field equalsfield = preparedCommand.intref.addField("equals", preparedCommand.intref.setOf());
+			equalsupper = preparedCommand.getIntRefEqualsTupleSet(sol.getFactory());
+			equalsrel = sol.addRel("IntRef/equals", null, equalsupper);
+			sol.addField(equalsfield, equalsrel);
 			
 			/*
 			 * fact {
@@ -103,9 +104,9 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 			 *   }
 			 * }
 			 */
-			Decl da = bundle.intref.oneOf("a");
-			Decl db = bundle.intref.oneOf("b");
-			Field aqclass = Helpers.getFieldByName(bundle.intref.getFields(), "aqclass");
+			Decl da = preparedCommand.intref.oneOf("a");
+			Decl db = preparedCommand.intref.oneOf("b");
+			Field aqclass = Helpers.getFieldByName(preparedCommand.intref.getFields(), "aqclass");
 			
 			// b in a.equals or a in b.equals
 			Expr e1 = db.get().in(da.get().join(equalsfield)).or(da.get().in(db.get().join(equalsfield)));
@@ -121,11 +122,11 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 			Expr sub = e5.implies(e1.iff(e2).and(e3.implies(e4)));
 			formula = formula.and(ExprQt.Op.ALL.make(null, null, Arrays.asList(new Decl[] {da, db}), sub));
 			
-			for (IntrefSigRecord record : bundle.intrefRecords) {
+			for (IntrefSigRecord record : preparedCommand.intrefRecords) {
 				if (record.mapfield != null) {
-					Relation rel = (Relation) pair.a.a2k(record.mapfield);
-					TupleSet bound = record.getMapBounds(bundle.command, pair.a.getFactory());
-					pair.a.shrink(rel, bound, bound);
+					Relation rel = (Relation) sol.a2k(record.mapfield);
+					TupleSet bound = record.getMapBounds(preparedCommand.command, sol.getFactory());
+					sol.shrink(rel, bound, bound);
 				}
 			}
 		}
@@ -133,9 +134,9 @@ public final class HyTranslator extends TranslateAlloyToKodkod {
 		HyTranslator tr = null;
 		Translation tl = null;
 		try {	
-			tr = new HyTranslator(rep, cmd, opt, pair.a);
-			pair.a.solver.options().setLogTranslation(2);
-			pair.a.solver.options().setSolver(new SATFactory() {
+			tr = new HyTranslator(rep, cmd, opt, sol);
+			sol.solver.options().setLogTranslation(2);
+			sol.solver.options().setSolver(new SATFactory() {
 				@Override
 				public SATSolver instance() {
 					if (hyexprs != null) {

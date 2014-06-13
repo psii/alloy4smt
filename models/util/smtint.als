@@ -1,6 +1,17 @@
 module util/smtint
 
-abstract sig SintRef { aqclass: SintRef }
+abstract sig SintRef {
+  aqclass: SintRef,
+  equals: set SintRef
+}
+
+fact {
+  all disj a, b: SintRef {
+    (b in a.equals or a in b.equals) <=> a.aqclass = b.aqclass
+    (b in a.equals) => (b.aqclass = a or b.aqclass in a.equals)
+  }
+}
+
 abstract sig Sint {}
 
 fun const[n: Int] : Sint { /*PLACEHOLDER*/ Sint }
