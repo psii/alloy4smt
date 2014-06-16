@@ -14,15 +14,16 @@ public class SmtPreprocessor {
         ConversionContext ctx = new ConversionContext(c, allReachableSigs);
         for (Sig s : allReachableSigs) ctx.mapSig(s);
         Expr newformula = FormulaRewriter.rewrite(ctx, c.formula);
-        return new PreparedCommand(c.change(ctx.getScopes()).change(ctx.getAdditionalFacts().and(newformula)),
-                ctx.getAllSigs(), ctx.getSExprs());
+        return new PreparedCommand(
+                c.change(ctx.getScopes()).change(ctx.getAdditionalFacts().and(newformula)),
+                ctx.getAllSigs(), ctx.sigSintref, ctx.getSExprs());
     }
 
 
     private static class ConversionContext {
         public final Sig sigSint;
         private final int defaultScope;
-        private final Sig.PrimSig sigSintref;
+        public final Sig.PrimSig sigSintref;
         public final Sig.Field aqclass;
         private final Map<Sig, Sig> newsigmap = new HashMap<Sig, Sig>();
         private final Map<Sig.Field, Sig.Field> newfieldmap = new HashMap<Sig.Field, Sig.Field>();
@@ -185,9 +186,8 @@ public class SmtPreprocessor {
                     else
                         type = var.type().product(type);
                 }
-                
-                final Sig.Field mapfield = ref.addField("map", type.toExpr());
-                left = mapfield;
+
+                left = ref.addField("map", type.toExpr());
                 for (ExprVar var : usedquantifiers) {
                     left = left.join(var);
                 }

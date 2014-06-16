@@ -32,12 +32,12 @@ public class PreparedCommand {
         this.smtExprs = null;
     }
 
-    public PreparedCommand(Command command, ConstList<Sig> sigs, ConstList<SExpr> smtExprs) {
+    public PreparedCommand(Command command, ConstList<Sig> sigs, Sig.PrimSig intref, ConstList<SExpr> smtExprs) {
         this.command = command;
         this.hysatExprs = null;
         this.intrefRecords = null;
         this.sigs = sigs;
-        this.intref = null;
+        this.intref = intref;
         this.smtExprs = smtExprs;
     }
 

@@ -1,10 +1,19 @@
 package de.psi.alloy4smt.ast;
 
+import edu.mit.csail.sdg.alloy4.A4Reporter;
+import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Err;
+import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
+import edu.mit.csail.sdg.alloy4compiler.translator.BoundsComputer;
+import edu.mit.csail.sdg.alloy4compiler.translator.ScopeComputer;
+import kodkod.ast.Relation;
+import kodkod.instance.TupleSet;
 import kodkod.instance.Universe;
 import org.junit.Before;
 import org.junit.Test;
@@ -192,9 +201,27 @@ public class SmtPreprocessorTest {
         assertEquals(module.getAllReachableFacts().toString(), commands.get(0).command.formula.toString());
     }
 
-    private void assertEqualsTupleSet(String tuplesetstr) {
-        final Universe universe = new Universe(commands.get(0).getIntrefAtoms());
-        assertEquals(tuplesetstr, commands.get(0).getEqualsTupleSet(universe.factory()));
+    private static A4Options makeA4Options() {
+        final A4Options opt = new A4Options();
+        opt.recordKodkod = true;
+        opt.tempDirectory = "/tmp";
+        opt.solverDirectory = "/tmp";
+        opt.solver = A4Options.SatSolver.SAT4J;
+        opt.skolemDepth = 4;
+        return opt;
+    }
+
+    private void assertEqualsTupleSet(String tuplesetstr) throws Err {
+        final PreparedCommand command = commands.get(0);
+        final ConstList<Sig> sigs = command.sigs;
+        final Pair<A4Solution, ScopeComputer> solsc = ScopeComputer.compute(A4Reporter.NOP, makeA4Options(), sigs, command.command);
+        BoundsComputer.compute(A4Reporter.NOP, solsc.a, solsc.b, sigs);
+        final Sig.Field equals = Helpers.getFieldByName(command.intref.getFields(), "equals");
+        final Relation rel = (Relation) solsc.a.a2k(equals);
+        final TupleSet lb = solsc.a.getBounds().lowerBound(rel);
+        final TupleSet ub = solsc.a.getBounds().upperBound(rel);
+        assertEquals(tuplesetstr, lb.toString());
+        assertEquals(tuplesetstr, ub.toString());
     }
 
     @Test
@@ -226,9 +253,20 @@ public class SmtPreprocessorTest {
                         smtintFacts +
                 "]",
                 commands.get(0).command.formula.toString());
-        assertEquals("[A_v_SintRef$0, SintExpr0$0, SintExpr1$0, SintExpr2$0, SintExpr3$0]",
-                commands.get(0).getIntrefAtoms());
-        assertEqualsTupleSet("[]");
+        //assertEquals("[A_v_SintRef$0, SintExpr0$0, SintExpr1$0, SintExpr2$0, SintExpr3$0]",
+        //        commands.get(0).getIntrefAtoms());
+        assertEqualsTupleSet("[" +
+                "[A_v_SintRef$0, SintExpr0$0], " +
+                "[A_v_SintRef$0, SintExpr1$0], " +
+                "[A_v_SintRef$0, SintExpr2$0], " +
+                "[A_v_SintRef$0, SintExpr3$0], " +
+                "[SintExpr0$0, SintExpr1$0], " +
+                "[SintExpr0$0, SintExpr2$0], " +
+                "[SintExpr0$0, SintExpr3$0], " +
+                "[SintExpr1$0, SintExpr2$0], " +
+                "[SintExpr1$0, SintExpr3$0], " +
+                "[SintExpr2$0, SintExpr3$0]" +
+                "]");
     }
 
     @Test
