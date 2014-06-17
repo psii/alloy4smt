@@ -119,7 +119,7 @@ public class SmtPreprocessorTest {
                 "pred show{}\n" +
                 "run show for 4 X\n");
         assertEquals("Run show for 4 X", module.getAllCommands().get(0).toString());
-        assertEquals("Run show for exactly 4 X_v_SintRef, 4 X",
+        assertEquals("Run show for 4 X, exactly 4 X_v_SintRef",
                 commands.get(0).command.toString());
     }
 
@@ -132,7 +132,7 @@ public class SmtPreprocessorTest {
                         "run show for 4 X, 3 Y\n"
         );
         assertEquals("Run show for 4 X, 3 Y", module.getAllCommands().get(0).toString());
-        assertEquals("Run show for exactly 12 X_v_SintRef, exactly 48 X_w_SintRef, 4 X, 3 Y",
+        assertEquals("Run show for 4 X, 3 Y, exactly 12 X_v_SintRef, exactly 48 X_w_SintRef",
                 commands.get(0).command.toString());
     }
 
@@ -145,7 +145,7 @@ public class SmtPreprocessorTest {
                         "run show for 5 X, 6 Y\n"
         );
         assertEquals("Run show for 5 X, 6 Y", module.getAllCommands().get(0).toString());
-        assertEquals("Run show for exactly 180 X_v_SintRef, 5 X, 6 Y",
+        assertEquals("Run show for 5 X, 6 Y, exactly 180 X_v_SintRef",
                 commands.get(0).command.toString());
     }
 
@@ -285,7 +285,7 @@ public class SmtPreprocessorTest {
                 "(all a | (SintExpr0 <: map) . a . (smtint/SintRef <: aqclass) = " +
                 "a . (this/A <: v) . (smtint/SintRef <: aqclass)), " + smtintFacts +
                 "]", commands.get(0).command.formula.toString());
-        assertEquals("Run show for exactly 3 A_v_SintRef, 3 A, exactly 3 SintExpr0",
+        assertEquals("Run show for 3 A, exactly 3 A_v_SintRef, exactly 3 SintExpr0",
                 commands.get(0).command.toString());
         assertEquals("[(= (+ SintExpr0$0 2) 4), (= (+ SintExpr0$1 2) 4), (= (+ SintExpr0$2 2) 4)]",
                 commands.get(0).smtExprs.toString());

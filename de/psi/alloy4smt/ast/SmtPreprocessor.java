@@ -16,14 +16,7 @@ public class SmtPreprocessor {
         FieldRewritePhase.Result frpr = FieldRewritePhase.run(input);
         FormulaRewritePhase.Result formr = FormulaRewritePhase.run(frpr);
         ComputeScopePhase.Result cspr = ComputeScopePhase.run(formr);
-        return new PreparedCommand(c.change(cspr.scopes).change(formr.allsigs), frpr.sigSintref, null);
- /*
-        FormulaRewritePhase ctx = new FormulaRewritePhase(c, allReachableSigs);
-        for (Sig s : allReachableSigs) ctx.mapSig(s);
-        Expr newformula = FormulaRewriter.rewrite(ctx, c.formula);
-        return new PreparedCommand(
-                c.change(ctx.getScopes()).change(ctx.getAdditionalFacts().and(newformula)),
-                ctx.getAllSigs(), ctx.in.sigSintref, ctx.getSExprs());*/
+        return new PreparedCommand(cspr.command, formr.allsigs, frpr.sigSintref, null);
     }
 
     private static class ConversionInput {
@@ -72,6 +65,18 @@ public class SmtPreprocessor {
                 this.sigmap = sigmap;
                 this.fieldmap = fieldmap;
                 this.input = input;
+            }
+
+            public Sig mapSig(Sig old) throws Err {
+                Sig res = sigmap.get(old);
+                if (res == null) throw new AssertionError();
+                return res;
+            }
+
+            public Sig.Field mapField(Sig.Field old) {
+                Sig.Field field = fieldmap.get(old);
+                if (field == null) throw new AssertionError();
+                return field;
             }
         }
 
@@ -265,15 +270,11 @@ public class SmtPreprocessor {
         }
 
         public Sig mapSig(Sig old) throws Err {
-            Sig res = in.sigmap.get(old);
-            if (res == null) throw new AssertionError();
-            return res;
+            return in.mapSig(old);
         }
 
         public Sig.Field mapField(Sig.Field old) {
-            Sig.Field field = in.fieldmap.get(old);
-            if (field == null) throw new AssertionError();
-            return field;
+            return in.mapField(old);
         }
 
         public void addRefSig(Sig.PrimSig ref, Iterable<Type> dependencies) throws Err {
@@ -310,8 +311,8 @@ public class SmtPreprocessor {
             final Set<ExprVar> usedquantifiers = FreeVarFinder.find(expr);
             final List<Type> dependencies = new Vector<Type>();
 
-            exprcnt++;
             Sig.PrimSig ref = new Sig.PrimSig("SintExpr" + exprcnt, in.sigSintref);
+            exprcnt++;
 
             Expr left;
             if (usedquantifiers.isEmpty()) {
@@ -682,23 +683,68 @@ public class SmtPreprocessor {
 
 
     private static class ComputeScopePhase {
+        private final FormulaRewritePhase.Result frpr;
         private final ConstList.TempList<CommandScope> scopes = new ConstList.TempList<CommandScope>();
+        private final Map<Sig, CommandScope> scopemap = new HashMap<Sig, CommandScope>();
 
         public static class Result {
             public final ConstList<CommandScope> scopes;
+            public final Command command;
 
-            public Result(ConstList<CommandScope> scopes) {
+            public Result(ConstList<CommandScope> scopes, Command command) {
                 this.scopes = scopes;
+                this.command = command;
             }
         }
 
-        private ComputeScopePhase(FormulaRewritePhase.Result in) {
-
+        private void addScope(CommandScope scope) {
+            scopemap.put(scope.sig, scope);
+            scopes.add(scope);
         }
 
-        public static Result run(FormulaRewritePhase.Result in) {
+        private int computeScope(Iterable<Type> dependencies) throws Err {
+            int result = 1;
+            for (Type type : dependencies) {
+                if (!type.hasArity(1)) throw new AssertionError();
+                int unionscope = 0;
+                for (List<Sig.PrimSig> l : type.fold()) {
+                    if (l.size() != 1) throw new AssertionError();
+                    Sig.PrimSig depsig = l.get(0);
+                    CommandScope scope = scopemap.get(frpr.frp.mapSig(depsig));
+                    if (scope != null) {
+                        unionscope += scope.endingScope;
+                    } else if (depsig.isOne != null || depsig.isLone != null) {
+                        unionscope++;
+                    } else {
+                        unionscope += frpr.frp.input.defaultScope;
+                    }
+                }
+                result *= unionscope;
+            }
+            return result;
+        }
+
+        private ComputeScopePhase(FormulaRewritePhase.Result in) throws Err {
+            this.frpr = in;
+
+            // Handle scopes of original signatures
+            for (CommandScope scope : in.frp.input.command.scope) {
+                addScope(new CommandScope(in.frp.mapSig(scope.sig), scope.isExact, scope.endingScope));
+            }
+            // Handle scopes of SintRef fields
+            for (FieldRewriter.Result rr : in.frp.sigrefs) {
+                addScope(new CommandScope(rr.ref, true, computeScope(rr.refdeps)));
+            }
+            // Handle scopes of SintExprs
+            for (FormulaRewritePhase.SintExprDef sed : in.sintExprDefs) {
+                addScope(new CommandScope(sed.sig, true, computeScope(sed.dependencies)));
+            }
+        }
+
+        public static Result run(FormulaRewritePhase.Result in) throws Err {
             ComputeScopePhase p = new ComputeScopePhase(in);
-            return new Result(p.scopes.makeConst());
+            Command command = in.frp.input.command.change(p.scopes.makeConst()).change(in.newformula);
+            return new Result(p.scopes.makeConst(), command);
         }
     }
 }
