@@ -2,11 +2,12 @@ package de.psi.alloy4smt.ast;
 
 
 import de.psi.alloy4smt.smt.SExpr;
-import edu.mit.csail.sdg.alloy4.ConstList;
-import edu.mit.csail.sdg.alloy4.ConstMap;
-import edu.mit.csail.sdg.alloy4.Err;
-import edu.mit.csail.sdg.alloy4.Pair;
+import edu.mit.csail.sdg.alloy4.*;
 import edu.mit.csail.sdg.alloy4compiler.ast.*;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
+import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
+import edu.mit.csail.sdg.alloy4compiler.translator.BoundsComputer;
+import edu.mit.csail.sdg.alloy4compiler.translator.ScopeComputer;
 
 import java.util.*;
 
@@ -26,6 +27,7 @@ public class SmtPreprocessor {
         public final ConstList<Sig> allReachableSigs;
         public final int defaultScope;
         public final Command command;
+        public final String nameSuffix;
 
         ConversionInput(Command command, ConstList<Sig> allReachableSigs) {
             sigSint = (Sig.PrimSig) Helpers.getSigByName(allReachableSigs, "smtint/Sint");
@@ -36,13 +38,13 @@ public class SmtPreprocessor {
             this.allReachableSigs = allReachableSigs;
             defaultScope = command.overall < 0 ? 1 : command.overall;
             this.command = command;
+            this.nameSuffix = "_c";
         }
     }
 
 
     private static class FieldRewritePhase {
-        public final Sig.PrimSig sigSint;
-        public final Sig.PrimSig sigSintref;
+        public final ConversionInput in;
         private final Map<Sig, Sig> newsigmap = new HashMap<Sig, Sig>();
         private final Map<Sig.Field, Sig.Field> newfieldmap = new HashMap<Sig.Field, Sig.Field>();
         private final ConstList.TempList<Sig> allsigs = new ConstList.TempList<Sig>();
@@ -68,6 +70,7 @@ public class SmtPreprocessor {
             }
 
             public Sig mapSig(Sig old) throws Err {
+                if (old.builtin) return old;
                 Sig res = sigmap.get(old);
                 if (res == null) throw new AssertionError();
                 return res;
@@ -81,6 +84,7 @@ public class SmtPreprocessor {
         }
 
         private void addSigMapping(Sig oldsig, Sig newsig) {
+            if (oldsig == in.sigSint) throw new AssertionError();
             newsigmap.put(oldsig, newsig);
             allsigs.add(newsig);
         }
@@ -88,16 +92,21 @@ public class SmtPreprocessor {
         public Sig mapSig(Sig old) throws Err {
             Sig result;
             if (!newsigmap.containsKey(old)) {
-                if (old instanceof Sig.PrimSig) {
+                if (old.builtin) {
+                    result = old;
+                    addSigMapping(old, old);
+                } else if (old instanceof Sig.PrimSig) {
                     Attr[] attrs = new Attr[1];
-                    result = new Sig.PrimSig(old.label, old.attributes.toArray(attrs));
+                    result = new Sig.PrimSig(old.label + in.nameSuffix, old.attributes.toArray(attrs));
                     addSigMapping(old, result);
                     for (Sig.Field field : old.getFields()) {
                         final FieldRewriter.Result rewriteResult = FieldRewriter.rewrite(this, old, field);
-                        final Sig.Field[] newField = result.addTrickyField(field.pos, field.isPrivate, null, null, field.isMeta, new String[] {field.label}, rewriteResult.field);
+                        final Sig.Field[] newField = result.addTrickyField(field.pos, field.isPrivate, null, null, field.isMeta, new String[] {field.label + in.nameSuffix}, rewriteResult.field);
                         newfieldmap.put(field, newField[0]);
-                        if (rewriteResult.ref != null)
+                        if (rewriteResult.ref != null) {
                             newrefs.add(rewriteResult);
+                            allsigs.add(rewriteResult.ref);
+                        }
                     }
                 } else if (old instanceof Sig.SubsetSig) {
                     throw new AssertionError("not handled yet");
@@ -117,18 +126,18 @@ public class SmtPreprocessor {
         }
 
         private FieldRewritePhase(ConversionInput in) throws Err {
-            sigSint = in.sigSint;
-            sigSintref = in.sigSintref;
+            this.in = in;
             addSigMapping(in.sigSintref, in.sigSintref);
             for (Sig.Field f : in.sigSintref.getFields())
                 newfieldmap.put(f, f);
             for (Sig s : in.allReachableSigs)
-                mapSig(s);
+                if (s != in.sigSint)
+                    mapSig(s);
         }
 
         public static Result run(ConversionInput in) throws Err {
             FieldRewritePhase p = new FieldRewritePhase(in);
-            return new Result(p.sigSint, p.sigSintref, p.allsigs.makeConst(), p.newrefs.makeConst(), ConstMap.make(p.newsigmap), ConstMap.make(p.newfieldmap), in);
+            return new Result(in.sigSint, in.sigSintref, p.allsigs.makeConst(), p.newrefs.makeConst(), ConstMap.make(p.newsigmap), ConstMap.make(p.newfieldmap), in);
         }
     }
 
@@ -157,11 +166,11 @@ public class SmtPreprocessor {
             return new Result(rewriter.ref, expr, rewriter.visitedsigs.makeConst());
         }
 
-        private FieldRewriter(FieldRewritePhase ctx, Sig sig, Sig.Field field) {
+        private FieldRewriter(FieldRewritePhase ctx, Sig sig, Sig.Field field) throws Err {
             this.ctx = ctx;
             this.sig = sig;
             this.field = field;
-            visitedsigs.add(sig.type());
+            visitedsigs.add(ctx.mapSig(sig).type());
         }
 
         private Expr unexpected() {
@@ -203,14 +212,14 @@ public class SmtPreprocessor {
         @Override
         public Expr visit(Sig x) throws Err {
             Sig s;
-            if (x == ctx.sigSint) {
+            if (x == ctx.in.sigSint) {
                 if (ref != null) throw new AssertionError();
                 String label = sig.label + "_" + field.label + "_SintRef";
-                ref = new Sig.PrimSig(label, ctx.sigSintref);
+                ref = new Sig.PrimSig(label, ctx.in.sigSintref);
                 s = ref;
             } else {
-                visitedsigs.add(x.type());
                 s = ctx.mapSig(x);
+                visitedsigs.add(s.type());
             }
             return s;
         }
@@ -226,8 +235,9 @@ public class SmtPreprocessor {
         public final FieldRewritePhase.Result in;
         public final Sig.Field aqclass;
         private final ConstList.TempList<SintExprDef> sintExprDefs = new ConstList.TempList<SintExprDef>();
-        private final ConstList.TempList<Sig> allsigs;
         private final ConstList.TempList<SExpr<Sig>> sexprs = new ConstList.TempList<SExpr<Sig>>();
+        private final List<Sig> allsigs;
+        private final Map<ExprVar, ExprVar> freevarmap = new HashMap<ExprVar, ExprVar>();
 
         private int exprcnt = 0;
 
@@ -260,13 +270,16 @@ public class SmtPreprocessor {
         private FormulaRewritePhase(FieldRewritePhase.Result in) {
             this.in = in;
             this.aqclass = in.input.aqclass;
-            this.allsigs = new ConstList.TempList<Sig>(in.allsigs);
+            this.allsigs = new Vector<Sig>(in.allsigs);
         }
 
         public static Result run(FieldRewritePhase.Result in) throws Err {
             FormulaRewritePhase p = new FormulaRewritePhase(in);
             Expr expr = FormulaRewriter.rewrite(p, in.input.command.formula);
-            return new Result(p.sintExprDefs.makeConst(), p.allsigs.makeConst(), p.sexprs.makeConst(), expr, in);
+            if (in.sigSintref.children().isEmpty()) {
+                p.allsigs.remove(in.sigSintref);
+            }
+            return new Result(p.sintExprDefs.makeConst(), ConstList.make(p.allsigs), p.sexprs.makeConst(), expr, in);
         }
 
         public Sig mapSig(Sig old) throws Err {
@@ -275,6 +288,16 @@ public class SmtPreprocessor {
 
         public Sig.Field mapField(Sig.Field old) {
             return in.mapField(old);
+        }
+
+        public ExprVar mapVar(ExprVar var) {
+            ExprVar result = freevarmap.get(var);
+            if (result == null) throw new AssertionError();
+            return result;
+        }
+
+        public void addVarMapping(ExprVar old, ExprVar newvar) {
+            freevarmap.put(old, newvar);
         }
 
         public void addRefSig(Sig.PrimSig ref, Iterable<Type> dependencies) throws Err {
@@ -319,7 +342,8 @@ public class SmtPreprocessor {
                 left = ref;
             } else {
                 Type type = null;
-                for (ExprVar var : usedquantifiers) {
+                for (ExprVar oldvar : usedquantifiers) {
+                    ExprVar var = mapVar(oldvar);
                     if (!var.type().hasArity(1))
                         throw new AssertionError("Quantified variables with arity > 1 are not supported");
                     dependencies.add(var.type());
@@ -533,7 +557,7 @@ public class SmtPreprocessor {
             return x;
         }
         @Override public Expr visit(ExprVar x) throws Err {
-            return x;
+            return ctx.mapVar(x);
         }
         @Override public Expr visit(ExprLet x) throws Err {
             Pair<Expr, AndExpr> rewritten = ExprRewriter.rewrite(ctx, x.expr);
@@ -574,6 +598,7 @@ public class SmtPreprocessor {
                 ConstList.TempList<ExprHasName> names = new ConstList.TempList<ExprHasName>();
                 for (ExprHasName ehn : d.names) {
                     ExprVar var = ExprVar.make(ehn.pos, ehn.label, expr.type());
+                    ctx.addVarMapping((ExprVar) ehn, var);
                     names.add(var);
                 }
                 decls.add(new Decl(d.isPrivate, d.disjoint, d.disjoint2, names.makeConst(), expr));
@@ -686,6 +711,7 @@ public class SmtPreprocessor {
         private final FormulaRewritePhase.Result frpr;
         private final ConstList.TempList<CommandScope> scopes = new ConstList.TempList<CommandScope>();
         private final Map<Sig, CommandScope> scopemap = new HashMap<Sig, CommandScope>();
+        private final Command command;
 
         public static class Result {
             public final ConstList<CommandScope> scopes;
@@ -710,7 +736,7 @@ public class SmtPreprocessor {
                 for (List<Sig.PrimSig> l : type.fold()) {
                     if (l.size() != 1) throw new AssertionError();
                     Sig.PrimSig depsig = l.get(0);
-                    CommandScope scope = scopemap.get(frpr.frp.mapSig(depsig));
+                    CommandScope scope = scopemap.get(depsig);
                     if (scope != null) {
                         unionscope += scope.endingScope;
                     } else if (depsig.isOne != null || depsig.isLone != null) {
@@ -722,6 +748,16 @@ public class SmtPreprocessor {
                 result *= unionscope;
             }
             return result;
+        }
+
+        private static A4Options makeA4Options() {
+            final A4Options opt = new A4Options();
+            opt.recordKodkod = true;
+            opt.tempDirectory = "/tmp";
+            opt.solverDirectory = "/tmp";
+            opt.solver = A4Options.SatSolver.SAT4J;
+            opt.skolemDepth = 4;
+            return opt;
         }
 
         private ComputeScopePhase(FormulaRewritePhase.Result in) throws Err {
@@ -739,12 +775,15 @@ public class SmtPreprocessor {
             for (FormulaRewritePhase.SintExprDef sed : in.sintExprDefs) {
                 addScope(new CommandScope(sed.sig, true, computeScope(sed.dependencies)));
             }
+
+            command = in.frp.input.command.change(scopes.makeConst()).change(in.newformula);
+            Pair<A4Solution, ScopeComputer> solsc = ScopeComputer.compute(A4Reporter.NOP, makeA4Options(), in.allsigs, command);
+            BoundsComputer.compute(A4Reporter.NOP, solsc.a, solsc.b, in.allsigs);
         }
 
         public static Result run(FormulaRewritePhase.Result in) throws Err {
             ComputeScopePhase p = new ComputeScopePhase(in);
-            Command command = in.frp.input.command.change(p.scopes.makeConst()).change(in.newformula);
-            return new Result(p.scopes.makeConst(), command);
+            return new Result(p.scopes.makeConst(), p.command);
         }
     }
 }
