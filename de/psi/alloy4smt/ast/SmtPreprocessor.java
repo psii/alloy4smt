@@ -8,6 +8,7 @@ import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
 import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
 import edu.mit.csail.sdg.alloy4compiler.translator.BoundsComputer;
 import edu.mit.csail.sdg.alloy4compiler.translator.ScopeComputer;
+import kodkod.ast.Relation;
 
 import java.util.*;
 
@@ -24,6 +25,7 @@ public class SmtPreprocessor {
         public final Sig.PrimSig sigSint;
         public final Sig.PrimSig sigSintref;
         public final Sig.Field aqclass;
+        public final Sig.Field equalsf;
         public final ConstList<Sig> allReachableSigs;
         public final int defaultScope;
         public final Command command;
@@ -33,7 +35,8 @@ public class SmtPreprocessor {
             sigSint = (Sig.PrimSig) Helpers.getSigByName(allReachableSigs, "smtint/Sint");
             sigSintref = (Sig.PrimSig) Helpers.getSigByName(allReachableSigs, "smtint/SintRef");
             aqclass = Helpers.getFieldByName(sigSintref.getFields(), "aqclass");
-            if (sigSint == null || sigSintref == null || aqclass == null)
+            equalsf = Helpers.getFieldByName(sigSintref.getFields(), "equals");
+            if (sigSint == null || sigSintref == null || aqclass == null || equalsf == null)
                 throw new AssertionError();
             this.allReachableSigs = allReachableSigs;
             defaultScope = command.overall < 0 ? 1 : command.overall;
@@ -53,15 +56,19 @@ public class SmtPreprocessor {
         public static class Result {
             public final Sig.PrimSig sigSint;
             public final Sig.PrimSig sigSintref;
+            public final Sig.Field equalsf;
+            public final Sig.Field aqclass;
             public final ConstList<Sig> allsigs;
             public final ConstList<FieldRewriter.Result> sigrefs;
             public final ConstMap<Sig, Sig> sigmap;
             public final ConstMap<Sig.Field, Sig.Field> fieldmap;
             public final ConversionInput input;
 
-            private Result(Sig.PrimSig sigSint, Sig.PrimSig sigSintref, ConstList<Sig> allsigs, ConstList<FieldRewriter.Result> sigrefs, ConstMap<Sig, Sig> sigmap, ConstMap<Sig.Field, Sig.Field> fieldmap, ConversionInput input) {
-                this.sigSint = sigSint;
-                this.sigSintref = sigSintref;
+            private Result(ConstList<Sig> allsigs, ConstList<FieldRewriter.Result> sigrefs, ConstMap<Sig, Sig> sigmap, ConstMap<Sig.Field, Sig.Field> fieldmap, ConversionInput input) {
+                this.sigSint = input.sigSint;
+                this.sigSintref = input.sigSintref;
+                this.equalsf = input.equalsf;
+                this.aqclass = input.aqclass;
                 this.allsigs = allsigs;
                 this.sigrefs = sigrefs;
                 this.sigmap = sigmap;
@@ -137,7 +144,7 @@ public class SmtPreprocessor {
 
         public static Result run(ConversionInput in) throws Err {
             FieldRewritePhase p = new FieldRewritePhase(in);
-            return new Result(in.sigSint, in.sigSintref, p.allsigs.makeConst(), p.newrefs.makeConst(), ConstMap.make(p.newsigmap), ConstMap.make(p.newfieldmap), in);
+            return new Result(p.allsigs.makeConst(), p.newrefs.makeConst(), ConstMap.make(p.newsigmap), ConstMap.make(p.newfieldmap), in);
         }
     }
 
@@ -233,7 +240,6 @@ public class SmtPreprocessor {
 
     private static class FormulaRewritePhase {
         public final FieldRewritePhase.Result in;
-        public final Sig.Field aqclass;
         private final ConstList.TempList<SintExprDef> sintExprDefs = new ConstList.TempList<SintExprDef>();
         private final ConstList.TempList<SExpr<Sig>> sexprs = new ConstList.TempList<SExpr<Sig>>();
         private final List<Sig> allsigs;
@@ -269,7 +275,6 @@ public class SmtPreprocessor {
 
         private FormulaRewritePhase(FieldRewritePhase.Result in) {
             this.in = in;
-            this.aqclass = in.input.aqclass;
             this.allsigs = new Vector<Sig>(in.allsigs);
         }
 
@@ -360,7 +365,7 @@ public class SmtPreprocessor {
             }
             addRefSig(ref, dependencies);
             SExpr<Sig> var = SExpr.<Sig>leaf(ref);
-            return new Pair<SExpr<Sig>, Expr>(var, left.join(aqclass).equal(expr.join(aqclass)));
+            return new Pair<SExpr<Sig>, Expr>(var, left.join(in.aqclass).equal(expr.join(in.aqclass)));
         }
 
         public boolean isSintRefExpr(Expr expr) {
@@ -615,7 +620,7 @@ public class SmtPreprocessor {
         public static Pair<Expr, AndExpr> rewrite(FormulaRewritePhase ctx, Expr expr) throws Err {
             SintExprRewriter rewriter = new SintExprRewriter(ctx);
             SExpr<Sig> result = rewriter.visitThis(expr);
-            return new Pair<Expr, AndExpr>(ctx.makeRefSig(result).join(ctx.aqclass), rewriter.result);
+            return new Pair<Expr, AndExpr>(ctx.makeRefSig(result).join(ctx.in.aqclass), rewriter.result);
         }
 
         public static Expr rewriteFun(FormulaRewritePhase ctx, ExprCall x, String smtOp) throws Err {
@@ -776,9 +781,15 @@ public class SmtPreprocessor {
                 addScope(new CommandScope(sed.sig, true, computeScope(sed.dependencies)));
             }
 
+            // Build A4Solution
             command = in.frp.input.command.change(scopes.makeConst()).change(in.newformula);
             Pair<A4Solution, ScopeComputer> solsc = ScopeComputer.compute(A4Reporter.NOP, makeA4Options(), in.allsigs, command);
             BoundsComputer.compute(A4Reporter.NOP, solsc.a, solsc.b, in.allsigs);
+
+            // set bounds for equals field
+
+            final Relation equalsrel = (Relation) solsc.a.a2k(in.frp.equalsf);
+            solsc.a.getBounds().boundExactly(equalsrel, null);
         }
 
         public static Result run(FormulaRewritePhase.Result in) throws Err {
