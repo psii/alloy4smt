@@ -9,16 +9,36 @@ import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
 import edu.mit.csail.sdg.alloy4compiler.translator.BoundsComputer;
 import edu.mit.csail.sdg.alloy4compiler.translator.ScopeComputer;
 import kodkod.ast.Relation;
+import kodkod.instance.Tuple;
+import kodkod.instance.TupleSet;
 
 import java.util.*;
 
 public class SmtPreprocessor {
-    public static PreparedCommand build(Command c, ConstList<Sig> allReachableSigs) throws Err {
+    public static Result build(Command c, ConstList<Sig> allReachableSigs) throws Err {
         ConversionInput input = new ConversionInput(c, allReachableSigs);
         FieldRewritePhase.Result frpr = FieldRewritePhase.run(input);
         FormulaRewritePhase.Result formr = FormulaRewritePhase.run(frpr);
         ComputeScopePhase.Result cspr = ComputeScopePhase.run(formr);
-        return new PreparedCommand(cspr.command, formr.allsigs, frpr.sigSintref, null);
+        return new Result(formr, cspr);
+    }
+
+    public static class Result {
+        public final Sig.PrimSig sintref;
+        public final Sig.Field equalsf;
+        public final ConstList<Sig> sigs;
+        public final Command command;
+        public final A4Solution solution;
+        public final ConstList<SExpr<String>> smtExprs;
+
+        public Result(FormulaRewritePhase.Result formr, ComputeScopePhase.Result csp) {
+            this.sintref = formr.frp.sigSintref;
+            this.equalsf = formr.frp.equalsf;
+            this.sigs = formr.allsigs;
+            this.command = csp.command;
+            this.solution = csp.solution;
+            this.smtExprs = null;
+        }
     }
 
     private static class ConversionInput {
@@ -156,11 +176,11 @@ public class SmtPreprocessor {
         private Sig.PrimSig ref = null;
 
         public static class Result {
-            public final Sig ref;
+            public final Sig.PrimSig ref;
             public final Expr field;
             public final ConstList<Type> refdeps;
 
-            public Result(Sig ref, Expr field, ConstList<Type> refdeps) {
+            public Result(Sig.PrimSig ref, Expr field, ConstList<Type> refdeps) {
                 this.ref = ref;
                 this.field = field;
                 this.refdeps = refdeps;
@@ -717,14 +737,15 @@ public class SmtPreprocessor {
         private final ConstList.TempList<CommandScope> scopes = new ConstList.TempList<CommandScope>();
         private final Map<Sig, CommandScope> scopemap = new HashMap<Sig, CommandScope>();
         private final Command command;
+        private final A4Solution solution;
 
         public static class Result {
-            public final ConstList<CommandScope> scopes;
             public final Command command;
+            public final A4Solution solution;
 
-            public Result(ConstList<CommandScope> scopes, Command command) {
-                this.scopes = scopes;
+            public Result(Command command, A4Solution solution) {
                 this.command = command;
+                this.solution = solution;
             }
         }
 
@@ -768,33 +789,56 @@ public class SmtPreprocessor {
         private ComputeScopePhase(FormulaRewritePhase.Result in) throws Err {
             this.frpr = in;
 
+            final List<Sig.PrimSig> sintrefs = new Vector<Sig.PrimSig>();
+
             // Handle scopes of original signatures
             for (CommandScope scope : in.frp.input.command.scope) {
                 addScope(new CommandScope(in.frp.mapSig(scope.sig), scope.isExact, scope.endingScope));
             }
             // Handle scopes of SintRef fields
             for (FieldRewriter.Result rr : in.frp.sigrefs) {
+                sintrefs.add(rr.ref);
                 addScope(new CommandScope(rr.ref, true, computeScope(rr.refdeps)));
             }
             // Handle scopes of SintExprs
             for (FormulaRewritePhase.SintExprDef sed : in.sintExprDefs) {
+                sintrefs.add(sed.sig);
                 addScope(new CommandScope(sed.sig, true, computeScope(sed.dependencies)));
             }
 
             // Build A4Solution
             command = in.frp.input.command.change(scopes.makeConst()).change(in.newformula);
             Pair<A4Solution, ScopeComputer> solsc = ScopeComputer.compute(A4Reporter.NOP, makeA4Options(), in.allsigs, command);
-            BoundsComputer.compute(A4Reporter.NOP, solsc.a, solsc.b, in.allsigs);
+            solution = solsc.a;
+            BoundsComputer.compute(A4Reporter.NOP, solution, solsc.b, in.allsigs);
 
             // set bounds for equals field
+            final Relation equalsrel = (Relation) solution.a2k(in.frp.equalsf);
+            if (equalsrel != null) {
+                final List<Object> sintrefAtoms = new Vector<Object>();
+                for (Sig.PrimSig s : sintrefs) {
+                    final Relation srel = (Relation) solution.a2k(s);
+                    final TupleSet tuples = solution.getBounds().upperBound(srel);
+                    if (tuples.arity() != 1) throw new AssertionError();
+                    for (Tuple t : tuples) {
+                        sintrefAtoms.add(t.atom(0));
+                    }
+                }
 
-            final Relation equalsrel = (Relation) solsc.a.a2k(in.frp.equalsf);
-            solsc.a.getBounds().boundExactly(equalsrel, null);
+                final TupleSet equalsBound = new TupleSet(solution.getBounds().universe(), 2);
+                for (int i = 0; i < sintrefAtoms.size(); ++i) {
+                    for (int j = i + 1; j < sintrefAtoms.size(); ++j) {
+                        equalsBound.add(solution.getFactory().tuple(sintrefAtoms.get(i), sintrefAtoms.get(j)));
+                    }
+                }
+
+                solution.shrink(equalsrel, equalsBound, equalsBound);
+            }
         }
 
         public static Result run(FormulaRewritePhase.Result in) throws Err {
             ComputeScopePhase p = new ComputeScopePhase(in);
-            return new Result(p.scopes.makeConst(), p.command);
+            return new Result(p.command, p.solution);
         }
     }
 }

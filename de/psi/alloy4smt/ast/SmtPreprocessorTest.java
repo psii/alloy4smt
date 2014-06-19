@@ -43,7 +43,7 @@ public class SmtPreprocessorTest {
             "])";
 
     private CompModule module;
-    private List<PreparedCommand> commands;
+    private List<SmtPreprocessor.Result> commands;
 
     @Before
     public void setUp() {
@@ -56,7 +56,7 @@ public class SmtPreprocessorTest {
         fm.put("/tmp/x", docPrelude + doc);
         module = CompUtil.parseEverything_fromFile(null, fm, "/tmp/x");
         assertTrue(module.getAllCommands().size() > 0);
-        commands = new Vector<PreparedCommand>();
+        commands = new Vector<SmtPreprocessor.Result>();
         for (Command c : module.getAllCommands()) {
             commands.add(SmtPreprocessor.build(c, module.getAllReachableSigs()));
         }
@@ -214,14 +214,10 @@ public class SmtPreprocessorTest {
     }
 
     private void assertEqualsTupleSet(String tuplesetstr) throws Err {
-        final PreparedCommand command = commands.get(0);
-        final ConstList<Sig> sigs = command.sigs;
-        final Pair<A4Solution, ScopeComputer> solsc = ScopeComputer.compute(A4Reporter.NOP, makeA4Options(), sigs, command.command);
-        BoundsComputer.compute(A4Reporter.NOP, solsc.a, solsc.b, sigs);
-        final Sig.Field equals = Helpers.getFieldByName(command.intref.getFields(), "equals");
-        final Relation rel = (Relation) solsc.a.a2k(equals);
-        final TupleSet lb = solsc.a.getBounds().lowerBound(rel);
-        final TupleSet ub = solsc.a.getBounds().upperBound(rel);
+        final SmtPreprocessor.Result command = commands.get(0);
+        final Relation rel = (Relation) command.solution.a2k(command.equalsf);
+        final TupleSet lb = command.solution.getBounds().lowerBound(rel);
+        final TupleSet ub = command.solution.getBounds().upperBound(rel);
         assertEquals(tuplesetstr, lb.toString());
         assertEquals(tuplesetstr, ub.toString());
     }

@@ -464,7 +464,7 @@ public final class A4Solution {
     ConstMap<String,Expression> s2k()  { return s2k; }
 
     /** Returns the corresponding Kodkod expression for the given Sig, or null if it is not associated with anything. */
-    Expression a2k(Sig sig)  { return a2k.get(sig); }
+    public Expression a2k(Sig sig)  { return a2k.get(sig); }
 
     /** Returns the corresponding Kodkod expression for the given Field, or null if it is not associated with anything. */
     public Expression a2k(Field field)  { return a2k.get(field); }

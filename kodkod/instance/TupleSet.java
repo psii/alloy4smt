@@ -59,7 +59,7 @@ public final class TupleSet extends AbstractSet<Tuple> implements Cloneable {
 	 * @throws NullPointerException - universe = null
 	 * @throws IllegalArgumentException - arity < 1
 	 */
-	TupleSet(Universe universe, int arity) {
+    public TupleSet(Universe universe, int arity) {
 		if (arity < 1) throw new IllegalArgumentException("arity < 1");
 		universe.factory().checkCapacity(arity);
 		this.universe = universe;
