@@ -269,10 +269,12 @@ public class SmtPreprocessor {
 
         public static class SintExprDef {
             public final Sig.PrimSig sig;
+            public final Sig.Field mapField;
             public final Iterable<Type> dependencies;
 
-            public SintExprDef(Sig.PrimSig sig, Iterable<Type> dependencies) {
+            public SintExprDef(Sig.PrimSig sig, Sig.Field mapField, Iterable<Type> dependencies) {
                 this.sig = sig;
+                this.mapField = mapField;
                 this.dependencies = dependencies;
             }
         }
@@ -325,9 +327,9 @@ public class SmtPreprocessor {
             freevarmap.put(old, newvar);
         }
 
-        public void addRefSig(Sig.PrimSig ref, Iterable<Type> dependencies) throws Err {
+        public void addRefSig(Sig.PrimSig ref, Sig.Field mapField, Iterable<Type> dependencies) throws Err {
             allsigs.add(ref);
-            sintExprDefs.add(new SintExprDef(ref, dependencies));
+            sintExprDefs.add(new SintExprDef(ref, mapField, dependencies));
         }
 
         public void addGlobalFact(SExpr<Sig> sexpr) {
@@ -339,7 +341,7 @@ public class SmtPreprocessor {
             sb.append("SintExpr");
             sb.append(exprcnt++);
             Sig.PrimSig ref = new Sig.PrimSig(sb.toString(), in.sigSintref);
-            addRefSig(ref, new Vector<Type>());
+            addRefSig(ref, null, new Vector<Type>());
             SExpr<Sig> symb = SExpr.<Sig>sym(sb.toString() + "$0");
             addGlobalFact(SExpr.eq(symb, sexpr));
             return ref;
@@ -360,6 +362,7 @@ public class SmtPreprocessor {
             final List<Type> dependencies = new Vector<Type>();
 
             Sig.PrimSig ref = new Sig.PrimSig("SintExpr" + exprcnt, in.sigSintref);
+            Sig.Field mapField = null;
             exprcnt++;
 
             Expr left;
@@ -378,12 +381,12 @@ public class SmtPreprocessor {
                         type = var.type().product(type);
                 }
 
-                left = ref.addField("map", type.toExpr());
+                left = mapField = ref.addField("map", type.toExpr());
                 for (ExprVar var : usedquantifiers) {
                     left = left.join(var);
                 }
             }
-            addRefSig(ref, dependencies);
+            addRefSig(ref, mapField, dependencies);
             SExpr<Sig> var = SExpr.<Sig>leaf(ref);
             return new Pair<SExpr<Sig>, Expr>(var, left.join(in.aqclass).equal(expr.join(in.aqclass)));
         }
@@ -817,12 +820,7 @@ public class SmtPreprocessor {
             if (equalsrel != null) {
                 final List<Object> sintrefAtoms = new Vector<Object>();
                 for (Sig.PrimSig s : sintrefs) {
-                    final Relation srel = (Relation) solution.a2k(s);
-                    final TupleSet tuples = solution.getBounds().upperBound(srel);
-                    if (tuples.arity() != 1) throw new AssertionError();
-                    for (Tuple t : tuples) {
-                        sintrefAtoms.add(t.atom(0));
-                    }
+                    sintrefAtoms.addAll(getAtoms(s));
                 }
 
                 final TupleSet equalsBound = new TupleSet(solution.getBounds().universe(), 2);
@@ -834,6 +832,62 @@ public class SmtPreprocessor {
 
                 solution.shrink(equalsrel, equalsBound, equalsBound);
             }
+
+            // set bounds for SintExpr maps
+            for (FormulaRewritePhase.SintExprDef sed : in.sintExprDefs) {
+                if (sed.mapField == null) continue;
+                final List<List<Object>> depAtoms = getDependentAtoms(sed.dependencies);
+                final int depSize = depAtoms.size();
+                final List<Object[]> sourceTuples = new Vector<Object[]>();
+                buildMapTupleSet(sourceTuples, depAtoms, new Object[depSize+1], 0);
+                final List<Object> sintExprAtoms = getAtoms(sed.sig);
+                if (sintExprAtoms.size() != sourceTuples.size())
+                    throw new AssertionError();
+                final Iterator<Object> atomIt = sintExprAtoms.iterator();
+                final TupleSet mapTuple = new TupleSet(solution.getBounds().universe(), depSize+1);
+                for (Object[] tpl : sourceTuples) {
+                    tpl[0] = atomIt.next();
+                    mapTuple.add(solution.getFactory().tuple(tpl));
+                }
+                final Relation rel = (Relation) solution.a2k(sed.mapField);
+                solution.shrink(rel, mapTuple, mapTuple);
+            }
+        }
+
+        private static void buildMapTupleSet(List<Object[]> output, List<List<Object>> sourceAtoms, Object[] selected, int depth) {
+            if (depth == sourceAtoms.size()) {
+                output.add(selected.clone());
+            } else {
+                for (Object obj : sourceAtoms.get(depth)) {
+                    selected[depth+1] = obj;
+                    buildMapTupleSet(output, sourceAtoms, selected, depth + 1);
+                }
+            }
+        }
+
+        private List<Object> getAtoms(Sig.PrimSig sig) {
+            final List<Object> result = new Vector<Object>();
+            final Relation srel = (Relation) solution.a2k(sig);
+            final TupleSet tuples = solution.getBounds().upperBound(srel);
+            if (tuples.arity() != 1) throw new AssertionError();
+            for (Tuple t : tuples) {
+                result.add(t.atom(0));
+            }
+            return result;
+        }
+
+        private List<List<Object>> getDependentAtoms(Iterable<Type> dependencies) {
+            List<List<Object>> result = new Vector<List<Object>>();
+
+            for (Type dep : dependencies) {
+                if (!dep.hasArity(1)) throw new AssertionError();
+                for (List<Sig.PrimSig> l : dep.fold()) {
+                    if (l.size() != 1) throw new AssertionError();
+                    result.add(getAtoms(l.get(0)));
+                }
+            }
+
+            return result;
         }
 
         public static Result run(FormulaRewritePhase.Result in) throws Err {

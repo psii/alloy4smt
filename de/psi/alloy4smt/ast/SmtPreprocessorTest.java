@@ -213,9 +213,20 @@ public class SmtPreprocessorTest {
         return opt;
     }
 
-    private void assertEqualsTupleSet(String tuplesetstr) throws Err {
+    private void assertEqualsTupleSet(String tuplesetstr) {
         final SmtPreprocessor.Result command = commands.get(0);
         final Relation rel = (Relation) command.solution.a2k(command.equalsf);
+        final TupleSet lb = command.solution.getBounds().lowerBound(rel);
+        final TupleSet ub = command.solution.getBounds().upperBound(rel);
+        assertEquals(tuplesetstr, lb.toString());
+        assertEquals(tuplesetstr, ub.toString());
+    }
+
+    private void assertSintexprBounds(int exprid, String tuplesetstr) {
+        final SmtPreprocessor.Result command = commands.get(0);
+        final Sig.PrimSig sintexpr = (Sig.PrimSig) Helpers.getSigByName(command.sigs, "SintExpr" + exprid);
+        final Sig.Field sintmap = Helpers.getFieldByName(sintexpr.getFields(), "map");
+        final Relation rel = (Relation) command.solution.a2k(sintmap);
         final TupleSet lb = command.solution.getBounds().lowerBound(rel);
         final TupleSet ub = command.solution.getBounds().upperBound(rel);
         assertEquals(tuplesetstr, lb.toString());
@@ -287,8 +298,15 @@ public class SmtPreprocessorTest {
                 "]", commands.get(0).command.formula.toString());
         assertEquals("Run show for 3 A_c, exactly 3 A_v_SintRef, exactly 3 SintExpr0",
                 commands.get(0).command.toString());
-        assertEquals("[(= (+ SintExpr0$0 2) 4), (= (+ SintExpr0$1 2) 4), (= (+ SintExpr0$2 2) 4)]",
-                commands.get(0).smtExprs.toString());
+
+        assertSintexprBounds(0, "[" +
+                "[SintExpr0$0, A_c$0], " +
+                "[SintExpr0$1, A_c$1], " +
+                "[SintExpr0$2, A_c$2]" +
+                "]");
+
+        //assertEquals("[(= (+ SintExpr0$0 2) 4), (= (+ SintExpr0$1 2) 4), (= (+ SintExpr0$2 2) 4)]",
+        //        commands.get(0).smtExprs.toString());
 /*
         assertIntexprBound(0, "[" +
                 "[IntExpr0$0, A$0], " +
