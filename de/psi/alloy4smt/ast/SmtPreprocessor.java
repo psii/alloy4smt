@@ -37,7 +37,7 @@ public class SmtPreprocessor {
             this.sigs = formr.allsigs;
             this.command = csp.command;
             this.solution = csp.solution;
-            this.smtExprs = null;
+            this.smtExprs = csp.smtExprs;
         }
     }
 
@@ -741,14 +741,17 @@ public class SmtPreprocessor {
         private final Map<Sig, CommandScope> scopemap = new HashMap<Sig, CommandScope>();
         private final Command command;
         private final A4Solution solution;
+        private final List<SExpr<String>> sexprs = new Vector<SExpr<String>>();
 
         public static class Result {
             public final Command command;
             public final A4Solution solution;
+            public final ConstList<SExpr<String>> smtExprs;
 
-            public Result(Command command, A4Solution solution) {
+            public Result(Command command, A4Solution solution, ConstList<SExpr<String>> smtExprs) {
                 this.command = command;
                 this.solution = solution;
+                this.smtExprs = smtExprs;
             }
         }
 
@@ -852,6 +855,59 @@ public class SmtPreprocessor {
                 final Relation rel = (Relation) solution.a2k(sed.mapField);
                 solution.shrink(rel, mapTuple, mapTuple);
             }
+
+            // convert sexpr-sig tree to a sexpr-string tree, which consists of every combination
+            // of atoms of the leaf signature nodes.
+            SExprConverter sec = new SExprConverter(this);
+            for (SExpr<Sig> sexpr : in.sexprs) {
+                sexprs.addAll(sec.visitThis(sexpr));
+            }
+        }
+
+        private static class SExprConverter extends SExpr.Visitor<Sig, List<SExpr<String>>> {
+            public SExprConverter(ComputeScopePhase csp) {
+                this.csp = csp;
+            }
+
+            private final ComputeScopePhase csp;
+
+            @Override
+            public List<SExpr<String>> visit(SExpr.Symbol<Sig> sigSymbol) {
+                final Vector<SExpr<String>> result = new Vector<SExpr<String>>();
+                result.add(new SExpr.Symbol<String>(sigSymbol.getName()));
+                return result;
+            }
+
+            @Override
+            public List<SExpr<String>> visit(SExpr.Leaf<Sig> sigLeaf) {
+                final Vector<SExpr<String>> result = new Vector<SExpr<String>>();
+                for (Object atom : csp.getAtoms((Sig.PrimSig) sigLeaf.getValue())) {
+                    result.add(new SExpr.Leaf<String>(atom.toString()));
+                }
+                return result;
+            }
+
+            @Override
+            public List<SExpr<String>> visit(SExpr.SList<Sig> sigSList) {
+                final Vector<SExpr<String>> result = new Vector<SExpr<String>>();
+                final List<List<SExpr<String>>> converted = new Vector<List<SExpr<String>>>();
+                for (SExpr<Sig> sub : sigSList.getItems()) {
+                    converted.add(visitThis(sub));
+                }
+                build(result, converted, new SExpr[converted.size()], 0);
+                return result;
+            }
+
+            static void build(List<SExpr<String>> result, List<List<SExpr<String>>> input, SExpr<String>[] selected, int depth) {
+                if (depth == input.size()) {
+                    result.add(new SExpr.SList<String>(Arrays.asList(selected.clone())));
+                } else {
+                    for (SExpr<String> expr : input.get(depth)) {
+                        selected[depth] = expr;
+                        build(result, input, selected, depth + 1);
+                    }
+                }
+            }
         }
 
         private static void buildMapTupleSet(List<Object[]> output, List<List<Object>> sourceAtoms, Object[] selected, int depth) {
@@ -892,7 +948,7 @@ public class SmtPreprocessor {
 
         public static Result run(FormulaRewritePhase.Result in) throws Err {
             ComputeScopePhase p = new ComputeScopePhase(in);
-            return new Result(p.command, p.solution);
+            return new Result(p.command, p.solution, ConstList.make(p.sexprs));
         }
     }
 }

@@ -248,10 +248,7 @@ public class SmtPreprocessorTest {
                         "]",
                 module.getAllReachableFacts().toString());
 
-/*
-        assertEquals("[(= SintExpr1$0 (+ SintExpr0$0 2)), (= SintExpr2$0 4), (> SintExpr3$0 0)]",
-                commands.get(0).smtExprs.toString());
-*/
+
         assertEquals("[smtint/SintRef, univ, Int, seq/Int, String, none, this/A_c, this/A_v_SintRef, " +
                 "SintExpr0, SintExpr1, SintExpr2, SintExpr3]", commands.get(0).sigs.toString());
         assertEquals("Run show for 3 but exactly 1 A_v_SintRef, exactly 1 SintExpr0, exactly 1 SintExpr1, exactly 1 SintExpr2, exactly 1 SintExpr3",
@@ -264,8 +261,7 @@ public class SmtPreprocessorTest {
                         smtintFacts +
                 "]",
                 commands.get(0).command.formula.toString());
-        //assertEquals("[A_v_SintRef$0, SintExpr0$0, SintExpr1$0, SintExpr2$0, SintExpr3$0]",
-        //        commands.get(0).getIntrefAtoms());
+
         assertEqualsTupleSet("[" +
                 "[A_v_SintRef$0, SintExpr0$0], " +
                 "[A_v_SintRef$0, SintExpr1$0], " +
@@ -278,6 +274,10 @@ public class SmtPreprocessorTest {
                 "[SintExpr1$0, SintExpr3$0], " +
                 "[SintExpr2$0, SintExpr3$0]" +
                 "]");
+
+        assertEquals("[(= SintExpr1$0 (+ SintExpr0$0 2)), (= SintExpr2$0 4), (> SintExpr3$0 0)]",
+                commands.get(0).smtExprs.toString());
+
     }
 
     @Test
@@ -305,21 +305,7 @@ public class SmtPreprocessorTest {
                 "[SintExpr0$2, A_c$2]" +
                 "]");
 
-        //assertEquals("[(= (+ SintExpr0$0 2) 4), (= (+ SintExpr0$1 2) 4), (= (+ SintExpr0$2 2) 4)]",
-        //        commands.get(0).smtExprs.toString());
-/*
-        assertIntexprBound(0, "[" +
-                "[IntExpr0$0, A$0], " +
-                "[IntExpr0$1, A$1], " +
-                "[IntExpr0$2, A$2]" +
-                "]");
-
-        List<String> expectedHysatExprs = new Vector<String>();
-        expectedHysatExprs.add("((IntExpr0$0 + 2) = 4)");
-        expectedHysatExprs.add("((IntExpr0$1 + 2) = 4)");
-        expectedHysatExprs.add("((IntExpr0$2 + 2) = 4)");
-        assertEquals(expectedHysatExprs, ppresult.commands.get(0).hysatExprs);
-*/
-
+        assertEquals("[(= (+ SintExpr0$0 2) 4), (= (+ SintExpr0$1 2) 4), (= (+ SintExpr0$2 2) 4)]",
+                commands.get(0).smtExprs.toString());
     }
 }

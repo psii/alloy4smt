@@ -58,6 +58,11 @@ public abstract class SExpr<V> {
         public String toString() {
             return name;
         }
+
+        @Override
+        public <T> T accept(Visitor<V, T> vtVisitor) {
+            return vtVisitor.visit(this);
+        }
     }
 
     public static class Leaf<V> extends SExpr<V> {
@@ -70,6 +75,16 @@ public abstract class SExpr<V> {
         public V getValue() {
             return value;
         }
+
+        @Override
+        public <T> T accept(Visitor<V, T> vtVisitor) {
+            return vtVisitor.visit(this);
+        }
+
+        @Override
+        public String toString() {
+            return value.toString();
+        }
     }
 
     public static class SList<V> extends SExpr<V> {
@@ -77,6 +92,10 @@ public abstract class SExpr<V> {
 
         public SList(List<SExpr<V>> items) {
             this.items = items;
+        }
+
+        public List<SExpr<V>> getItems() {
+            return items;
         }
 
         @Override
@@ -91,6 +110,23 @@ public abstract class SExpr<V> {
             sb.append(")");
             return sb.toString();
         }
+
+        @Override
+        public <T> T accept(Visitor<V, T> vtVisitor) {
+            return vtVisitor.visit(this);
+        }
     }
+    
+    public static abstract class Visitor<V, T> {
+        public final T visitThis(SExpr<V> x) { return x.accept(this); }
+
+        public abstract T visit(Symbol<V> vSymbol);
+
+        public abstract T visit(Leaf<V> vLeaf);
+
+        public abstract T visit(SList<V> vsList);
+    }
+
+    public abstract<T> T accept(Visitor<V, T> vtVisitor);
 
 }
