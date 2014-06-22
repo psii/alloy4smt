@@ -2,16 +2,20 @@ package de.psi.alloy4smt.ast;
 
 
 import de.psi.alloy4smt.smt.SExpr;
+import de.psi.alloy4smt.smt.SMTFormula;
 import edu.mit.csail.sdg.alloy4.*;
 import edu.mit.csail.sdg.alloy4compiler.ast.*;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
-import edu.mit.csail.sdg.alloy4compiler.translator.BoundsComputer;
-import edu.mit.csail.sdg.alloy4compiler.translator.ScopeComputer;
+import edu.mit.csail.sdg.alloy4compiler.translator.*;
+import kodkod.ast.Formula;
 import kodkod.ast.Relation;
+import kodkod.engine.satlab.SATFactory;
+import kodkod.engine.satlab.SATSolver;
 import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class SmtPreprocessor {
@@ -20,6 +24,7 @@ public class SmtPreprocessor {
         FieldRewritePhase.Result frpr = FieldRewritePhase.run(input);
         FormulaRewritePhase.Result formr = FormulaRewritePhase.run(frpr);
         ComputeScopePhase.Result cspr = ComputeScopePhase.run(formr);
+        SmtTranslationPhase.run(cspr);
         return new Result(formr, cspr);
     }
 
@@ -370,8 +375,7 @@ public class SmtPreprocessor {
                 left = ref;
             } else {
                 Type type = null;
-                for (ExprVar oldvar : usedquantifiers) {
-                    ExprVar var = mapVar(oldvar);
+                for (ExprVar var : usedquantifiers) {
                     if (!var.type().hasArity(1))
                         throw new AssertionError("Quantified variables with arity > 1 are not supported");
                     dependencies.add(var.type());
@@ -471,7 +475,7 @@ public class SmtPreprocessor {
             return x;
         }
         @Override public Expr visit(ExprVar x) throws Err {
-            return x;
+            return ctx.mapVar(x);
         }
         @Override public Expr visit(ExprLet x) throws Err {
             return ExprLet.make(x.pos, x.var, apply(x.expr), apply(x.sub));
@@ -742,15 +746,18 @@ public class SmtPreprocessor {
         private final Command command;
         private final A4Solution solution;
         private final List<SExpr<String>> sexprs = new Vector<SExpr<String>>();
+        private final A4Options options;
 
         public static class Result {
             public final Command command;
             public final A4Solution solution;
+            public final A4Options options;
             public final ConstList<SExpr<String>> smtExprs;
 
-            public Result(Command command, A4Solution solution, ConstList<SExpr<String>> smtExprs) {
+            public Result(Command command, A4Solution solution, A4Options options, ConstList<SExpr<String>> smtExprs) {
                 this.command = command;
                 this.solution = solution;
+                this.options = options;
                 this.smtExprs = smtExprs;
             }
         }
@@ -814,7 +821,8 @@ public class SmtPreprocessor {
 
             // Build A4Solution
             command = in.frp.input.command.change(scopes.makeConst()).change(in.newformula);
-            Pair<A4Solution, ScopeComputer> solsc = ScopeComputer.compute(A4Reporter.NOP, makeA4Options(), in.allsigs, command);
+            options = makeA4Options();
+            Pair<A4Solution, ScopeComputer> solsc = ScopeComputer.compute(A4Reporter.NOP, options, in.allsigs, command);
             solution = solsc.a;
             BoundsComputer.compute(A4Reporter.NOP, solution, solsc.b, in.allsigs);
 
@@ -948,7 +956,60 @@ public class SmtPreprocessor {
 
         public static Result run(FormulaRewritePhase.Result in) throws Err {
             ComputeScopePhase p = new ComputeScopePhase(in);
-            return new Result(p.command, p.solution, ConstList.make(p.sexprs));
+            return new Result(p.command, p.solution, p.options, ConstList.make(p.sexprs));
+        }
+    }
+
+
+    private static class SmtTranslationPhase extends TranslateAlloyToKodkod {
+
+        protected SmtTranslationPhase(A4Reporter rep, A4Options opt, A4Solution frame, Command cmd) {
+            super(rep, opt, frame, cmd);
+        }
+
+        public static void run(ComputeScopePhase.Result csp) throws Err {
+            SMTFormula formula = new SMTFormula();
+
+            csp.solution.solver.options().setSolver(new SATFactory() {
+                @Override
+                public SATSolver instance() {
+                    return null;
+                }
+
+                @Override public boolean prover() {
+                    return false;
+                }
+                @Override public boolean minimizer() {
+                    return false;
+                }
+                @Override public boolean incremental() {
+                    return false;
+                }
+                @Override public String toString() {
+                    return "SMT Backend";
+                }
+            });
+
+            SmtTranslationPhase stp = new SmtTranslationPhase(A4Reporter.NOP, csp.options, csp.solution, csp.command);
+            stp.makeFacts(csp.command.formula);
+            final Formula kformula = stp.frame.makeFormula(A4Reporter.NOP, new Simplifier());
+
+            // KODKOD DEBUG OUTPUT
+            List<String> kkatoms = new Vector<String>();
+            for (Object atom : stp.frame.getFactory().universe()) {
+                kkatoms.add((String) atom);
+            }
+            String kkout = TranslateKodkodToJava.convert(kformula, stp.frame.getBitwidth(), kkatoms, stp.frame.getBounds(), null);
+            try {
+                File tmpout = File.createTempFile("kodkodout", ".txt");
+                FileWriter writer = new FileWriter(tmpout);
+                writer.write(csp.command.formula.toString());
+                writer.write("\n=======================================\n");
+                writer.write(kkout);
+                writer.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
