@@ -1,20 +1,13 @@
 package de.psi.alloy4smt.ast;
 
-import edu.mit.csail.sdg.alloy4.A4Reporter;
-import edu.mit.csail.sdg.alloy4.ConstList;
 import edu.mit.csail.sdg.alloy4.Err;
-import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompModule;
 import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil;
 import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
-import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
-import edu.mit.csail.sdg.alloy4compiler.translator.BoundsComputer;
-import edu.mit.csail.sdg.alloy4compiler.translator.ScopeComputer;
 import kodkod.ast.Relation;
 import kodkod.instance.TupleSet;
-import kodkod.instance.Universe;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -24,8 +17,6 @@ import java.util.Map;
 import java.util.Vector;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 public class SmtPreprocessorTest {
 

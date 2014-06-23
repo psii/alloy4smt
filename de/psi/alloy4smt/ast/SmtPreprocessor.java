@@ -8,6 +8,9 @@ import edu.mit.csail.sdg.alloy4compiler.ast.*;
 import edu.mit.csail.sdg.alloy4compiler.translator.*;
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
+import kodkod.engine.fol2sat.Translation;
+import kodkod.engine.fol2sat.Translator;
+import kodkod.engine.fol2sat.TrivialFormulaException;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.satlab.SATSolver;
 import kodkod.instance.Tuple;
@@ -993,7 +996,15 @@ public class SmtPreprocessor {
             SmtTranslationPhase stp = new SmtTranslationPhase(A4Reporter.NOP, csp.options, csp.solution, csp.command);
             stp.makeFacts(csp.command.formula);
             final Formula kformula = stp.frame.makeFormula(A4Reporter.NOP, new Simplifier());
+            kodkodDebug(csp, stp, kformula);
+            try {
+                final Translation tl = Translator.translate(kformula, stp.frame.getBounds(), stp.frame.solver.options());
+            } catch (TrivialFormulaException e) {
+                e.printStackTrace();
+            }
+        }
 
+        private static void kodkodDebug(ComputeScopePhase.Result csp, SmtTranslationPhase stp, Formula kformula) {
             // KODKOD DEBUG OUTPUT
             List<String> kkatoms = new Vector<String>();
             for (Object atom : stp.frame.getFactory().universe()) {
