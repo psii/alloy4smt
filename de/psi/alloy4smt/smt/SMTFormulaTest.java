@@ -31,6 +31,9 @@ public class SMTFormulaTest {
         form.addIntegerVariable("duper");
         SExpr<String> c = SExpr.call("=", SExpr.leaf("super"), SExpr.call("=", SExpr.leaf("duper"), SExpr.<String>num(1)));
         form.addConstraint(c);
+        assertEquals("(declare-fun super () Bool)\n" +
+                "(declare-fun duper () Int)\n", form.getVariableDecls());
+        assertEquals("(assert (= super (= duper 1)))\n", form.getConstraints());
         assertEquals("(set-logic QF_NRA)\n" +
                 "(set-info :smt-lib-version 2.0)\n" +
                 "(declare-fun super () Bool)\n" +

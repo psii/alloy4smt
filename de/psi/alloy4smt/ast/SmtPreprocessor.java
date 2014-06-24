@@ -2,7 +2,7 @@ package de.psi.alloy4smt.ast;
 
 
 import de.psi.alloy4smt.smt.SExpr;
-import de.psi.alloy4smt.smt.SMTFormula;
+import de.psi.alloy4smt.smt.SMTSolver;
 import edu.mit.csail.sdg.alloy4.*;
 import edu.mit.csail.sdg.alloy4compiler.ast.*;
 import edu.mit.csail.sdg.alloy4compiler.translator.*;
@@ -350,7 +350,7 @@ public class SmtPreprocessor {
             sb.append(exprcnt++);
             Sig.PrimSig ref = new Sig.PrimSig(sb.toString(), in.sigSintref);
             addRefSig(ref, null, new Vector<Type>());
-            SExpr<Sig> symb = SExpr.<Sig>sym(sb.toString() + "$0");
+            SExpr<Sig> symb = SExpr.<Sig>leaf(ref);
             addGlobalFact(SExpr.eq(symb, sexpr));
             return ref;
         }
@@ -750,18 +750,29 @@ public class SmtPreprocessor {
         private final A4Solution solution;
         private final List<SExpr<String>> sexprs = new Vector<SExpr<String>>();
         private final A4Options options;
+        private final Relation equalsrel;
+        private final ConstList.TempList<SExpr.Leaf<String>> smtvars = new ConstList.TempList<SExpr.Leaf<String>>();
+        private final Map<Sig.PrimSig, List<SExpr.Leaf<String>>> sig2smtvars = new HashMap<Sig.PrimSig, List<SExpr.Leaf<String>>>();
+        private final Map<Object, SExpr.Leaf<String>> atom2smtvar = new HashMap<Object, SExpr.Leaf<String>>();
+        private final List<Pair<SExpr.Leaf<String>, SExpr.Leaf<String>>> equalsSmtBounds = new Vector<Pair<SExpr.Leaf<String>, SExpr.Leaf<String>>>();
 
         public static class Result {
             public final Command command;
             public final A4Solution solution;
             public final A4Options options;
+            public final Relation equalsrel;
             public final ConstList<SExpr<String>> smtExprs;
+            public final ConstList<SExpr.Leaf<String>> smtVars;
+            public final ConstList<Pair<SExpr.Leaf<String>, SExpr.Leaf<String>>> equalsSmtBounds;
 
-            public Result(Command command, A4Solution solution, A4Options options, ConstList<SExpr<String>> smtExprs) {
+            public Result(Command command, A4Solution solution, A4Options options, Relation equalsrel, ConstList<SExpr<String>> smtExprs, ConstList<SExpr.Leaf<String>> smtVars, ConstList<Pair<SExpr.Leaf<String>, SExpr.Leaf<String>>> equalsSmtBounds) {
                 this.command = command;
                 this.solution = solution;
                 this.options = options;
+                this.equalsrel = equalsrel;
                 this.smtExprs = smtExprs;
+                this.smtVars = smtVars;
+                this.equalsSmtBounds = equalsSmtBounds;
             }
         }
 
@@ -829,8 +840,20 @@ public class SmtPreprocessor {
             solution = solsc.a;
             BoundsComputer.compute(A4Reporter.NOP, solution, solsc.b, in.allsigs);
 
+            // Populate SintRef atom -> SMT variable mapping
+            for (Sig.PrimSig sig : sintrefs) {
+                List<SExpr.Leaf<String>> vars = new Vector<SExpr.Leaf<String>>();
+                for (Object atom : getAtoms(sig)) {
+                    SExpr.Leaf<String> var = new SExpr.Leaf<String>(atom.toString().replace("$", "_"));
+                    vars.add(var);
+                    atom2smtvar.put(atom, var);
+                    smtvars.add(var);
+                }
+                sig2smtvars.put(sig, vars);
+            }
+
             // set bounds for equals field
-            final Relation equalsrel = (Relation) solution.a2k(in.frp.equalsf);
+            equalsrel = (Relation) solution.a2k(in.frp.equalsf);
             if (equalsrel != null) {
                 final List<Object> sintrefAtoms = new Vector<Object>();
                 for (Sig.PrimSig s : sintrefs) {
@@ -840,11 +863,16 @@ public class SmtPreprocessor {
                 final TupleSet equalsBound = new TupleSet(solution.getBounds().universe(), 2);
                 for (int i = 0; i < sintrefAtoms.size(); ++i) {
                     for (int j = i + 1; j < sintrefAtoms.size(); ++j) {
-                        equalsBound.add(solution.getFactory().tuple(sintrefAtoms.get(i), sintrefAtoms.get(j)));
+                        Object atomA = sintrefAtoms.get(i);
+                        Object atomB = sintrefAtoms.get(j);
+                        SExpr.Leaf<String> varA = atom2smtvar.get(atomA);
+                        SExpr.Leaf<String> varB = atom2smtvar.get(atomB);
+                        equalsBound.add(solution.getFactory().tuple(atomA, atomB));
+                        equalsSmtBounds.add(new Pair<SExpr.Leaf<String>, SExpr.Leaf<String>>(varA, varB));
                     }
                 }
 
-                solution.shrink(equalsrel, equalsBound, equalsBound);
+                solution.shrink(equalsrel, new TupleSet(solution.getBounds().universe(), 2), equalsBound);
             }
 
             // set bounds for SintExpr maps
@@ -891,11 +919,7 @@ public class SmtPreprocessor {
 
             @Override
             public List<SExpr<String>> visit(SExpr.Leaf<Sig> sigLeaf) {
-                final Vector<SExpr<String>> result = new Vector<SExpr<String>>();
-                for (Object atom : csp.getAtoms((Sig.PrimSig) sigLeaf.getValue())) {
-                    result.add(new SExpr.Leaf<String>(atom.toString()));
-                }
-                return result;
+                return new Vector<SExpr<String>>(csp.sig2smtvars.get((Sig.PrimSig) sigLeaf.getValue()));
             }
 
             @Override
@@ -959,7 +983,7 @@ public class SmtPreprocessor {
 
         public static Result run(FormulaRewritePhase.Result in) throws Err {
             ComputeScopePhase p = new ComputeScopePhase(in);
-            return new Result(p.command, p.solution, p.options, ConstList.make(p.sexprs));
+            return new Result(p.command, p.solution, p.options, p.equalsrel, ConstList.make(p.sexprs), p.smtvars.makeConst(), ConstList.make(p.equalsSmtBounds));
         }
     }
 
@@ -971,12 +995,12 @@ public class SmtPreprocessor {
         }
 
         public static void run(ComputeScopePhase.Result csp) throws Err {
-            SMTFormula formula = new SMTFormula();
+            final SMTSolver solver = new SMTSolver();
 
             csp.solution.solver.options().setSolver(new SATFactory() {
                 @Override
                 public SATSolver instance() {
-                    return null;
+                    return solver;
                 }
 
                 @Override public boolean prover() {
@@ -996,15 +1020,30 @@ public class SmtPreprocessor {
             SmtTranslationPhase stp = new SmtTranslationPhase(A4Reporter.NOP, csp.options, csp.solution, csp.command);
             stp.makeFacts(csp.command.formula);
             final Formula kformula = stp.frame.makeFormula(A4Reporter.NOP, new Simplifier());
-            kodkodDebug(csp, stp, kformula);
+            final Translation tl;
             try {
-                final Translation tl = Translator.translate(kformula, stp.frame.getBounds(), stp.frame.solver.options());
+                tl = Translator.translate(kformula, stp.frame.getBounds(), stp.frame.solver.options());
             } catch (TrivialFormulaException e) {
                 e.printStackTrace();
+                throw new ErrorFatal(e.toString());
             }
+
+            for (SExpr.Leaf<String> var : csp.smtVars) {
+                solver.addIntVariable(var.getValue());
+            }
+
+            if (csp.equalsrel != null) {
+                int[] relvars = tl.primaryVariables(csp.equalsrel).toArray();
+                for (int i = 0; i < relvars.length; ++i) {
+                    final Pair<SExpr.Leaf<String>, SExpr.Leaf<String>> pair = csp.equalsSmtBounds.get(i);
+                    solver.addEquality(relvars[i], SExpr.<String>eq(pair.a, pair.b));
+                }
+            }
+
+            kodkodDebug(csp, stp, kformula, solver);
         }
 
-        private static void kodkodDebug(ComputeScopePhase.Result csp, SmtTranslationPhase stp, Formula kformula) {
+        private static void kodkodDebug(ComputeScopePhase.Result csp, SmtTranslationPhase stp, Formula kformula, SMTSolver solver) {
             // KODKOD DEBUG OUTPUT
             List<String> kkatoms = new Vector<String>();
             for (Object atom : stp.frame.getFactory().universe()) {
@@ -1017,6 +1056,8 @@ public class SmtPreprocessor {
                 writer.write(csp.command.formula.toString());
                 writer.write("\n=======================================\n");
                 writer.write(kkout);
+                writer.write("\n=======================================\n");
+                writer.write(solver.makeSMTFormula().toString());
                 writer.close();
             } catch (IOException e) {
                 e.printStackTrace();

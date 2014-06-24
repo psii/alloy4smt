@@ -133,10 +133,10 @@ public class SmtPreprocessorTest {
                 "sig X { v: Y ->one Sint -> Y }\n" +
                         "sig Y {}\n" +
                         "pred show {}\n" +
-                        "run show for 5 X, 6 Y\n"
+                        "run show for 3 X, 4 Y\n"
         );
-        assertEquals("Run show for 5 X, 6 Y", module.getAllCommands().get(0).toString());
-        assertEquals("Run show for 5 X_c, 6 Y_c, exactly 180 X_v_SintRef",
+        assertEquals("Run show for 3 X, 4 Y", module.getAllCommands().get(0).toString());
+        assertEquals("Run show for 3 X_c, 4 Y_c, exactly 48 X_v_SintRef",
                 commands.get(0).command.toString());
     }
 
@@ -209,7 +209,7 @@ public class SmtPreprocessorTest {
         final Relation rel = (Relation) command.solution.a2k(command.equalsf);
         final TupleSet lb = command.solution.getBounds().lowerBound(rel);
         final TupleSet ub = command.solution.getBounds().upperBound(rel);
-        assertEquals(tuplesetstr, lb.toString());
+        assertEquals("[]", lb.toString());
         assertEquals(tuplesetstr, ub.toString());
     }
 
@@ -266,7 +266,7 @@ public class SmtPreprocessorTest {
                 "[SintExpr2$0, SintExpr3$0]" +
                 "]");
 
-        assertEquals("[(= SintExpr1$0 (+ SintExpr0$0 2)), (= SintExpr2$0 4), (> SintExpr3$0 0)]",
+        assertEquals("[(= SintExpr1_0 (+ SintExpr0_0 2)), (= SintExpr2_0 4), (> SintExpr3_0 0)]",
                 commands.get(0).smtExprs.toString());
 
     }
@@ -296,7 +296,7 @@ public class SmtPreprocessorTest {
                 "[SintExpr0$2, A_c$2]" +
                 "]");
 
-        assertEquals("[(= (+ SintExpr0$0 2) 4), (= (+ SintExpr0$1 2) 4), (= (+ SintExpr0$2 2) 4)]",
+        assertEquals("[(= (+ SintExpr0_0 2) 4), (= (+ SintExpr0_1 2) 4), (= (+ SintExpr0_2 2) 4)]",
                 commands.get(0).smtExprs.toString());
     }
 }

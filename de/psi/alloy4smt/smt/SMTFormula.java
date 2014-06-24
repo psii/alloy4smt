@@ -13,18 +13,8 @@ public class SMTFormula {
         StringBuilder sb = new StringBuilder();
         sb.append("(set-logic QF_NRA)\n");
         sb.append("(set-info :smt-lib-version 2.0)\n");
-        for (String varname : boolvars) {
-            sb.append("(declare-fun ");
-            sb.append(varname);
-            sb.append(" () Bool)\n");
-        }
-        for (String varname : intvars) {
-            sb.append("(declare-fun ");
-            sb.append(varname);
-            sb.append(" () Int)\n");
-        }
-        for (SExpr<String> c : constraints)
-            sb.append(c.toString() + "\n");
+        sb.append(getVariableDecls());
+        sb.append(getConstraints());
         return sb.toString();
     }
 
@@ -38,5 +28,27 @@ public class SMTFormula {
 
     public void addIntegerVariable(String varname) {
         intvars.add(varname);
+    }
+
+    public String getVariableDecls() {
+        StringBuilder sb = new StringBuilder();
+        for (String varname : boolvars) {
+            sb.append("(declare-fun ");
+            sb.append(varname);
+            sb.append(" () Bool)\n");
+        }
+        for (String varname : intvars) {
+            sb.append("(declare-fun ");
+            sb.append(varname);
+            sb.append(" () Int)\n");
+        }
+        return sb.toString();
+    }
+
+    public String getConstraints() {
+        StringBuilder sb = new StringBuilder();
+        for (SExpr<String> c : constraints)
+            sb.append(c.toString() + "\n");
+        return sb.toString();
     }
 }
